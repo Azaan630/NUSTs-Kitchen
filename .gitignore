@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+venv/
 env/
 
 # Operating System junk
@@ -17,3 +18,6 @@ mysql_data/
 .idea/
 .vscode/
 *.swp
+
+
+
