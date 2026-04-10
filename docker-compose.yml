@@ -1,0 +1,42 @@
+services:
+  db:
+    image: mysql:8.0
+    platform: linux/amd64
+    container_name: mess_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: mess_db
+      MYSQL_ROOT_PASSWORD: meow@123
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+
+  backend:
+    build: ./backend
+    platform: linux/amd64
+    container_name: mess_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=db
+    depends_on:
+      - db
+
+  flet_app:
+    build: ./frontend_main
+    platform: linux/amd64
+    container_name: mess_flet
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+  admin_dashboard:
+    build: ./frontend_admin
+    platform: linux/amd64
+    container_name: mess_streamlit
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
