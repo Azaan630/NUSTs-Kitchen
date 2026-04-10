@@ -1,0 +1,19 @@
+# Python junk
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Operating System junk
+.DS_Store
+Thumbs.db
+
+# Docker / Database junk
+mysql_data/
+.env
+
+# IDE junk (IntelliJ / VS Code)
+.idea/
+.vscode/
+*.swp
