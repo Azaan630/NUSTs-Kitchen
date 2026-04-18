@@ -1,50 +1,45 @@
-import mysql.connector
 import time
+from mysql.connector import pooling, Error
+from dotenv import load_dotenv
 import os
 
+from mysql.connector.aio import MySQLConnectionPool
 
-def get_db_connection():
-    """
-    Establishes a connection to the MySQL container.
-    Includes a retry loop because MySQL takes time to start inside Docker.
-    """
-    # These match your docker-compose environment variables
-    db_config = {
-        'host': 'db',  # Name of the service in docker-compose
-        'user': 'root',
-        'password': 'meow@123',
-        'database': 'mess_db',
-        'port': 3306  # Internal Docker port
-    }
+load_dotenv()
 
-    # Try connecting 10 times with a 2-second gap
-    for attempt in range(10):
+def create_pool():
+    while True:
         try:
-            connection = mysql.connector.connect(**db_config)
-            if connection.is_connected():
-                print("Successfully connected to the database!")
-                return connection
-        except mysql.connector.Error as err:
-            print(f"Attempt {attempt + 1}: Database not ready yet... ({err})")
-            time.sleep(2)
+            return pooling.MySQLConnectionPool(
+                pool_name="db_pool",
+                pool_size=10,
+                host=os.getenv("DB_HOST"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                database=os.getenv("DB_NAME"),
+                port=int(os.getenv("DB_PORT", "3306")),
+            )
+        except Error as err:
+            print(f"Database not ready: {err}. Retrying in 5 seconds...")
+            time.sleep(5)
 
-    raise Exception("Could not connect to the database after multiple attempts.")
+db_pool: MySQLConnectionPool = create_pool()
 
-
-# Test function to run a simple raw SQL query
-def test_query():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)  # returns data as a Python Dict
-
-    # Simple Raw SQL to verify our init.sql data
-    cursor.execute("SELECT * FROM Food_Items")
-    results = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-    return results
-
+def get_db():
+    if db_pool is not None:
+        conn = db_pool.get_connection()
+        try:
+            yield conn
+        finally:
+            conn.close()
+    else:
+        raise RuntimeError("Database pool was not initialized.")
 
 if __name__ == "__main__":
-    # If you run this file directly, it will test the connection
-    print(test_query())
+    try:
+        print("Testing database connection...")
+        connection = db_pool.get_connection()
+        print(f"Connected to {os.getenv('DB_NAME')} at {os.getenv('DB_HOST')}")
+        connection.close()
+    except Exception as e:
+        print(f"Error: {e}")

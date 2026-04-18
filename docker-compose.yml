@@ -1,12 +1,18 @@
 services:
   db:
     image: mysql:8.0
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 5s
+      retries: 10
+    env_file:
+      - .env
     platform: linux/amd64
     container_name: mess_db
     restart: always
     environment:
-      MYSQL_DATABASE: mess_db
-      MYSQL_ROOT_PASSWORD: meow@123
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
@@ -14,6 +20,8 @@ services:
 
   backend:
     build: ./backend
+    env_file:
+      - .env
     platform: linux/amd64
     container_name: mess_backend
     ports:
@@ -21,7 +29,8 @@ services:
     environment:
       - DATABASE_URL=db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   flet_app:
     build: ./frontend_main

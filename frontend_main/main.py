@@ -1,25 +1,30 @@
 import flet as ft
-# Import your client to prove the button can talk to the backend
-from api_client import get_status
-
+from api_client import get_all_users
 
 def main(page: ft.Page):
-    # This text will update when you click the button
-    status_text = ft.Text("Status: Waiting...")
+    page.title = "RotiRouter User Test"
+    user_list = ft.Column()
 
-    def button_clicked(e):
-        # 1. Call the API
-        data = get_status()
-        # 2. Update the UI
-        status_text.value = f"Backend says: {data.get('database')}"
-        # 3. CRITICAL: Tell Flet the UI changed!
+    def handle_test_click(e):
+        users = get_all_users()
+        user_list.controls.clear()
+        if not users:
+            user_list.controls.append(ft.Text("No users found or Backend offline.", color="red"))
+        for u in users:
+            user_list.controls.append(
+                ft.ListTile(
+                    title=ft.Text(f"{u['First_Name']} {u['Last_Name']}"),
+                    subtitle=ft.Text(u['Email'])
+                )
+            )
         page.update()
 
     page.add(
-        ft.Text("RotiRouter Control", size=20),
-        ft.ElevatedButton("Check Connection", on_click=button_clicked),
-        status_text
+        ft.Text("RotiRouter Connection Test", size=30, weight="bold"),
+        ft.ElevatedButton("Fetch Users from Backend", on_click=handle_test_click),
+        ft.Divider(),
+        user_list
     )
 
-
-ft.app(target=main, port=8080, view=ft.AppView.WEB_BROWSER)
+if __name__ == "__main__":
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080)
