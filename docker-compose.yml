@@ -1,13 +1,13 @@
 services:
   db:
     image: mysql:8.0
+    platform: linux/amd64
     healthcheck:
       test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
       timeout: 5s
       retries: 10
     env_file:
       - .env
-    platform: linux/amd64
     container_name: mess_db
     restart: always
     environment:
@@ -17,12 +17,12 @@ services:
       - "3307:3306"
     volumes:
       - ./db:/docker-entrypoint-initdb.d
+      - mess_db_data:/var/lib/mysql
 
   backend:
     build: ./backend
     env_file:
       - .env
-    platform: linux/amd64
     container_name: mess_backend
     ports:
       - "8000:8000"
@@ -31,21 +31,30 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
 
   flet_app:
     build: ./frontend_main
-    platform: linux/amd64
     container_name: mess_flet
     ports:
       - "8080:8080"
+    command: python main.py
     depends_on:
       - backend
+    volumes:
+      - ./frontend_main:/app
 
   admin_dashboard:
     build: ./frontend_admin
-    platform: linux/amd64
     container_name: mess_streamlit
     ports:
       - "8501:8501"
     depends_on:
       - backend
+    volumes:
+    - ./frontend_admin:/app
+
+volumes:
+  mess_db_data:
