@@ -24,21 +24,70 @@ async def main(page: ft.Page):
 
     async def show_authenticated_ui(user_name):
         page.clean()
+        page.bgcolor = ft.Colors.GREY_50  # Soft background
 
-        # 1. Try to grab the data we supposedly saved
-        # We use getattr as a safety net
-        saved_user = getattr(page, "current_user_data", "NOT FOUND")
+        # Retrieve the saved user data
+        user = getattr(page, "current_user_data", {})
+        email = user.get("Email", "N/A")
+        user_id = user.get("UserID", "0000")
+        account_type = user.get("Account_Type", "Student").upper()
 
-        # 2. Display it directly on the screen
+        # The Profile Card
+        profile_card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Icon(ft.Icons.ACCOUNT_CIRCLE, size=50, color=ft.Colors.BLUE_900),
+                    ft.Column([
+                        ft.Text(user_name, size=24, weight="bold", color=ft.Colors.BLUE_900),
+                        ft.Text(f"ID: {user_id} | {account_type}", size=14, color=ft.Colors.GREY_700),
+                    ], spacing=0)
+                ], alignment=ft.MainAxisAlignment.START),
+
+                ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+
+                ft.Row([
+                    ft.Icon(ft.Icons.EMAIL_OUTLINED, size=20, color=ft.Colors.BLUE_700),
+                    ft.Text(email, size=16),
+                ]),
+
+                ft.Container(height=10),
+
+                # Action Buttons
+                ft.Row([
+                    ft.ElevatedButton(
+                        "View Menu",
+                        icon=ft.Icons.RESTAURANT_MENU,
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.BLUE_900),
+                    ),
+                    ft.OutlinedButton(
+                        "Logout",
+                        icon=ft.Icons.LOGOUT,
+                        on_click=lambda _: page.logout(),
+                    ),
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+            ]),
+            padding=30,
+            width=450,
+            bgcolor=ft.Colors.WHITE,
+            border_radius=20,
+            shadow=ft.BoxShadow(
+                spread_radius=1,
+                blur_radius=15,
+                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+                offset=ft.Offset(0, 5),
+            ),
+        )
+
+        # Header and Layout
         page.add(
-            ft.Text(f"Welcome, {user_name}!", size=30, weight="bold"),
-            ft.Divider(),
-            ft.Text("SESSION DATA CHECK:", color="blue", weight="bold"),
-
-            # If this shows the full dictionary, your 'Direct Attribute' trick is 100% working
-            ft.Text(f"{saved_user}", color="green" if saved_user != "NOT FOUND" else "red"),
-
-            ft.ElevatedButton("Logout", on_click=lambda _: page.logout())
+            ft.Column([
+                ft.Text("RotiRouter", size=40, weight="bold", color=ft.Colors.BLUE_900),
+                ft.Text("SEECS Mess Management System", size=16, color=ft.Colors.GREY_600),
+                ft.Container(height=20),
+                profile_card,
+                ft.Container(height=40),
+                ft.Text("© 2026 NUST SEECS - Batch '25", size=12, color=ft.Colors.GREY_400)
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
         page.update()
 
