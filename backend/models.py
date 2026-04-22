@@ -2,15 +2,12 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 class UserPublic(BaseModel):
-     UserID: int = Field(alias="UserID")
-     First_Name: str = Field(alias="First_Name")
-     Last_Name: str = Field(alias="Last_Name")
-     Email: str = Field(alias="Email")
-     Account_Type: str = Field(alias="Account_Type")
+     UserID: int
+     First_Name: str
+     Last_Name: str
+     Email: str
+     Account_Type: str
 
-     # This allows you to still use the camelCase names
-     # when creating the model manually in Python
-     model_config = {"populate_by_name": True}
 """
 class User(BaseModel):
     userID: int

@@ -1,2 +1,4 @@
 flet
 httpx
+requests
+python-dotenv

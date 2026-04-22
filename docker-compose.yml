@@ -37,9 +37,11 @@ services:
 
   flet_app:
     build: ./frontend_main
+    env_file:
+      - .env
     container_name: mess_flet
     ports:
-      - "8080:8080"
+      - "8550:8550"
     command: python main.py
     depends_on:
       - backend

@@ -1,1 +1,1 @@
-GET_ALL_USERS = "select * from Users"
+findUserByEmail = "SELECT * FROM Users WHERE Email = %s"
