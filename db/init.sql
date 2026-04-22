@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS Food_Items (
 
 INSERT INTO Users (First_Name, Last_Name, Email, Password, Account_Type)
 VALUES
-('Azaan', 'Muhammad', 'azaan@nust.edu.pk', 'admin123', 'Admin'),
+('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'admin123', 'Admin'),
 ('Bob', 'Khan', 'farhad@nust.edu.pk', 'student123', 'Student');
 
 INSERT INTO Food_Items (Name, Description, Price)

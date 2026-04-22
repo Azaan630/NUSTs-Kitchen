@@ -1,5 +1,8 @@
 fastapi
 uvicorn[standard]
 mysql-connector-python
-python-multipart
 python-dotenv
+google-auth
+requests
+pydantic
+pydantic-settings
