@@ -6,136 +6,189 @@ import requests
 
 load_dotenv()
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+# --- CONFIGURATION ---
+BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 
 async def main(page: ft.Page):
-    page.title = "RotiRouter | NUST"
+    # Initial Page Setup
+    page.title = "RotiRouter | NUST SEECS"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.padding = 0
+    page.spacing = 0
 
+    # Provider setup
     provider = ft.auth.GoogleOAuthProvider(
-        client_id=GOOGLE_CLIENT_ID,
-        client_secret=GOOGLE_CLIENT_SECRET,
+        client_id=os.getenv("GOOGLE_CLIENT_ID"),
+        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
         redirect_url="http://localhost:8550/oauth_callback",
     )
 
-    async def show_authenticated_ui(user_name):
-        page.clean()
-        page.bgcolor = ft.Colors.GREY_50  # Soft background
+    # --- DEFENSIVE DATA RETRIEVAL ---
+    def get_user_data():
+        return getattr(page, "current_user_data", {})
 
-        # Retrieve the saved user data
-        user = getattr(page, "current_user_data", {})
-        email = user.get("Email", "N/A")
-        user_id = user.get("UserID", "0000")
-        account_type = user.get("Account_Type", "Student").upper()
+    def get_val(key, default="N/A"):
+        return get_user_data().get(key, default)
 
-        # The Profile Card
-        profile_card = ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.ACCOUNT_CIRCLE, size=50, color=ft.Colors.BLUE_900),
-                    ft.Column([
-                        ft.Text(user_name, size=24, weight="bold", color=ft.Colors.BLUE_900),
-                        ft.Text(f"ID: {user_id} | {account_type}", size=14, color=ft.Colors.GREY_700),
-                    ], spacing=0)
-                ], alignment=ft.MainAxisAlignment.START),
+    # --- PERSISTENT UI ELEMENT: THE STATUS BAR ---
+    # We define this globally so the tester can reach it
+    status_icon = ft.Icon(ft.Icons.SHIELD_OUTLINED, color=ft.Colors.GREY_400)
+    status_text = ft.Text("System Standby: Awaiting Bouncer Check", weight="bold")
 
-                ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+    status_bar = ft.Container(
+        content=ft.Row([status_icon, status_text], alignment=ft.MainAxisAlignment.CENTER),
+        padding=15,
+        bgcolor=ft.Colors.GREY_100,
+        border_radius=10,
+        animate=ft.Animation(400, "decelerate")
+    )
 
-                ft.Row([
-                    ft.Icon(ft.Icons.EMAIL_OUTLINED, size=20, color=ft.Colors.BLUE_700),
-                    ft.Text(email, size=16),
-                ]),
+    # --- CORE LOGIC: BACKEND TESTER ---
+    async def run_rbac_test(e):
+        route = e.control.data
+        email = get_val("Email", None)
 
-                ft.Container(height=10),
-
-                # Action Buttons
-                ft.Row([
-                    ft.ElevatedButton(
-                        "View Menu",
-                        icon=ft.Icons.RESTAURANT_MENU,
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.BLUE_900),
-                    ),
-                    ft.OutlinedButton(
-                        "Logout",
-                        icon=ft.Icons.LOGOUT,
-                        on_click=lambda _: page.logout(),
-                    ),
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
-            ]),
-            padding=30,
-            width=450,
-            bgcolor=ft.Colors.WHITE,
-            border_radius=20,
-            shadow=ft.BoxShadow(
-                spread_radius=1,
-                blur_radius=15,
-                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-                offset=ft.Offset(0, 5),
-            ),
-        )
-
-        # Header and Layout
-        page.add(
-            ft.Column([
-                ft.Text("RotiRouter", size=40, weight="bold", color=ft.Colors.BLUE_900),
-                ft.Text("SEECS Mess Management System", size=16, color=ft.Colors.GREY_600),
-                ft.Container(height=20),
-                profile_card,
-                ft.Container(height=40),
-                ft.Text("© 2026 NUST SEECS - Batch '25", size=12, color=ft.Colors.GREY_400)
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-        )
-        page.update()
-
-    async def on_login(e: ft.LoginEvent):
-        if e.error:
-            page.add(ft.Text(f"Login error: {e.error}", color="red"))
+        if not email:
+            status_text.value = "ERROR: Email missing from session"
+            status_bar.bgcolor = ft.Colors.RED_100
             page.update()
             return
 
-        # Wait for user object to populate
-        for _ in range(10):
-            if page.auth and page.auth.user:
-                break
-            await asyncio.sleep(0.5)
+        # 1. Loading State
+        e.control.disabled = True
+        status_text.value = f"Contacting Bouncer for {route}..."
+        status_bar.bgcolor = ft.Colors.BLUE_50
+        status_icon.name = ft.Icons.SYNC
+        status_icon.color = ft.Colors.BLUE_400
+        page.update()
 
-        if page.auth and page.auth.user:
-            user_email = page.auth.user.get("email")
+        try:
+            loop = asyncio.get_event_loop()
+            res = await loop.run_in_executor(
+                None,
+                lambda: requests.get(f"{BACKEND_URL}/test/{route}", params={"email": email}, timeout=5)
+            )
 
-            # Use a simple HTTP GET request with the email as a query param
-            # This matches the new backend signature: /users/verify?email=...
-            try:
-                # We use the BACKEND_URL from your env
-                backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
-                response = requests.get(f"{backend_url}/users/verify", params={"email": user_email})
+            # 2. Update UI based on Response
+            if res.status_code == 200:
+                status_text.value = f"PERMITTED: Access granted to {route}!"
+                status_bar.bgcolor = ft.Colors.GREEN_100
+                status_icon.name = ft.Icons.VERIFIED_USER
+                status_icon.color = ft.Colors.GREEN_700
+            elif res.status_code == 403:
+                status_text.value = "BANNED: Bouncer says your role is insufficient."
+                status_bar.bgcolor = ft.Colors.RED_100
+                status_icon.name = ft.Icons.GPP_BAD
+                status_icon.color = ft.Colors.RED_700
+            else:
+                status_text.value = f"SERVER ERROR: Status Code {res.status_code}"
+                status_bar.bgcolor = ft.Colors.ORANGE_100
+                status_icon.name = ft.Icons.WARNING_AMBER
+                status_icon.color = ft.Colors.ORANGE_700
 
-                if response.status_code == 200:
-                    data = response.json()
+        except Exception as ex:
+            status_text.value = f"CONNECTION FAILED: {str(ex)}"
+            status_bar.bgcolor = ft.Colors.RED_100
+            status_icon.name = ft.Icons.DANGEROUS
 
-                    # --- ADD THE LOGIC HERE ---
-                    user_data = data["user_details"]
+        # 3. Restore Button
+        e.control.disabled = False
+        page.update()
 
-                    # page.session is like a private locker for this specific user tab
-                    page.current_user_data = user_data
-                    page.is_authenticated = True
+    # --- UI COMPONENT: DASHBOARD ---
+    async def show_dashboard():
+        page.clean()
 
-                    # Now use the data we just stored to greet them
-                    first = user_data.get("First_Name", "Student")
-                    last = user_data.get("Last_Name", "")
-                    full_name = f"{first} {last}".strip()
+        user_role = str(get_val("Account_Type", "Student")).upper()
+        full_name = f"{get_val('First_Name', 'User')} {get_val('Last_Name', '')}".strip()
 
-                    await show_authenticated_ui(full_name)
-                elif response.status_code == 403:
-                    page.clean()
-                    page.add(ft.Icon(ft.Icons.BLOCK, color="red"), ft.Text("Not Registered in NUST Mess System"))
+        rail = ft.NavigationRail(
+            selected_index=0,
+            label_type=ft.NavigationRailLabelType.ALL,
+            min_width=100,
+            destinations=[
+                ft.NavigationRailDestination(icon=ft.Icons.DASHBOARD_ROUNDED, label="Home"),
+                ft.NavigationRailDestination(icon=ft.Icons.RESTAURANT_MENU_ROUNDED, label="Menu"),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.SETTINGS_SUGGEST_ROUNDED,
+                    label="Admin"
+                ) if user_role == "ADMIN" else ft.NavigationRailDestination(icon=ft.Icons.PERSON, label="Profile"),
+            ],
+            bgcolor=ft.Colors.GREY_50,
+        )
+
+        content_view = ft.Container(
+            content=ft.Column([
+                ft.Text(f"Welcome, {full_name}", size=32, weight="bold", color=ft.Colors.BLUE_900),
+                ft.Text(f"Identity Verified | Role: {user_role}", color=ft.Colors.GREY_600),
+                ft.Divider(height=30),
+
+                # The Status Banner is now at the top of the action area
+                status_bar,
+
+                ft.Container(height=20),
+                ft.Text("Security Bouncer Verification", size=20, weight="w600"),
+                ft.Row([
+                    ft.FilledButton(
+                        content=ft.Text("Test Admin Gate"),
+                        icon=ft.Icons.ADMIN_PANEL_SETTINGS,
+                        data="admin-only",
+                        on_click=run_rbac_test,
+                        style=ft.ButtonStyle(bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900})
+                    ),
+                    ft.OutlinedButton(
+                        content=ft.Text("Test Any Authorized"),
+                        icon=ft.Icons.LOCK_OPEN_ROUNDED,
+                        data="any-authorized",
+                        on_click=run_rbac_test,
+                    ),
+                ], spacing=15),
+
+                ft.Container(height=30),
+                ft.Text("Session Meta (Read-Only)", size=14, weight="bold", color=ft.Colors.GREY_500),
+                ft.Container(
+                    content=ft.Text(f"{get_user_data()}", size=12, font_family="monospace"),
+                    padding=15,
+                    bgcolor=ft.Colors.GREY_100,
+                    border_radius=10,
+                )
+            ], scroll=ft.ScrollMode.ADAPTIVE),
+            padding=40,
+            expand=True
+        )
+
+        page.add(
+            ft.Row([rail, ft.VerticalDivider(width=1), content_view], expand=True)
+        )
+        page.update()
+
+    # --- AUTHENTICATION HANDLERS ---
+    async def on_login(e: ft.LoginEvent):
+        if e.error:
+            page.add(ft.Text(f"Auth Error: {e.error}", color="red"))
+            page.update()
+            return
+
+        while not (page.auth and page.auth.user):
+            await asyncio.sleep(0.2)
+
+        email = page.auth.user.get("email")
+
+        try:
+            response = requests.get(f"{BACKEND_URL}/users/verify", params={"email": email}, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if "user_details" in data:
+                    page.current_user_data = data["user_details"]
+                    await show_dashboard()
                 else:
-                    page.add(ft.Text(f"Error: {response.status_code}", color="orange"))
-            except Exception as ex:
-                page.add(ft.Text(f"Connection Failed: {ex}", color="red"))
+                    raise KeyError("user_details missing")
+            else:
+                page.clean()
+                page.add(ft.Icon(ft.Icons.GPP_BAD, color="red", size=50), ft.Text("Unauthorized NUST Entity"))
+        except Exception as ex:
+            page.add(ft.Text(f"System Crash: {str(ex)}", color="red"))
 
         page.update()
 
@@ -144,15 +197,23 @@ async def main(page: ft.Page):
     async def login_click(e):
         await page.login(provider, scope=["email", "profile"])
 
-    # Initial UI Logic
-    if page.auth and page.auth.user:
-        await show_authenticated_ui(page.auth.user.get("name", "Student"))
+    # --- INITIAL VIEW ---
+    if page.auth and page.auth.user and hasattr(page, "current_user_data"):
+        await show_dashboard()
     else:
         page.add(
-            ft.Text("RotiRouter", size=45, weight="bold", color="blue800"),
-            ft.Text("NUST Mess Management", size=16),
-            ft.Container(height=20),
-            ft.FilledButton("Sign in with Google", icon=ft.Icons.LOGIN, on_click=login_click)
+            ft.Column([
+                ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=100, color=ft.Colors.BLUE_900),
+                ft.Text("RotiRouter", size=50, weight="bold", color=ft.Colors.BLUE_900),
+                ft.Container(height=20),
+                ft.FilledButton(
+                    content=ft.Text("Login with Google"),
+                    icon=ft.Icons.LOGIN,
+                    on_click=login_click,
+                    width=300,
+                    height=50
+                )
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
     page.update()
 

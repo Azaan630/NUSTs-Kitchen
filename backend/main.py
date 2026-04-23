@@ -5,6 +5,7 @@ from auth import get_current_user
 from dao.queries import findUserByEmail
 from models import UserPublic
 from database import get_db
+from auth import get_current_user
 
 app = FastAPI(title="RotiRouter API")
 
@@ -18,6 +19,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def permission_checker(allowed_roles: list):
+    def mapper(email: str, db = Depends(get_db)):
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(findUserByEmail, (email,))
+        user_record = cursor.fetchone()
+        cursor.close()
+
+        if not user_record:
+            raise HTTPException(status_code=404, detail="User record not found in database")
+
+        user_account_status = user_record.get("Account_Type")
+
+        if user_account_status not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        return user_record
+    return mapper
 
 @app.get("/")
 def read_root():
@@ -44,3 +62,19 @@ def verify_registration(email: str, db = Depends(get_db)):
         )
 
     return {"status": "authorized", "user_details": user_record}
+
+# Route 1: The VIP Lounge (Admin Only)
+@app.get("/test/admin-only")
+def test_admin(user=Depends(permission_checker(["Admin"]))):
+    return {
+        "message": "Success! You are a certified Admin.",
+        "user_email": user["Email"]
+    }
+
+# Route 2: The General Area (Student or Admin)
+@app.get("/test/any-authorized")
+def test_student(user=Depends(permission_checker(["Student", "Admin"]))):
+    return {
+        "message": "Access Granted: Student/Admin level reached.",
+        "user_role": user["Account_Type"]
+    }
