@@ -1,50 +1,51 @@
 -- 1. Create and Use the Database
+
+# -- 2. Create the Uses Table
+# -- We use ENUM to restrict Account_Type to exactly what we finalized.
+# CREATE TABLE IF NOT EXISTS Users (
+#     UserID INT AUTO_INCREMENT PRIMARY KEY,
+#     First_Name VARCHAR(50) NOT NULL,
+#     Last_Name VARCHAR(50) NOT NULL,
+#     Email VARCHAR(100) UNIQUE NOT NULL,
+#     Password VARCHAR(255) NOT NULL, -- In production, this would be a hash
+#     Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL,
+#     Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+# );
+#
+# -- 3. Create a basic Food_Items table
+# -- This allows you to test the "Menu" features immediately.
+# CREATE TABLE IF NOT EXISTS Food_Items (
+#     FoodID INT AUTO_INCREMENT PRIMARY KEY,
+#     Name VARCHAR(100) NOT NULL,
+#     Description TEXT,
+#     Price DECIMAL(10, 2) NOT NULL,
+#     Is_Available BOOLEAN DEFAULT TRUE
+# );
+#
+# -- 4. SEED DATA (Test Data)
+# -- Adding these ensures your "Check Mess Menu" button actually returns something.
+#
+# INSERT INTO Users (First_Name, Last_Name, Email, Password, Account_Type)
+# VALUES
+# ('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'admin123', 'Admin'),
+# ('Bob', 'Khan', 'farhad@nust.edu.pk', 'student123', 'Student');
+#
+# INSERT INTO Food_Items (Name, Description, Price)
+# VALUES
+# ('Chicken Biryani', 'Spicy Sindhi style biryani with raita', 250.00),
+# ('Daal Mash', 'Traditional butter-tempered lentils', 120.00),
+# ('Aloo Palak', 'Fresh spinach with sautéed potatoes', 150.00);
+
+
 CREATE DATABASE IF NOT EXISTS mess_db;
 USE mess_db;
-
--- 2. Create the Uses Table
--- We use ENUM to restrict Account_Type to exactly what we finalized.
-CREATE TABLE IF NOT EXISTS Users (
-    UserID INT AUTO_INCREMENT PRIMARY KEY,
-    First_Name VARCHAR(50) NOT NULL,
-    Last_Name VARCHAR(50) NOT NULL,
-    Email VARCHAR(100) UNIQUE NOT NULL,
-    Password VARCHAR(255) NOT NULL, -- In production, this would be a hash
-    Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL,
-    Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. Create a basic Food_Items table
--- This allows you to test the "Menu" features immediately.
-CREATE TABLE IF NOT EXISTS Food_Items (
-    FoodID INT AUTO_INCREMENT PRIMARY KEY,
-    Name VARCHAR(100) NOT NULL,
-    Description TEXT,
-    Price DECIMAL(10, 2) NOT NULL,
-    Is_Available BOOLEAN DEFAULT TRUE
-);
-
--- 4. SEED DATA (Test Data)
--- Adding these ensures your "Check Mess Menu" button actually returns something.
-
-INSERT INTO Users (First_Name, Last_Name, Email, Password, Account_Type)
-VALUES
-('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'admin123', 'Admin'),
-('Bob', 'Khan', 'farhad@nust.edu.pk', 'student123', 'Student');
-
-INSERT INTO Food_Items (Name, Description, Price)
-VALUES
-('Chicken Biryani', 'Spicy Sindhi style biryani with raita', 250.00),
-('Daal Mash', 'Traditional butter-tempered lentils', 120.00),
-('Aloo Palak', 'Fresh spinach with sautéed potatoes', 150.00);
 
 CREATE TABLE IF NOT EXISTS Users (
     UserID      INT PRIMARY KEY AUTO_INCREMENT,
     First_Name  VARCHAR(50) NOT NULL,
     Last_Name   VARCHAR(50) NOT NULL,
     Email       VARCHAR(100) UNIQUE NOT NULL,
-    Password    VARCHAR(255) NOT NULL,
-    Account_Type ENUM('Student', 'Staff') NOT NULL
+    Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Student (
@@ -56,7 +57,7 @@ CREATE TABLE IF NOT EXISTS Student (
     Father_Name     VARCHAR(100),
     Hostel_Name     VARCHAR(100),
     Room_Number     VARCHAR(20),
-    FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Staff (
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS Staff (
     Category        VARCHAR(50),
     Working_Hours   DECIMAL(5,2),
     Salary          DECIMAL(10,2),
-    FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
 );
 
 -- Multivalued attribute — separate table
@@ -177,3 +178,67 @@ CREATE TABLE IF NOT EXISTS Transactions (
     PRIMARY KEY (Billing_ID, Transaction_ID),   -- Composite PK (weak entity)
     FOREIGN KEY (Billing_ID) REFERENCES Bills(Billing_ID) ON DELETE CASCADE
 );
+
+USE mess_db;
+
+-- 1. SEED USERS
+-- Ensuring your specific emails are mapped to the correct roles
+INSERT INTO Users (First_Name, Last_Name, Email, Account_Type)
+VALUES
+('Zain', 'Admin', 'zainif63@gmail.com', 'Admin'),
+('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
+('Farhad', 'Peer', 'farhad@nust.edu.pk', 'Student'),
+('Affan', 'Peer', 'affan@nust.edu.pk', 'Staff');
+
+-- 2. SEED STUDENT PROFILES
+-- Required because of the Foreign Key constraints in Student table
+INSERT INTO Student (UserID, DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number)
+VALUES
+(2, '2006-01-01', 'SEECS - CS', '0300-1234567', 'Islamabad', 'Father Azaan', 'Ghazali', 'A-101'),
+(3, '2005-05-15', 'SEECS - EE', '0300-7654321', 'Lahore', 'Father Farhad', 'Rumi', 'B-202');
+
+-- 3. SEED STAFF PROFILES
+INSERT INTO Staff (UserID, Category, Working_Hours, Salary)
+VALUES
+(4, 'Kitchen Supervisor', 40.0, 45000.00);
+
+-- 4. SEED INGREDIENTS (For Admin Dashboard)
+INSERT INTO Ingredients (Name, Total_Quantity, Pricing)
+VALUES
+('Basmati Rice', 50.0, 350.00),
+('Chicken', 30.0, 600.00),
+('Cooking Oil', 20.0, 500.00),
+('Potatoes', 100.0, 80.00),
+('Lentils (Daal)', 40.0, 280.00);
+
+-- 5. SEED FOOD ITEMS
+INSERT INTO Food_Items (Name, Quantity, Day_Cooked_On, day)
+VALUES
+('Chicken Biryani', 10.5, '2026-05-02', 'Saturday'),
+('Daal Mash', 5.0, '2026-05-02', 'Saturday'),
+('Aloo Palak', 8.0, '2026-05-03', 'Sunday'),
+('Beef Korma', 12.0, '2026-05-04', 'Monday');
+
+-- 6. SEED MENU SCHEDULE
+INSERT INTO Menu_Schedule (Day, Date)
+VALUES
+('Saturday', '2026-05-02'),
+('Sunday', '2026-05-03');
+
+-- 7. MAP FOOD TO MENU
+INSERT INTO Menu_Food_Items (Schedule_ID, Item_ID)
+VALUES
+(1, 1), -- Saturday: Biryani
+(1, 2), -- Saturday: Daal
+(2, 3); -- Sunday: Aloo Palak
+
+-- 8. SEED BILLS (For Student Dashboard)
+INSERT INTO Bills (User_ID, Issue_Date, Amount, Extra_Fee, Due_Date, Month, Status)
+VALUES
+(2, '2026-04-01', 12000.00, 500.00, '2026-04-10', 'April', 'Paid'),
+(2, '2026-05-01', 13500.00, 0.00, '2026-05-10', 'May', 'Unpaid');
+
+-- 9. SEED MESS OFF REQUESTS
+INSERT INTO Mess_Off (User_ID, Start_Date, End_Date, Request_Date, Status)
+VALUES
+(2, '2026-05-10', '2026-05-15', '2026-05-01', 'Approved');
