@@ -1,1 +1,29 @@
-findUserByEmail = "SELECT * FROM Users WHERE Email = %s"
+findUserByEmail = ("""SELECT *
+                      FROM Users
+                      WHERE Email = %s""")
+
+getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date
+                    FROM Food_Items fi
+                            JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
+                            JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
+                    WHERE ms.Date = %s""")
+
+getWeeklyMenu = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date
+                    FROM Food_Items fi
+                             JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
+                             JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
+                    WHERE ms.Date BETWEEN %s AND DATE_ADD(%s, INTERVAL 7 DAY)
+                    ORDER BY ms.DATE """)
+
+getAllUsers = ("""SELECT * 
+                  FROM Users""")
+
+getMyBills = ("""SELECT *
+                 FROM Bills
+                    JOIN Users ON Users.UserID = Bills.User_ID
+                 WHERE Email = %s
+                ORDER BY Issue_Date""")
+
+getStudentBillDetails = ("""SELECT Users.First_Name, Users.First_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Extra_Fee, Bills.Status
+                            FROM Bills JOIN Users ON Users.UserID = Bills.User_ID
+                            WHERE Bills.User_ID = %s""")

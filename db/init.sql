@@ -89,11 +89,9 @@ CREATE TABLE IF NOT EXISTS Food_Items (
     Item_ID             INT PRIMARY KEY AUTO_INCREMENT,
     Name                VARCHAR(100) NOT NULL,
     Quantity            DECIMAL(10,2),
-    Day_Cooked_On       DATE,
     Ratings_Average     DECIMAL(3,2) DEFAULT 0.00,
     Vote_Count          INT DEFAULT 0,
-    Item_Expenditure    DECIMAL(10,2),
-    day varchar(30)
+    Item_Expenditure    DECIMAL(10,2)
 );
 
 
