@@ -193,8 +193,3 @@ def get_my_bill_history(email: str, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     finally:
         cursor.close()
-
-
-
-
-

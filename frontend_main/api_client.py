@@ -1,7 +1,8 @@
 import httpx
+import os
+from datetime import date
 
-# In Docker, we use the container service name 'backend'
-BASE_URL = "http://backend:8000"
+BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 def verify_user_in_db(id_token: str):
     """
@@ -18,3 +19,18 @@ def verify_user_in_db(id_token: str):
     except Exception as e:
         print(f"Verification Error: {e}")
         return {"error": "server_error"}
+
+async def get_todays_menu(email: str, target_date: date = date.today()):
+    """
+    Fetches today's menu from the backend.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            params = {"email": email, "target_date": target_date.isoformat()}
+            response = await client.get(f"{BASE_URL}/menu/today", params=params, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as e:
+            return {"error": f"Backend Connection Error: {str(e)}"}
+        except httpx.HTTPStatusError as e:
+            return {"error": f"Backend Error: {e.response.status_code}"}

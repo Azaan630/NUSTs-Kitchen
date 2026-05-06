@@ -3,6 +3,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 import requests
+from pages.home_page import StudentHomePage
 
 load_dotenv()
 
@@ -97,70 +98,69 @@ async def main(page: ft.Page):
         page.update()
 
     # --- UI COMPONENT: DASHBOARD ---
+    # ... (At the top of main.py) ...
+    # IMPORT YOUR PAGES
+    from pages.home_page import StudentHomePage
+
+    # ... INSIDE main() function ...
+
+    # --- UI COMPONENT: DASHBOARD with PAGE ROUTING ---
     async def show_dashboard():
         page.clean()
 
         user_role = str(get_val("Account_Type", "Student")).upper()
         full_name = f"{get_val('First_Name', 'User')} {get_val('Last_Name', '')}".strip()
+        email = get_val("Email")
 
+        # Create Navigation Rail with your specific pages
         rail = ft.NavigationRail(
             selected_index=0,
             label_type=ft.NavigationRailLabelType.ALL,
             min_width=100,
             destinations=[
-                ft.NavigationRailDestination(icon=ft.Icons.DASHBOARD_ROUNDED, label="Home"),
-                ft.NavigationRailDestination(icon=ft.Icons.RESTAURANT_MENU_ROUNDED, label="Menu"),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.SETTINGS_SUGGEST_ROUNDED,
-                    label="Admin"
-                ) if user_role == "ADMIN" else ft.NavigationRailDestination(icon=ft.Icons.PERSON, label="Profile"),
+                ft.NavigationRailDestination(icon=ft.Icons.HOME, label="Home"),
+                ft.NavigationRailDestination(icon=ft.Icons.HOW_TO_VOTE, label="Voting"),
+                ft.NavigationRailDestination(icon=ft.Icons.PERSON, label="Profile"),
+                ft.NavigationRailDestination(icon=ft.Icons.ACCESS_TIME, label="Mess Off"),
             ],
             bgcolor=ft.Colors.GREY_50,
+            on_change=lambda e: load_page(e.control.selected_index)  # Trigger page load
         )
 
-        content_view = ft.Container(
-            content=ft.Column([
-                ft.Text(f"Welcome, {full_name}", size=32, weight="bold", color=ft.Colors.BLUE_900),
-                ft.Text(f"Identity Verified | Role: {user_role}", color=ft.Colors.GREY_600),
-                ft.Divider(height=30),
+        # Page Container that changes based on selected index
+        page_content = ft.Container(expand=True, padding=0)
 
-                # The Status Banner is now at the top of the action area
-                status_bar,
+        async def load_page(index):
+            page_content.content = None  # Clear content
+            page.update()
 
-                ft.Container(height=20),
-                ft.Text("Security Bouncer Verification", size=20, weight="w600"),
-                ft.Row([
-                    ft.FilledButton(
-                        content=ft.Text("Test Admin Gate"),
-                        icon=ft.Icons.ADMIN_PANEL_SETTINGS,
-                        data="admin-only",
-                        on_click=run_rbac_test,
-                        style=ft.ButtonStyle(bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900})
-                    ),
-                    ft.OutlinedButton(
-                        content=ft.Text("Test Any Authorized"),
-                        icon=ft.Icons.LOCK_OPEN_ROUNDED,
-                        data="any-authorized",
-                        on_click=run_rbac_test,
-                    ),
-                ], spacing=15),
+            # Route to correct page
+            if index == 0:
+                # HOME PAGE
+                home = StudentHomePage(page, page.current_user_data)
+                page_content.content = home.build()
+            elif index == 1:
+                # VOTING PAGE (Placeholder)
+                page_content.content = ft.Container(content=ft.Text("Voting Page coming soon..."), padding=40)
+            elif index == 2:
+                # PROFILE PAGE (Placeholder)
+                page_content.content = ft.Container(content=ft.Text("Profile Page coming soon..."), padding=40)
+            elif index == 3:
+                # MESS OFF PAGE (Placeholder)
+                page_content.content = ft.Container(content=ft.Text("Mess Off Page coming soon..."), padding=40)
 
-                ft.Container(height=30),
-                ft.Text("Session Meta (Read-Only)", size=14, weight="bold", color=ft.Colors.GREY_500),
-                ft.Container(
-                    content=ft.Text(f"{get_user_data()}", size=12, font_family="monospace"),
-                    padding=15,
-                    bgcolor=ft.Colors.GREY_100,
-                    border_radius=10,
-                )
-            ], scroll=ft.ScrollMode.ADAPTIVE),
-            padding=40,
-            expand=True
-        )
+            page.update()
 
-        page.add(
-            ft.Row([rail, ft.VerticalDivider(width=1), content_view], expand=True)
-        )
+        # Load Home initially
+        # Ensure this gets called AFTER UI setup
+        main_row = ft.Row([rail, ft.VerticalDivider(width=1), page_content], expand=True)
+        page.add(main_row)
+
+        # Trigger initial load
+        await load_page(0)
+
+        # Store page_content for future updates
+        page.page_content = page_content
         page.update()
 
     # --- AUTHENTICATION HANDLERS ---
@@ -220,3 +220,4 @@ async def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550)
+
