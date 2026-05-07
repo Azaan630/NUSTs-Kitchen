@@ -175,3 +175,125 @@ CREATE TABLE IF NOT EXISTS Transactions (
     PRIMARY KEY (Billing_ID, Transaction_ID),   -- Composite PK (weak entity)
     FOREIGN KEY (Billing_ID) REFERENCES Bills(Billing_ID) ON DELETE CASCADE
 );
+
+-- ============================================================
+-- SCHEMA IMPROVEMENTS: Triggers, Constraints & Business Rules
+-- ============================================================
+
+
+-- ============================================================
+-- SECTION 1: ADVANCED CONSTRAINTS
+-- ============================================================
+
+-- 1A. Date consistency: End_Date must be >= Start_Date in Mess_Off
+ALTER TABLE Mess_Off
+    ADD CONSTRAINT chk_mess_off_dates
+    CHECK (End_Date >= Start_Date);
+
+-- 1B. Menu uniqueness: same Item cannot appear twice in the same Schedule
+--     (Already enforced by the composite PRIMARY KEY on Menu_Food_Items,
+--      but an explicit UNIQUE constraint makes the intent crystal-clear
+--      and works even if the PK is later changed.)
+ALTER TABLE Menu_Food_Items
+    ADD CONSTRAINT uq_schedule_item
+    UNIQUE (Schedule_ID, Item_ID);
+
+
+-- SECTION 2: TRIGGER — Rating Aggregation
+
+
+DELIMITER $$
+
+CREATE TRIGGER trg_update_food_rating
+AFTER INSERT ON Ratings
+FOR EACH ROW
+BEGIN
+    UPDATE Food_Items
+    SET
+        Ratings_Average = (
+            SELECT AVG(Score)
+            FROM   Ratings
+            WHERE  Item_ID = NEW.Item_ID
+        ),
+        Vote_Count = (
+            SELECT COUNT(*)
+            FROM   Ratings
+            WHERE  Item_ID = NEW.Item_ID
+        )
+    WHERE Item_ID = NEW.Item_ID;
+END$$
+
+DELIMITER ;
+
+
+-- SECTION 3: TRIGGER — Late Fee on Overdue Bills
+
+
+DELIMITER $$
+
+CREATE TRIGGER trg_late_fee_on_overdue
+BEFORE UPDATE ON Bills
+FOR EACH ROW
+BEGIN
+    -- Only apply when the status transitions TO 'Overdue'
+    IF NEW.Status = 'Overdue' AND OLD.Status <> 'Overdue' THEN
+        SET NEW.Extra_Fee = ROUND(OLD.Amount * 0.10, 2);
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+-- SECTION 4: TRIGGER — Inventory Auto-Deduction
+
+
+DELIMITER $$
+
+CREATE TRIGGER trg_deduct_ingredients_on_schedule
+AFTER INSERT ON Menu_Food_Items
+FOR EACH ROW
+BEGIN
+    DECLARE v_qty DECIMAL(10,2);
+
+    -- Fetch how much of the food item is being served
+    SELECT Quantity INTO v_qty
+    FROM   Food_Items
+    WHERE  Item_ID = NEW.Item_ID;
+
+    -- Deduct proportionally from every linked ingredient
+    UPDATE Ingredients i
+    INNER JOIN Food_Item_Ingredients fii ON fii.Ingredient_ID = i.Ingredient_ID
+    SET    i.Total_Quantity = i.Total_Quantity - v_qty
+    WHERE  fii.Item_ID = NEW.Item_ID;
+END$$
+
+DELIMITER ;
+
+-- SECTION 5: TRIGGER — Mess_Off Overlap Prevention
+
+DELIMITER $$
+
+CREATE TRIGGER trg_prevent_mess_off_overlap
+BEFORE INSERT ON Mess_Off
+FOR EACH ROW
+BEGIN
+    DECLARE v_overlap_count INT;
+
+    SELECT COUNT(*) INTO v_overlap_count
+    FROM   Mess_Off
+    WHERE  User_ID    = NEW.User_ID
+      AND  Status    IN ('Pending', 'Approved')
+      -- Classic overlap condition: existing range overlaps new range
+      AND  Start_Date <= NEW.End_Date
+      AND  End_Date   >= NEW.Start_Date;
+
+    IF v_overlap_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+                'Mess_Off request overlaps an existing Pending or Approved request.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+
