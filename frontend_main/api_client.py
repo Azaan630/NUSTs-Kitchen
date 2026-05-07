@@ -34,3 +34,18 @@ async def get_todays_menu(email: str, target_date: date = date.today()):
             return {"error": f"Backend Connection Error: {str(e)}"}
         except httpx.HTTPStatusError as e:
             return {"error": f"Backend Error: {e.response.status_code}"}
+
+
+async def get_my_bills(email: str):
+    """
+    Fetches bill history for the logged-in student.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{BASE_URL}/users/my_bills", params={"email": email}, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as e:
+            return {"error": f"Backend Connection Error: {str(e)}"}
+        except httpx.HTTPStatusError as e:
+            return {"error": f"Backend Error: {e.response.status_code}"}
