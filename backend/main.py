@@ -4,7 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from dao.queries import findUserByEmail
 from database import get_db
 from datetime import date
-
+import models
 app = FastAPI(title="RotiRouter API")
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
@@ -193,3 +193,75 @@ def get_my_bill_history(email: str, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     finally:
         cursor.close()
+
+@app.get("/analytics/ingredients")
+def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getIngredients
+        cursor.execute(getIngredients)
+        ingredients = cursor.fetchall()
+        return ingredients
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+@app.post("/admin/students/register")
+def register_student(data:models.StudentCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import registerStudent
+        values = (
+            data.First_Name, data.Last_Name, data.Email, data.Account_Type,
+            data.DoB, data.Department,
+            data.Contact_Number, data.Address, data.Father_Name,
+            data.Hostel_Name, data.Room_Number
+        )
+        cursor.execute(registerStudent, values)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+@app.patch("/admin/students/update/{UserID}")
+def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        update_data = data.model_dump(exclude_unset=True)
+        if not update_data:
+            return {"message": "No changes detected"}
+
+        column_placeholders = [f"{key} = %s" for key in update_data.keys()]
+        set_clause = ", ".join(column_placeholders)
+        update_query = f"""UPDATE Student 
+                           SET {set_clause} 
+                           WHERE UserID = %s"""
+
+        parameters = list(update_data.values()) + [UserID]
+        cursor.execute(update_query, parameters)
+        db.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+@app.post("/admin/bills/create")
+def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import createBill
+        values = (
+            data.UserID, data.Issue_Date, data.Amount, data.Extra_Fee, data.Due_Date, data.Month, data.Status.value
+        )
+        cursor.execute(createBill, values)
+        db.commit()
+        return {"message": "Bill created successfully", "id": cursor.lastrowid}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+

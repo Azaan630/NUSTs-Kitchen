@@ -22,8 +22,21 @@ getMyBills = ("""SELECT *
                  FROM Bills
                     JOIN Users ON Users.UserID = Bills.User_ID
                  WHERE Email = %s
-                ORDER BY Issue_Date""")
+                 ORDER BY Issue_Date""")
 
 getStudentBillDetails = ("""SELECT Users.First_Name, Users.First_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Extra_Fee, Bills.Status
                             FROM Bills JOIN Users ON Users.UserID = Bills.User_ID
                             WHERE Bills.User_ID = %s""")
+
+getIngredients = ("""SELECT *
+                     FROM Ingredients""")
+
+registerStudent = ("""INSERT INTO Users
+                      (UserID, First_Name, Last_Name, Email, Account_Type)
+                      VALUES (NULL, %s, %s, %s, %s);
+                      INSERT INTO Student
+                      (DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number)
+                      VALUES (%s, %s, %s, %s, %s, %s, %s)""")
+
+createBill = ("""INSERT INTO Bills
+                 VALUES (NULL, %s, %s, %s, %s, %s, %s, %s)""")
