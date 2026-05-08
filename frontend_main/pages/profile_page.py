@@ -1,6 +1,6 @@
 import flet as ft
 import asyncio
-from api_client import get_my_bills
+from pages.api_client import get_my_bills
 
 class StudentProfilePage:
     def __init__(self, page: ft.Page, user_data: dict):
@@ -11,13 +11,11 @@ class StudentProfilePage:
         self.loading_text = ft.Text("Loading your bills...", color=ft.Colors.GREY_600)
 
     async def load_bills(self):
-        # Show loading
         self.bill_container.content = ft.Column([
             ft.Row([ft.ProgressRing(), self.loading_text], alignment=ft.MainAxisAlignment.CENTER)
         ])
         self.page.update()
 
-        # Fetch bills from backend
         bills_data = await get_my_bills(self.email)
 
         if "error" in bills_data:
@@ -33,7 +31,6 @@ class StudentProfilePage:
             self.page.update()
             return
 
-        # Build bill table
         bill_rows = []
         for bill in bills_data:
             status_color = ft.Colors.GREEN
@@ -48,11 +45,10 @@ class StudentProfilePage:
                 ft.DataCell(ft.Text(f"PKR {bill.get('Amount', 0.00)}")),
                 ft.DataCell(ft.Text(bill.get("Due_Date", "N/A"))),
                 ft.DataCell(ft.Container(
-                    content=ft.Text(bill.get("Status", "Unknown")),
+                    content=ft.Text(bill.get("Status", "Unknown"), color=ft.Colors.WHITE),
                     bgcolor=status_color,
                     padding=5,
-                    border_radius=5,
-                    color=ft.Colors.WHITE
+                    border_radius=5
                 )),
             ])
             bill_rows.append(bill_row)
@@ -76,12 +72,12 @@ class StudentProfilePage:
         self.bill_container.content = ft.Column([
             ft.Text("📄 Your Bill History", size=18, weight="bold"),
             ft.Container(height=10),
-            ft.Container(bill_table, scroll=ft.ScrollMode.ADAPTIVE),
+            # FIX: Wrapped in Column for scrolling instead of using scroll in Container
+            ft.Column([bill_table], scroll=ft.ScrollMode.ADAPTIVE),
         ])
         self.page.update()
 
     def generate_pdf(self, e):
-        print("✅ PDF BUTTON CLICKED!")
         self.page.snack_bar = ft.SnackBar(
             content=ft.Text("📄 PDF Generation coming soon!"),
             bgcolor=ft.Colors.BLUE
@@ -90,10 +86,8 @@ class StudentProfilePage:
         self.page.update()
 
     def build(self):
-        """⚠️ This method is CRITICAL - it's called by main.py"""
         asyncio.create_task(self.load_bills())
 
-        # Create the button separately so we can bind it
         pdf_button = ft.ElevatedButton(
             content=ft.Text("📄 Generate Bill PDF"),
             icon=ft.Icons.PICTURE_AS_PDF,
@@ -102,7 +96,6 @@ class StudentProfilePage:
                 color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
             )
         )
-        # ✅ Bind the click event directly to the button object
         pdf_button.on_click = self.generate_pdf
 
         profile_details = ft.Container(
@@ -113,7 +106,7 @@ class StudentProfilePage:
                 ft.Row([ft.Text("Email:", weight="bold"), ft.Text(self.user_data.get("Email", "N/A"))]),
                 ft.Row([ft.Text("Account Type:", weight="bold"), ft.Text(self.user_data.get("Account_Type", "N/A"))]),
                 ft.Container(height=20),
-                pdf_button  # ✅ Use the pre-bound button
+                pdf_button
             ]),
             padding=20,
             bgcolor=ft.Colors.GREY_50,

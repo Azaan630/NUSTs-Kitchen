@@ -210,12 +210,12 @@ VALUES
 ('Lentils (Daal)', 40.0, 280.00);
 
 -- 5. SEED FOOD ITEMS
-INSERT INTO Food_Items (Name, Quantity, Day_Cooked_On, day)
+INSERT INTO Food_Items (Name, Quantity)
 VALUES
-('Chicken Biryani', 10.5, '2026-05-02', 'Saturday'),
-('Daal Mash', 5.0, '2026-05-02', 'Saturday'),
-('Aloo Palak', 8.0, '2026-05-03', 'Sunday'),
-('Beef Korma', 12.0, '2026-05-04', 'Monday');
+('Chicken Biryani', 10.5),
+('Daal Mash', 5.0),
+('Aloo Palak', 8.0),
+('Beef Korma', 12.0);
 
 -- 6. SEED MENU SCHEDULE
 INSERT INTO Menu_Schedule (Day, Date)
@@ -233,10 +233,5 @@ VALUES
 -- 8. SEED BILLS (For Student Dashboard)
 INSERT INTO Bills (User_ID, Issue_Date, Amount, Extra_Fee, Due_Date, Month, Status)
 VALUES
-(2, '2026-04-01', 12000.00, 500.00, '2026-04-10', 'April', 'Paid'),
 (2, '2026-05-01', 13500.00, 0.00, '2026-05-10', 'May', 'Unpaid');
 
--- 9. SEED MESS OFF REQUESTS
-INSERT INTO Mess_Off (User_ID, Start_Date, End_Date, Request_Date, Status)
-VALUES
-(2, '2026-05-10', '2026-05-15', '2026-05-01', 'Approved');
