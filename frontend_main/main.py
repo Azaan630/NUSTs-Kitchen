@@ -4,6 +4,7 @@ import asyncio
 from dotenv import load_dotenv
 import requests
 from pages.home_page import StudentHomePage
+from pages.profile_page import StudentProfilePage
 
 load_dotenv()
 
@@ -98,13 +99,6 @@ async def main(page: ft.Page):
         page.update()
 
     # --- UI COMPONENT: DASHBOARD ---
-    # ... (At the top of main.py) ...
-    # IMPORT YOUR PAGES
-    from pages.home_page import StudentHomePage
-
-    # ... INSIDE main() function ...
-
-    # --- UI COMPONENT: DASHBOARD with PAGE ROUTING ---
     async def show_dashboard():
         page.clean()
 
@@ -112,7 +106,30 @@ async def main(page: ft.Page):
         full_name = f"{get_val('First_Name', 'User')} {get_val('Last_Name', '')}".strip()
         email = get_val("Email")
 
-        # Create Navigation Rail with your specific pages
+        # Page Container that changes based on selected index
+        page_content = ft.Container(expand=True, padding=0)
+
+        # --- FIXED: load_page is now a SYNC function ---
+        def load_page(index):
+            page_content.content = None
+            page.update()
+            if index == 0:
+                # HOME PAGE
+                home = StudentHomePage(page, page.current_user_data)
+                page_content.content = home.build()
+            elif index == 1:
+                # VOTING PAGE (Placeholder)
+                page_content.content = ft.Container(content=ft.Text("Voting Page coming soon..."), padding=40)
+            elif index == 2:
+                # PROFILE PAGE
+                profile = StudentProfilePage(page, page.current_user_data)
+                page_content.content = profile.build()
+            elif index == 3:
+                # MESS OFF PAGE (Placeholder)
+                page_content.content = ft.Container(content=ft.Text("Mess Off Page coming soon..."), padding=40)
+            page.update()
+
+        # Create Navigation Rail (note: on_change now works because load_page is sync)
         rail = ft.NavigationRail(
             selected_index=0,
             label_type=ft.NavigationRailLabelType.ALL,
@@ -124,40 +141,15 @@ async def main(page: ft.Page):
                 ft.NavigationRailDestination(icon=ft.Icons.ACCESS_TIME, label="Mess Off"),
             ],
             bgcolor=ft.Colors.GREY_50,
-            on_change=lambda e: load_page(e.control.selected_index)  # Trigger page load
+            on_change=lambda e: load_page(e.control.selected_index)
         )
 
-        # Page Container that changes based on selected index
-        page_content = ft.Container(expand=True, padding=0)
-
-        async def load_page(index):
-            page_content.content = None  # Clear content
-            page.update()
-
-            # Route to correct page
-            if index == 0:
-                # HOME PAGE
-                home = StudentHomePage(page, page.current_user_data)
-                page_content.content = home.build()
-            elif index == 1:
-                # VOTING PAGE (Placeholder)
-                page_content.content = ft.Container(content=ft.Text("Voting Page coming soon..."), padding=40)
-            elif index == 2:
-                # PROFILE PAGE (Placeholder)
-                page_content.content = ft.Container(content=ft.Text("Profile Page coming soon..."), padding=40)
-            elif index == 3:
-                # MESS OFF PAGE (Placeholder)
-                page_content.content = ft.Container(content=ft.Text("Mess Off Page coming soon..."), padding=40)
-
-            page.update()
-
-        # Load Home initially
-        # Ensure this gets called AFTER UI setup
+        # Main row
         main_row = ft.Row([rail, ft.VerticalDivider(width=1), page_content], expand=True)
         page.add(main_row)
 
-        # Trigger initial load
-        await load_page(0)
+        # Trigger initial load (no await needed now)
+        load_page(0)
 
         # Store page_content for future updates
         page.page_content = page_content
@@ -219,4 +211,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550)
+    ft.run(main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550)

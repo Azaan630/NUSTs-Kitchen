@@ -36,7 +36,6 @@ class StudentProfilePage:
         # Build bill table
         bill_rows = []
         for bill in bills_data:
-            # Determine status color
             status_color = ft.Colors.GREEN
             if bill.get("Status") == "Unpaid":
                 status_color = ft.Colors.ORANGE
@@ -44,7 +43,7 @@ class StudentProfilePage:
                 status_color = ft.Colors.RED
 
             bill_row = ft.DataRow([
-                ft.DataCell(ft.Text(bill.get("Billing_ID", "N/A"))),
+                ft.DataCell(ft.Text(str(bill.get("Billing_ID", "N/A")))),
                 ft.DataCell(ft.Text(bill.get("Month", "N/A"))),
                 ft.DataCell(ft.Text(f"PKR {bill.get('Amount', 0.00)}")),
                 ft.DataCell(ft.Text(bill.get("Due_Date", "N/A"))),
@@ -58,7 +57,6 @@ class StudentProfilePage:
             ])
             bill_rows.append(bill_row)
 
-        # Create DataTable
         bill_table = ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text("Bill ID")),
@@ -82,16 +80,31 @@ class StudentProfilePage:
         ])
         self.page.update()
 
-    async def generate_pdf(self, e):
-        # Placeholder for PDF generation
-        # You can integrate reportlab or any PDF library here later
-        self.page.show_snack_bar(ft.SnackBar(content=ft.Text("PDF Generation coming soon! 🚀"), bgcolor=ft.Colors.BLUE))
+    def generate_pdf(self, e):
+        print("✅ PDF BUTTON CLICKED!")
+        self.page.snack_bar = ft.SnackBar(
+            content=ft.Text("📄 PDF Generation coming soon!"),
+            bgcolor=ft.Colors.BLUE
+        )
+        self.page.snack_bar.open = True
         self.page.update()
 
     def build(self):
+        """⚠️ This method is CRITICAL - it's called by main.py"""
         asyncio.create_task(self.load_bills())
 
-        # Profile details section
+        # Create the button separately so we can bind it
+        pdf_button = ft.ElevatedButton(
+            content=ft.Text("📄 Generate Bill PDF"),
+            icon=ft.Icons.PICTURE_AS_PDF,
+            style=ft.ButtonStyle(
+                bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900},
+                color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
+            )
+        )
+        # ✅ Bind the click event directly to the button object
+        pdf_button.on_click = self.generate_pdf
+
         profile_details = ft.Container(
             content=ft.Column([
                 ft.Text("🧑‍🎓 Student Profile", size=24, weight="bold", color=ft.Colors.BLUE_900),
@@ -99,17 +112,8 @@ class StudentProfilePage:
                 ft.Row([ft.Text("Name:", weight="bold"), ft.Text(f"{self.user_data.get('First_Name', '')} {self.user_data.get('Last_Name', '')}")]),
                 ft.Row([ft.Text("Email:", weight="bold"), ft.Text(self.user_data.get("Email", "N/A"))]),
                 ft.Row([ft.Text("Account Type:", weight="bold"), ft.Text(self.user_data.get("Account_Type", "N/A"))]),
-                # You can add more fields like Room Number, Hostel, etc. if available in user_data
                 ft.Container(height=20),
-                ft.ElevatedButton(
-                    text="📄 Generate Bill PDF",
-                    icon=ft.Icons.PICTURE_AS_PDF,
-                    on_click=self.generate_pdf,
-                    style=ft.ButtonStyle(
-                        bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900},
-                        color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
-                    )
-                )
+                pdf_button  # ✅ Use the pre-bound button
             ]),
             padding=20,
             bgcolor=ft.Colors.GREY_50,
