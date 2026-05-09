@@ -110,14 +110,14 @@ getFoodRating = ("""SELECT
                     JOIN Menu_Food_Items mfi
                     WHERE mfi.Schedule_ID = %s AND mfi.Item_ID = %s;""")
 
-requestMessOff = """INSERT INTO MessOff
+requestMessOff = """INSERT INTO Mess_Off
                     (User_ID, Start_Date, End_Date)
                     VALUES (%s, %s, %s)"""
 
-cancelMessOff = ("""DELETE FROM MessOff WHERE Mess_Off_ID = %s AND Status = 'Pending'""")
+cancelMessOff = ("""DELETE FROM Mess_Off WHERE Mess_Off_ID = %s AND Status = 'Pending'""")
 
 getMessOffStatus = ("""SELECT *
-                       FROM MessOff WHERE Mess_Off_ID = %s""")
+                       FROM Mess_Off WHERE Mess_Off_ID = %s""")
 
 getMessOffThisMonth = ("""SELECT *
                           FROM Mess_Off 

@@ -109,33 +109,32 @@ async def download_bill_pdf(billing_id: int, email: str) -> Optional[bytes]:
 # ------------------------------------------------------------------
 # Voting
 # ------------------------------------------------------------------
-async def get_active_poll() -> Dict[str, Any]:
+async def get_active_poll(email: str) -> Dict[str, Any]:
     """
     Fetches the currently active poll items.
-    Returns: {"active": bool, "items": [...]} or error.
     """
-    return await _make_request("GET", "/poll/active")
+    return await _make_request("GET", "/poll/active", params={"email": email})
 
 
-async def cast_vote(item_id: int, email: str) -> Dict[str, Any]:
+
+async def cast_vote(item_id: int, user_id: int, email: str) -> Dict[str, Any]:
     """
     Casts a vote for a specific food item.
-    The backend expects email as a query parameter.
     """
     return await _make_request(
-        "POST", f"/poll/vote/{item_id}", params={"email": email}
+        "POST", f"/poll/vote/{item_id}/{user_id}", params={"email": email}
     )
 
 
 # ------------------------------------------------------------------
 # Mess Off
 # ------------------------------------------------------------------
-async def request_mess_off(user_id: int, start_date: date, end_date: date) -> Dict[str, Any]:
+async def request_mess_off(user_id: int, start_date: date, end_date: date, email: str) -> Dict[str, Any]:
     """
     Submits a new mess-off request.
     """
     endpoint = f"/student/mess_off/request/{user_id}/{start_date.isoformat()}/{end_date.isoformat()}"
-    return await _make_request("POST", endpoint)
+    return await _make_request("POST", endpoint , params={"email": email})
 
 
 async def cancel_mess_off(mess_off_id: int) -> Dict[str, Any]:

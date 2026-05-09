@@ -121,7 +121,7 @@ class StudentProfilePage:
                 color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
             )
         )
-        pdf_button.on_click = self.download_pdf  # ✅ Uses real download
+        pdf_button.on_click = self.download_pdf
 
         profile_details = ft.Container(
             content=ft.Column([

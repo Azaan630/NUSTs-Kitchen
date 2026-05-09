@@ -8,6 +8,7 @@ class StudentVotingPage:
         self.page = page
         self.user_data = user_data
         self.user_id = int(user_data.get("UserID", 0))
+        self.email = user_data.get("Email")
         self.poll_container = ft.Container(
             padding=20,
             border_radius=15,
@@ -24,7 +25,7 @@ class StudentVotingPage:
         self.page.update()
 
         # Fetch poll
-        poll_data = await get_active_poll()
+        poll_data = await get_active_poll(self.email)
 
         if "error" in poll_data:
             self.poll_container.content = ft.Column([
@@ -105,7 +106,7 @@ class StudentVotingPage:
         self.page.update()
 
         # Cast vote
-        result = await cast_vote(item_id, self.email)
+        result = await cast_vote(item_id, self.user_id, self.email)
 
         # Reset button
         e.control.disabled = False
