@@ -707,3 +707,17 @@ def approve_mess_off(RequestID: int, user=Depends(permission_checker(["Admin"]))
         raise HTTPException(status_code=500, detail="Internal Database Error")
     finally:
         cursor.close()
+
+@app.get("/student/mess-off/{MessOffID}")
+def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        from dao.queries import getMessOffStatus
+        status = cursor.execute(getMessOffStatus, MessOffID)
+        db.commit()
+        return {"status": status}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
