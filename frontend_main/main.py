@@ -3,10 +3,13 @@ import os
 import asyncio
 from dotenv import load_dotenv
 import requests
+<<<<<<< HEAD
 from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
 from pages.voting_page import StudentVotingPage
 from pages.mess_off_page import StudentMessOffPage
+=======
+>>>>>>> b3f81cd293acdb658400378a914f31197036d56d
 
 load_dotenv()
 
@@ -101,6 +104,15 @@ async def main(page: ft.Page):
         page.update()
 
     # --- UI COMPONENT: DASHBOARD ---
+<<<<<<< HEAD
+=======
+    # ... (At the top of main.py) ...
+    # IMPORT YOUR PAGES
+
+    # ... INSIDE main() function ...
+
+    # --- UI COMPONENT: DASHBOARD with PAGE ROUTING ---
+>>>>>>> b3f81cd293acdb658400378a914f31197036d56d
     async def show_dashboard():
         page.clean()
 

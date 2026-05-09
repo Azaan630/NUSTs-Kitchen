@@ -93,7 +93,7 @@ Request_Date    DATE NOT NULL DEFAULT (CURRENT_DATE),
 Status          ENUM('Pending', 'Approved', 'Rejected', 'Cancelled') DEFAULT 'Pending',
 FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
 CONSTRAINT CHK_Date_Range CHECK (End_Date >= Start_Date),
-CONSTRAINT UQ_Request UNIQUE (User_ID,Start_Date,End_Date)
+CONSTRAINT UQ_Request UNIQUE (User_ID, Start_Date, End_Date)
 );
 
 CREATE TABLE IF NOT EXISTS Ratings (
@@ -460,3 +460,5 @@ ON SCHEDULE EVERY 1 MONTH
 STARTS '2026-05-09 00:00:00'
 DO
   CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+
+

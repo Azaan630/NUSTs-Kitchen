@@ -9,7 +9,6 @@ from dao.queries import findUserByEmail
 from database import get_db
 from datetime import date, timedelta
 import models
-from models import FoodItemIngredient
 import mysql.connector
 
 app = FastAPI(title="RotiRouter API")
@@ -182,7 +181,6 @@ def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), 
 
 @app.get("/admin/food/{ItemID}") # ALSO FOR STAFF
 def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Staff"]))):
-    cursor = db.cursor(dictionary=True)
     cursor = db.cursor(dictionary=True)
     from dao.queries import getFoodByID
     cursor.execute(getFoodByID, (ItemID,))
