@@ -146,29 +146,19 @@ CREATE TABLE IF NOT EXISTS Transactions (
 
 CREATE TABLE System_Config (
 Config_Key        VARCHAR(50) PRIMARY KEY,
-Value             VARCHAR(100) NOT NULL,
-Active_Poll_Items VARCHAR(100),
-Active_Poll_Type  VARCHAR(100)
+Value             VARCHAR(100) NOT NULL
 );
-# Insert default daily rate
+# Insert defaults
 INSERT INTO System_Config VALUES ('daily_mess_rate', '150.00');
 
+SET GLOBAL event_scheduler = ON;
 
 # VIEWS (for dashboard & analytics)
-
-# Food item rating summary
-CREATE VIEW vw_FoodItemRatings AS
-SELECT
-fi.Item_ID,
-fi.Name,
-fi.Ratings_Average AS Avg_Rating,
-(SELECT COUNT(*) FROM Ratings r WHERE r.Item_ID = fi.Item_ID) AS Rating_Count,
-fi.Vote_Count
-FROM Food_Items fi;
 
 # Monthly billing summary
 CREATE VIEW vw_MonthlyBillingSummary AS
 SELECT
+User_ID,
 DATE_FORMAT(b.Month, '%Y-%m') AS Billing_Month,
 COUNT(b.Billing_ID) AS Total_Bills,
 SUM(b.Amount) AS Total_Amount,
@@ -181,7 +171,7 @@ FROM Transactions
 WHERE Transaction_Status = 'Success'
 GROUP BY Billing_ID
 ) t ON b.Billing_ID = t.Billing_ID
-GROUP BY Billing_Month;
+GROUP BY User_ID, DATE_FORMAT(b.Month, '%Y-%m');
 
 # Mess-off usage per student per month
 CREATE VIEW vw_MessOffSummary AS
@@ -355,13 +345,6 @@ INSERT INTO Votes (User_ID, Food_ID) VALUES (p_user_id, p_food_id);
 UPDATE Food_Items SET Vote_Count = Vote_Count + 1 WHERE Item_ID = p_food_id;
 END$$
 
-# Rate food item (updates average rating)
-CREATE PROCEDURE sp_RateFood(IN p_user_id INT, IN p_item_id INT, IN p_score TINYINT)
-BEGIN
-INSERT INTO Ratings (Score, User_ID, Item_ID) VALUES (p_score, p_user_id, p_item_id);
-# Trigger will recalculate average rating
-END$$
-
 DELIMITER ;
 
 
@@ -461,3 +444,19 @@ WHERE Status = 'Unpaid' AND Due_Date < CURDATE();
 END$$
 
 DELIMITER ;
+
+
+# Events
+
+CREATE EVENT e_DailyOverdueCheck
+ON SCHEDULE EVERY 1 DAY
+STARTS (CURRENT_DATE + INTERVAL 1 DAY) -- Starts tomorrow at midnight
+DO
+  CALL sp_UpdateOverdueBills();
+
+CREATE EVENT e_MonthlyBilling
+ON SCHEDULE EVERY 1 MONTH
+STARTS '2026-05-09 00:00:00'
+DO
+  CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+

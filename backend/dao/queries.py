@@ -1,3 +1,5 @@
+from main import request_mess_off
+
 findUserByEmail = ("""SELECT *
                       FROM Users
                       WHERE Email = %s""")
@@ -88,3 +90,30 @@ getWeeklyMenu = ("""SELECT *
                     FROM vw_MenuSchedule
                     WHERE Date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
                     ORDER BY Date ASC, meal_type;""")
+
+getMonthBills = ("""SELECT *
+                    FROM vw_MonthlyBillingSummary""")
+
+getCurrentScheduleID = ("""SELECT Schedule_ID
+                           FROM Menu_Schedule
+                           WHERE Date = %s AND meal_type = %s""")
+
+giveFoodRating = ("""INSERT INTO Ratings
+                     (User_ID, Item_ID, ScheduleID, Score)
+                     VALUES (%s, %s, %s, %s)""")
+
+getFoodRating = ("""SELECT
+                    fi.Item_ID,
+                    fi.Name,
+                    fi.Ratings_Average AS Avg_Rating,
+                    (SELECT COUNT(*) FROM Ratings r WHERE r.Item_ID = fi.Item_ID) AS Rating_Count,
+                    fi.Vote_Count
+                    FROM Food_Items fi
+                    JOIN Menu_Food_Items mfi
+                    WHERE mfi.Schedule_ID = %s AND mfi.Item_ID = %s;""")
+
+requestMessOff = """INSERT INTO MessOff
+                    (User_ID, Start_Date, End_Date)
+                    VALUES (%s, %s, %s)"""
+
+cancelMessOff = ("""DELETE FROM MessOff WHERE Mess_Off_ID = %s AND Status = 'Pending'""")
