@@ -72,7 +72,7 @@ async def cast_vote(item_id: int, user_id: int):
     async with httpx.AsyncClient() as client:
         try:
             # Using UserID as a query parameter per FastAPI common practice
-            params = {"user_id": user_id}
+            params = {"email": email}
             response = await client.post(
                 f"{BASE_URL}/poll/vote/{item_id}",
                 params=params,

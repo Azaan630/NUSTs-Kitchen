@@ -105,7 +105,7 @@ class StudentVotingPage:
         self.page.update()
 
         # Cast vote
-        result = await cast_vote(item_id, self.user_id)
+        result = await cast_vote(item_id, self.email)
 
         # Reset button
         e.control.disabled = False
