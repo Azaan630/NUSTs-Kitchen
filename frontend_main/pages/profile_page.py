@@ -1,6 +1,7 @@
 import flet as ft
 import asyncio
-from pages.api_client import get_my_bills
+import webbrowser
+from pages.api_client import get_my_bills, download_bill_pdf
 
 class StudentProfilePage:
     def __init__(self, page: ft.Page, user_data: dict):
@@ -9,6 +10,7 @@ class StudentProfilePage:
         self.email = user_data.get("Email")
         self.bill_container = ft.Container(padding=20, border_radius=15, bgcolor=ft.Colors.WHITE)
         self.loading_text = ft.Text("Loading your bills...", color=ft.Colors.GREY_600)
+        self.bills_data = []  # Store bills for PDF download
 
     async def load_bills(self):
         self.bill_container.content = ft.Column([
@@ -17,6 +19,7 @@ class StudentProfilePage:
         self.page.update()
 
         bills_data = await get_my_bills(self.email)
+        self.bills_data = bills_data if isinstance(bills_data, list) else []
 
         if "error" in bills_data:
             self.bill_container.content = ft.Column([
@@ -26,13 +29,13 @@ class StudentProfilePage:
             self.page.update()
             return
 
-        if not bills_data or len(bills_data) == 0:
+        if not self.bills_data:
             self.bill_container.content = ft.Text("No bills found for your account.", color=ft.Colors.GREY)
             self.page.update()
             return
 
         bill_rows = []
-        for bill in bills_data:
+        for bill in self.bills_data:
             status_color = ft.Colors.GREEN
             if bill.get("Status") == "Unpaid":
                 status_color = ft.Colors.ORANGE
@@ -72,16 +75,38 @@ class StudentProfilePage:
         self.bill_container.content = ft.Column([
             ft.Text("📄 Your Bill History", size=18, weight="bold"),
             ft.Container(height=10),
-            # FIX: Wrapped in Column for scrolling instead of using scroll in Container
             ft.Column([bill_table], scroll=ft.ScrollMode.ADAPTIVE),
         ])
         self.page.update()
 
-    def generate_pdf(self, e):
-        self.page.snack_bar = ft.SnackBar(
-            content=ft.Text("📄 PDF Generation coming soon!"),
-            bgcolor=ft.Colors.BLUE
-        )
+    async def download_pdf(self, e):
+        """Downloads the selected bill as PDF."""
+        # You need to know which bill to download – let's use the first one
+        if not self.bills_data:
+            self.page.snack_bar = ft.SnackBar(content=ft.Text("No bills to download"), bgcolor=ft.Colors.RED)
+            self.page.snack_bar.open = True
+            self.page.update()
+            return
+
+        # For now, download the first bill (you can add a selector later)
+        billing_id = self.bills_data[0].get("Billing_ID")
+        if not billing_id:
+            self.page.snack_bar = ft.SnackBar(content=ft.Text("Invalid bill ID"), bgcolor=ft.Colors.RED)
+            self.page.snack_bar.open = True
+            self.page.update()
+            return
+
+        pdf_bytes = await download_bill_pdf(billing_id, self.email)
+        if pdf_bytes:
+            # Option 1: Save file using FilePicker
+            # Option 2: Open in browser (simpler for now)
+            import base64
+            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+            # Open PDF in a new browser tab (works in web mode)
+            self.page.launch_url(f"data:application/pdf;base64,{pdf_base64}")
+            self.page.snack_bar = ft.SnackBar(content=ft.Text("PDF downloaded and opened!"), bgcolor=ft.Colors.GREEN)
+        else:
+            self.page.snack_bar = ft.SnackBar(content=ft.Text("Failed to download PDF"), bgcolor=ft.Colors.RED)
         self.page.snack_bar.open = True
         self.page.update()
 
@@ -89,14 +114,14 @@ class StudentProfilePage:
         asyncio.create_task(self.load_bills())
 
         pdf_button = ft.ElevatedButton(
-            content=ft.Text("📄 Generate Bill PDF"),
+            content=ft.Text("📄 Download Bill PDF"),
             icon=ft.Icons.PICTURE_AS_PDF,
             style=ft.ButtonStyle(
                 bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900},
                 color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
             )
         )
-        pdf_button.on_click = self.generate_pdf
+        pdf_button.on_click = self.download_pdf  # ✅ Uses real download
 
         profile_details = ft.Container(
             content=ft.Column([

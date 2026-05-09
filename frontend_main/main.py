@@ -6,6 +6,7 @@ import requests
 from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
 from pages.voting_page import StudentVotingPage
+from pages.mess_off_page import StudentMessOffPage
 
 load_dotenv()
 
@@ -127,8 +128,9 @@ async def main(page: ft.Page):
                 profile = StudentProfilePage(page, page.current_user_data)
                 page_content.content = profile.build()
             elif index == 3:
-                # MESS OFF PAGE (Placeholder)
-                page_content.content = ft.Container(content=ft.Text("Mess Off Page coming soon..."), padding=40)
+                # MESS OFF PAGE
+                mess_off = StudentMessOffPage(page, page.current_user_data)
+                page_content.content = mess_off.build()
             page.update()
 
         # Create Navigation Rail (note: on_change now works because load_page is sync)
