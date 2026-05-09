@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import requests
 from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
+from pages.voting_page import StudentVotingPage
 
 load_dotenv()
 
@@ -118,8 +119,9 @@ async def main(page: ft.Page):
                 home = StudentHomePage(page, page.current_user_data)
                 page_content.content = home.build()
             elif index == 1:
-                # VOTING PAGE (Placeholder)
-                page_content.content = ft.Container(content=ft.Text("Voting Page coming soon..."), padding=40)
+                # VOTING PAGE
+                voting = StudentVotingPage(page, page.current_user_data)
+                page_content.content = voting.build()
             elif index == 2:
                 # PROFILE PAGE
                 profile = StudentProfilePage(page, page.current_user_data)

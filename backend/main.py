@@ -264,4 +264,3 @@ def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     finally:
         cursor.close()
-

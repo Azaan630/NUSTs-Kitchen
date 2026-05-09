@@ -49,3 +49,41 @@ async def get_my_bills(email: str):
             return {"error": f"Backend Connection Error: {str(e)}"}
         except httpx.HTTPStatusError as e:
             return {"error": f"Backend Error: {e.response.status_code}"}
+
+async def get_active_poll():
+    """
+    Fetches the currently active poll items from the backend.
+    Returns dict with 'active' and 'items'.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{BASE_URL}/poll/active", timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as e:
+            return {"error": f"Backend Connection Error: {str(e)}"}
+        except httpx.HTTPStatusError as e:
+            return {"error": f"Backend Error: {e.response.status_code}"}
+
+async def cast_vote(item_id: int, user_id: int):
+    """
+    Casts a vote for a specific food item.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            # Using UserID as a query parameter per FastAPI common practice
+            params = {"user_id": user_id}
+            response = await client.post(
+                f"{BASE_URL}/poll/vote/{item_id}",
+                params=params,
+                timeout=10.0
+            )
+            response.raise_for_status()
+            return {"success": True, "message": "Vote cast successfully!"}
+        except httpx.RequestError as e:
+            return {"error": f"Backend Connection Error: {str(e)}"}
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                error_detail = e.response.json().get("detail", "Unknown error")
+                return {"error": error_detail}
+            return {"error": f"Backend Error: {e.response.status_code}"}
