@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 import os
+
+from pyasn1_modules.rfc1157 import RequestID
 from starlette.middleware.cors import CORSMiddleware
 from dao.queries import findUserByEmail, registerUser
 from database import get_db
@@ -209,6 +211,84 @@ def get_food_costs(user=Depends(permission_checker(["Admin"])), db=Depends(get_d
     records = cursor.fetchall()
     cursor.close()
     return records
+
+@app.get("/admin/monthly_billing_summary")
+def get_monthly_billing_summary(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    from dao.queries import getMonthBills
+    cursor.execute(getMonthBills)
+    records = cursor.fetchall()
+    cursor.close()
+    return records
+
+@app.get("/admin/{UserID}/bill_status")
+def get_student_bill_status(UserID: int, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getStudentBillDetails
+        cursor.execute(getStudentBillDetails, (UserID, ))
+        bills_record = cursor.fetchall()
+        return bills_record
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+@app.get("/bills/my_history")
+def get_my_bill_history(email: str, db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getMyBills
+        cursor.execute(getMyBills, (email, ))
+        bills_history = cursor.fetchall()
+        return bills_history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+@app.get("/analytics/ingredients")
+def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getIngredients
+        cursor.execute(getIngredients)
+        ingredients = cursor.fetchall()
+        return ingredients
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+
+@app.get("/users/my_bills")
+def get_my_bills(email: str, db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getMyBills
+        cursor.execute(getMyBills, (email, ))
+        bills_record = cursor.fetchall()
+        return bills_record
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    finally:
+        cursor.close()
+
+@app.get("/analytics/ingredients")
+def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getIngredients
+        cursor.execute(getIngredients)
+        ingredients = cursor.fetchall()
+        return ingredients
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
 
 # WRITE OPERATIONS (POST, PATCH, DELETE)
 
@@ -528,3 +608,102 @@ def delete_recipe(ItemID: int, ScheduleID: int, user=Depends(permission_checker(
 
     return {"message": f"Record {ItemID} + {ScheduleID} deleted successfully from Menu_Food_Items table."}
 
+
+# Ratings
+
+@app.post("/student/rating/{UserID}/{ItemID}/{Date}/{meal_type}/{score}")
+def rate_food(score: int, Date: date, meal_type: str, UserID: int, ItemID: int, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+    from dao.queries import getCurrentScheduleID
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(getCurrentScheduleID)
+    current_schedule = cursor.fetchone()
+    cursor.close()
+    if not current_schedule:
+        raise HTTPException(status_code=400, detail="No schedule found")
+
+    cursor2 = db.cursor(dictionary=True)
+    from dao.queries import giveFoodRating
+    execute_transaction(db, giveFoodRating, (UserID, ItemID, current_schedule, score))
+    return "Food Rated successfully"
+
+@app.get("/getFoodRating/{ItemID}/{Date}/{meal_type}")
+def get_food_rating(Date: date, meal_type: str, ItemID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
+    from dao.queries import getCurrentScheduleID
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(getCurrentScheduleID)
+    current_schedule = cursor.fetchone()
+    cursor.close()
+    if not current_schedule:
+        raise HTTPException(status_code=400, detail="No schedule found")
+
+    cursor2 = db.cursor(dictionary=True)
+    from dao.queries import getFoodRating
+    cursor2.execute(getFoodRating, (current_schedule, ItemID))
+    rating = cursor2.fetchone()
+    cursor2.close()
+    if not rating:
+        rating = "NULL"
+    return {"rating": rating}
+
+
+# Payment Logging
+
+@app.post("/admin/bills/pay/{BillingID}")
+def record_payment(BillingID: int, amount: float, method: str, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        # Calls sp_RecordPayment(p_billing_id, p_amount, p_method)
+        cursor.callproc('sp_RecordPayment', [BillingID, amount, method])
+        db.commit()
+        return {"message": "Payment recorded and bill status updated."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+
+
+# Mess Off
+
+@app.post("/student/mess_off/request/{UserID}/{StartDate}/{EndDate}")
+def request_mess_off(UserID: int, StartDate: date, EndDate: date, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        from dao.queries import requestMessOff
+        cursor.execute(requestMessOff, UserID, StartDate, EndDate)
+        db.commit()
+        return {"message": "Mess off requested successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
+
+@app.post("/student/mess_off/cancel/{MessOffID}")
+def cancel_mess_off_request(MessOffID: int, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        from dao.queries import cancelMessOff
+        cursor.execute(cancelMessOff, MessOffID)
+        db.commit()
+        return {"message": "Mess off request cancelled successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
+
+@app.post("/admin/mess-off/approve/{RequestID}")
+def approve_mess_off(RequestID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        cursor.callproc('sp_ApproveMessOff', [RequestID])
+        db.commit()
+        return {"message": "Mess off approved successfully"}
+    except mysql.connector.Error as err:
+        if err.sqlstate == '45000':
+            raise HTTPException(status_code=400, detail=err.msg)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
