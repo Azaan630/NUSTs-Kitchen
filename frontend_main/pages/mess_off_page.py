@@ -251,7 +251,7 @@ class StudentMessOffPage:
     async def handle_cancel(self, e):
         """Handles cancellation of a pending request."""
         mess_off_id = e.control.data
-        result = await cancel_mess_off(mess_off_id)
+        result = await cancel_mess_off(mess_off_id, self.email)
         if result.get("success"):
             self.page.snack_bar = ft.SnackBar(
                 content=ft.Text(result.get("message", "Request cancelled successfully")),

@@ -137,18 +137,18 @@ async def request_mess_off(user_id: int, start_date: date, end_date: date, email
     return await _make_request("POST", endpoint , params={"email": email})
 
 
-async def cancel_mess_off(mess_off_id: int) -> Dict[str, Any]:
+async def cancel_mess_off(mess_off_id: int, email: str) -> Dict[str, Any]:
     """
     Cancels a pending mess-off request.
     """
-    return await _make_request("POST", f"/student/mess_off/cancel/{mess_off_id}")
+    return await _make_request("POST", f"/student/mess_off/cancel/{mess_off_id}", params={"email": email})
 
 
-async def get_mess_off_status(mess_off_id: int) -> Dict[str, Any]:
+async def get_mess_off_status(mess_off_id: int, email: str) -> Dict[str, Any]:
     """
     Fetches the status of a specific mess-off request.
     """
-    return await _make_request("GET", f"/student/mess-off/{mess_off_id}")
+    return await _make_request("GET", f"/student/mess-off/{mess_off_id}", params={"email": email})
 
 
 async def get_mess_off_history(email: str) -> Dict[str, Any]:

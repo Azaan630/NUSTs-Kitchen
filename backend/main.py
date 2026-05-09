@@ -767,6 +767,19 @@ def approve_mess_off(RequestID: int, user=Depends(permission_checker(["Admin"]))
     finally:
         cursor.close()
 
+@app.get("/student/mess-off/history")
+def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getMessOffThisMonth
+        cursor.execute(getMessOffThisMonth, (email,))
+        result = cursor.fetchall()
+        return {"status": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
+
 @app.get("/student/mess-off/{MessOffID}")
 def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
@@ -777,19 +790,6 @@ def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Ad
         return result
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Internal Database Error")
-    finally:
-        cursor.close()
-
-@app.get("/student/mess-off/history")
-def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
-    cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getMessOffThisMonth
-        cursor.execute(getMessOffThisMonth, (email,))
-        result = cursor.fetchall()
-        return {"status": result}
-    except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Database Error")
     finally:
         cursor.close()
