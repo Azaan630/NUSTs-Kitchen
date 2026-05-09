@@ -92,7 +92,8 @@ End_Date        DATE NOT NULL,
 Request_Date    DATE NOT NULL DEFAULT (CURRENT_DATE),
 Status          ENUM('Pending', 'Approved', 'Rejected', 'Cancelled') DEFAULT 'Pending',
 FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
-CONSTRAINT CHK_Date_Range CHECK (End_Date >= Start_Date)
+CONSTRAINT CHK_Date_Range CHECK (End_Date >= Start_Date),
+CONSTRAINT UQ_Request UNIQUE (User_ID, Start_Date, End_Date)
 );
 
 CREATE TABLE IF NOT EXISTS Ratings (
