@@ -3,7 +3,6 @@ import os
 import asyncio
 from dotenv import load_dotenv
 import requests
-from pages.home_page import StudentHomePage
 
 load_dotenv()
 
@@ -100,7 +99,6 @@ async def main(page: ft.Page):
     # --- UI COMPONENT: DASHBOARD ---
     # ... (At the top of main.py) ...
     # IMPORT YOUR PAGES
-    from pages.home_page import StudentHomePage
 
     # ... INSIDE main() function ...
 
