@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 import os
-
-from pyasn1_modules.rfc1157 import RequestID
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4, landscape
+from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from dao.queries import findUserByEmail, registerUser
 from database import get_db
@@ -9,7 +11,6 @@ from datetime import date, timedelta
 import models
 from models import FoodItemIngredient, MenuFoodItem
 import mysql.connector
-
 
 app = FastAPI(title="RotiRouter API")
 
@@ -392,6 +393,77 @@ def update_bill(data: models.BillUpdate, BillID: int, user=Depends(permission_ch
 def delete_bill(BillID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return delete_record(db, "Bills", "BillingID" , BillID)
 
+# Bill PDF Generation
+
+def draw_challan_pdf(bill):
+    buffer = BytesIO()
+    # Using landscape gives us width for 3 columns
+    c = canvas.Canvas(buffer, pagesize=landscape(A4))
+    width, height = landscape(A4)
+    col_width = width / 3
+
+    def draw_section(x_offset, label):
+        # 1. Vertical separator (Dashed line)
+        c.setDash(1, 2)
+        c.line(x_offset + col_width - 5, 20, x_offset + col_width - 5, height - 20)
+        c.setDash([])  # Reset to solid lines
+
+        # 2. Header
+        c.setFont("Helvetica-Bold", 14)
+        c.drawCentredString(x_offset + (col_width / 2), height - 50, "NUST SEECS MESS")
+        c.setFont("Helvetica-Bold", 10)
+        c.drawCentredString(x_offset + (col_width / 2), height - 65, label)
+
+        # 3. Bill Details
+        c.setFont("Helvetica", 11)
+        y = height - 120
+        c.drawString(x_offset + 30, y, f"Bill ID:    {bill['Billing_ID']}")
+        c.drawString(x_offset + 30, y - 20, f"Name:       {bill['First_Name']} {bill['Last_Name']}")
+        c.drawString(x_offset + 30, y - 40, f"Month:      {bill['Month']}")
+        c.drawString(x_offset + 30, y - 60, f"Due Date:   {bill['Due_Date']}")
+
+        # 4. Amount Box
+        c.rect(x_offset + 25, y - 110, col_width - 60, 40)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(x_offset + 35, y - 100, f"Total Amount: Rs. {bill['Amount']}")
+
+        # 5. Footer
+        c.setFont("Helvetica-Oblique", 8)
+        c.drawString(x_offset + 30, 60, "Bank Stamp / Signature")
+
+    # Draw the three copies
+    draw_section(0, "BANK COPY")
+    draw_section(col_width, "OFFICE COPY")
+    draw_section(col_width * 2, "STUDENT COPY")
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+@app.get("/student/bills/download/{BillingID}")
+def generate_pdf(BillingID: int, email:str, db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getBillPDF
+        cursor.execute(getBillPDF, (BillingID, email))
+        bill_record = cursor.fetchone()
+
+        if not bill_record:
+            raise HTTPException(status_code=404, detail="Bill not found")
+
+        pdf_buffer = draw_challan_pdf(bill_record)
+
+        filename = f"MessBill_{bill_record['Month']}.pdf"
+        return StreamingResponse(
+            pdf_buffer,
+            media_type='application/pdf',
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    finally:
+        cursor.close()
+
 
 # Food Items
 
@@ -670,7 +742,7 @@ def request_mess_off(UserID: int, StartDate: date, EndDate: date, user=Depends(p
     cursor = db.cursor()
     try:
         from dao.queries import requestMessOff
-        cursor.execute(requestMessOff, UserID, StartDate, EndDate)
+        cursor.execute(requestMessOff, (UserID, StartDate, EndDate))
         db.commit()
         return {"message": "Mess off requested successfully"}
     except Exception as e:
@@ -713,9 +785,9 @@ def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Ad
     cursor = db.cursor()
     try:
         from dao.queries import getMessOffStatus
-        status = cursor.execute(getMessOffStatus, MessOffID)
-        db.commit()
-        return {"status": status}
+        cursor.execute(getMessOffStatus, (MessOffID, ))
+        result = cursor.fetchone()
+        return {"status": result}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal Database Error")
