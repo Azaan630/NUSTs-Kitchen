@@ -121,7 +121,19 @@ cancelMessOff = ("""DELETE FROM MessOff WHERE Mess_Off_ID = %s AND Status = 'Pen
 getMessOffStatus = ("""SELECT *
                        FROM MessOff WHERE Mess_Off_ID = %s""")
 
+getMessOffThisMonth = ("""SELECT *
+                          FROM Mess_Off 
+                          JOIN Users ON Users.UserID = Mess_Off.User_ID
+                          WHERE Users.Email = %s
+                          AND (
+                          Start_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') 
+                          OR End_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                          );""")
+
 getBillPDF = ("""SELECT b.Billing_ID, b.Amount, b.Due_Date, b.Month, u.First_Name, u.Last_Name
                  FROM Bills b
                  JOIN Users u ON b.User_ID = u.UserID
                  WHERE b.Billing_ID = %s AND u.Email = %s""")
+
+getRecipes = ("""SELECT *
+                 FROM Menu_Food_Items""")

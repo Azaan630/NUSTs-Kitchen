@@ -261,6 +261,18 @@ def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_
     finally:
         cursor.close()
 
+@app.get("/recipes")
+def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    cursor = (db.cursor(dictionary=True))
+    try:
+        from dao.queries import getRecipes
+        cursor.execute(getRecipes)
+        recipes = cursor.fetchall()
+        return recipes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
 
 @app.get("/users/my_bills")
 def get_my_bills(email: str, db=Depends(get_db)):
@@ -274,19 +286,6 @@ def get_my_bills(email: str, db=Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
 
-    finally:
-        cursor.close()
-
-@app.get("/analytics/ingredients")
-def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getIngredients
-        cursor.execute(getIngredients)
-        ingredients = cursor.fetchall()
-        return ingredients
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     finally:
         cursor.close()
 
@@ -790,6 +789,21 @@ def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Ad
         return {"status": result}
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Database Error")
+    finally:
+        cursor.close()
+
+@app.get("/student/mess-off/history")
+def get_mess_off_history(UserID: int, email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    if user["Account_Type"] == "Student" and user["UserID"] != UserID:
+        raise HTTPException(status_code=403, detail="You can only view your own history.")
+    cursor = db.cursor(dictionary=True)
+    try:
+        from dao.queries import getMessOffThisMonth
+        cursor.execute(getMessOffThisMonth, (email, ))
+        result = cursor.fetchall()
+        return {"status": result}
+    except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Database Error")
     finally:
         cursor.close()
