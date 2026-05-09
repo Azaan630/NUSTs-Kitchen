@@ -4,12 +4,15 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
 
+#User
+
 class UserBase(BaseModel):
-    UserID: int
     First_Name: str
     Last_Name: str
     Email: str
     Account_Type: str
+
+#Student
 
 class StudentBase(UserBase):
     Department: str
@@ -30,6 +33,26 @@ class StudentUpdate(BaseModel):
     Room_Number: Optional[str] = None
     Father_Name: Optional[str] = None
 
+#Staff
+
+class Staff(UserBase):
+    Category: str
+
+class StaffUpdate(BaseModel):
+    Category: str
+
+class StaffCategory(BaseModel):
+    Category: str
+    WorkingHours: float
+    Salary: float
+
+class StaffContactNumbers(BaseModel):
+    ContactID: int
+    UserID: int
+    ContactNumber: str
+
+#Bill
+
 class BillStatus(str, Enum):
     PAID = "Paid"
     UNPAID = "Unpaid"
@@ -42,11 +65,51 @@ def get_current_month():
     return date.today().strftime("%B")
 
 class BillCreate(BaseModel):
-    Billing_ID: int
     UserID: int
     Issue_Date: date = Field(default_factory=date.today)
     Amount: Decimal = Field(max_digits=10, decimal_places=2)
-    Extra_Fee: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
     Due_Date: date = Field(default_factory=get_two_weeks_later)
     Month: str = Field(default_factory=get_current_month)
     Status: BillStatus = BillStatus.UNPAID
+
+class BillUpdate(BaseModel):
+    Issue_Date: date = Field(default_factory=date.today)
+    Amount: Decimal = Field(max_digits=10, decimal_places=2)
+    Due_Date: date = Field(default_factory=get_two_weeks_later)
+    Month: str = Field(default_factory=get_current_month)
+    Status: BillStatus = BillStatus.UNPAID
+
+#Food
+
+class Food(BaseModel):
+    Name: str
+    Quantity: float
+    Price: float
+
+#Ingredient
+
+class Ingredient(BaseModel):
+    Name: str
+    Total_Quantity: float
+    Pricing: float
+    Unit: str
+
+#FoodIngredientLink
+
+class FoodIngredientLink(BaseModel):
+    ItemID: int
+    Ingredient_ID: int
+    Ingredient_Quantity: int
+
+#Recipes
+
+class FoodItemIngredient(BaseModel):
+    Ingredient_ID: int
+    Ingredient_Quantity: int
+
+
+# Menu Schedule
+
+class MenuFoodItem(BaseModel):
+    ScheduleID: int
+    ItemID: int

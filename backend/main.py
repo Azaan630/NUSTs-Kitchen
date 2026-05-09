@@ -1,10 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 import os
 from starlette.middleware.cors import CORSMiddleware
-from dao.queries import findUserByEmail
+from dao.queries import findUserByEmail, registerUser
 from database import get_db
-from datetime import date
+from datetime import date, timedelta
 import models
+from models import FoodItemIngredient, MenuFoodItem
+import mysql.connector
+
+
 app = FastAPI(title="RotiRouter API")
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
@@ -26,7 +30,7 @@ def permission_checker(allowed_roles: list):
         cursor.close()
 
         if not user_record:
-            raise HTTPException(status_code=404, detail="User record not found in database")
+            raise HTTPException(status_code=404, detail="User record not found")
 
         user_account_status = user_record.get("Account_Type")
 
@@ -35,27 +39,99 @@ def permission_checker(allowed_roles: list):
         return user_record
     return mapper
 
+
+# Standardized helper for write operations (POST, PATCH, DELETE)
+def execute_transaction(db, query, params=None):
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(query, params or ())
+        db.commit()
+        return cursor
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        cursor.close()
+
+# Helper function for updating data (PATCH)
+def update_record(db, table_name, data_model, id_column, id_value):
+    # To Extract only the fields the user actually sent
+    update_data = data_model.model_dump(exclude_unset=True)
+
+    if not update_data:
+        return {"message": "No changes detected"}
+
+    # To Build the dynamic SQL "SET column1 = %s, column2 = %s"
+    column_placeholders = [f"{key} = %s" for key in update_data.keys()]
+    set_clause = ", ".join(column_placeholders)
+    query = f"UPDATE {table_name} SET {set_clause} WHERE {id_column} = %s"
+    parameters = list(update_data.values()) + [id_value]
+    execute_transaction(db, query, parameters)
+    return {"message": f"Update successful"}
+
+# Helper function for deleting data (DELETE)
+def delete_record(db, table_name, id_column, id_value):
+    # 1. Create the query
+    query = f"DELETE FROM {table_name} WHERE {id_column} = %s"
+    cursor = execute_transaction(db, query, (id_value,))
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Record with ID {id_value} not found in {table_name}."
+        )
+
+    return {"message": f"Record {id_value} deleted successfully from {table_name}"}
+
+def maintain_menu_schedule(db):
+    today = date.today()
+    next_week_check = today + timedelta(days=7)
+
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT 1 FROM Menu_Schedule WHERE Date = %s LIMIT 1",
+            (next_week_check,)
+        )
+        exists = cursor.fetchone()
+        if not exists:
+            # Generate dates for today + 14 days
+            for i in range(15):
+                target_date = today + timedelta(days=i)
+                for meal in ['Breakfast', 'Lunch', 'Dinner']:
+
+                    # Using INSERT IGNORE to prevent duplication
+                    cursor.execute(
+                        """INSERT IGNORE INTO Menu_Schedule (Date, meal_type, status)
+                        VALUES (%s, %s, 'active')""",
+                        (target_date, meal)
+                    )
+            db.commit()
+
+    except Exception as e:
+        print(f"Maintenance Error: {e}")
+        db.rollback()
+
+    finally:
+        cursor.close()
+
+
+# READ OPERATIONS (GET)
+
 @app.get("/")
 def read_root():
     return {"status": "MEOWMEOW Backend is Online"}
 
-
 @app.get("/users/verify")
-def verify_registration(email: str, db = Depends(get_db)):
+def verify_registration(email: str, db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
+    from dao.queries import findUserByEmail
     cursor.execute(findUserByEmail, (email,))
     user_record = cursor.fetchone()
     cursor.close()
-
     if not user_record:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access Denied: Your NUST email is not registered in the RotiRouter system. Please contact the Mess Admin."
-        )
-
+        raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
     return {"status": "authorized", "user_details": user_record}
 
-# Route 1: The VIP Lounge (Admin Only)
 @app.get("/test/admin-only")
 def test_admin(user=Depends(permission_checker(["Admin"]))):
     return {
@@ -63,7 +139,6 @@ def test_admin(user=Depends(permission_checker(["Admin"]))):
         "user_email": user["Email"]
     }
 
-# Route 2: The General Area (Student or Admin)
 @app.get("/test/any-authorized")
 def test_student(user=Depends(permission_checker(["Student", "Admin"]))):
     return {
@@ -71,196 +146,385 @@ def test_student(user=Depends(permission_checker(["Student", "Admin"]))):
         "user_role": user["Account_Type"]
     }
 
-
 @app.get("/users/me")
 def get_my_profile(email: str, db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
+    from dao.queries import findUserByEmail
     cursor.execute(findUserByEmail, (email,))
     user_record = cursor.fetchone()
     cursor.close()
-
     return user_record
-@app.get("/menu/today")
-def get_todays_menu(
-        target_date: date = Query(default=date.today()),
-        db = Depends(get_db)
-):
-    cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getMenuByDate
-        cursor.execute(getMenuByDate, (target_date,))
-        menu_items = cursor.fetchall()
 
-        return {
-            "date": target_date.isoformat(),
-            "item_count": len(menu_items),
-            "menu": menu_items
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-    finally:
-        cursor.close()
+@app.get("/menu/today")
+def get_todays_menu(target_date: date = Query(default=date.today()), db=Depends(get_db)):
+    maintain_menu_schedule(db)
+    cursor = db.cursor(dictionary=True)
+    from dao.queries import getMenuByDate
+    cursor.execute(getMenuByDate, (target_date,))
+    menu_items = cursor.fetchall()
+    cursor.close()
+    return {"date": target_date.isoformat(), "item_count": len(menu_items), "menu": menu_items}
 
 @app.get("/menu/weekly")
-def get_this_week_menu(
-        target_date: date = Query(default=date.today()),
-        db = Depends(get_db)
-):
+def get_weekly_menu(db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getWeeklyMenu
-        cursor.execute(getWeeklyMenu, (target_date, target_date))
-        weekly_menu = cursor.fetchall()
-
-        grouped_menu = {}
-        for item in weekly_menu:
-            date_key = item["Date"].isoformat()
-
-            if date_key not in grouped_menu:
-                grouped_menu[date_key] = []
-
-            grouped_menu[date_key].append({
-                "Item_ID": item["Item_ID"],
-                "Name": item["Name"],
-                "Rating": float(item["Ratings_Average"])
-            })
-
-        return {
-            "start_date": target_date.isoformat(),
-            "day_count": len(grouped_menu),
-            "weekly_schedule": grouped_menu
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-    finally:
-        cursor.close()
-
+    from dao.queries import getWeeklyMenu
+    cursor.execute(getWeeklyMenu)
+    menu_items = cursor.fetchall()
+    cursor.close()
+    return menu_items
 
 @app.get("/admin/students/all")
 def get_all_students(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getAllUsers
-        cursor.execute(getAllUsers)
-        user_record = cursor.fetchall()
-        return user_record
+    from dao.queries import getAllUsers
+    cursor.execute(getAllUsers)
+    records = cursor.fetchall()
+    cursor.close()
+    return records
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-
-    finally:
-        cursor.close()
-
-
-@app.get("/users/my_bills")
-def get_my_bills(email: str, db=Depends(get_db)):
+@app.get("/admin/staff/details/{UserID}")
+def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getMyBills
-        cursor.execute(getMyBills, (email, ))
-        bills_record = cursor.fetchall()
-        return bills_record
+    from dao.queries import getStaffDetails
+    cursor.execute(getStaffDetails, (UserID, ))
+    records = cursor.fetchall()
+    cursor.close()
+    return records
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-
-    finally:
-        cursor.close()
-
-
-@app.get("/admin/{UserID}/bill_status")
-def get_student_bill_status(UserID: int, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+@app.get("/admin/food/{ItemID}")
+def get_food_by_id(ItemID: int, db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getStudentBillDetails
-        cursor.execute(getStudentBillDetails, (UserID, ))
-        bills_record = cursor.fetchall()
-        return bills_record
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-    finally:
-        cursor.close()
+    from dao.queries import getFoodByID
+    cursor.execute(getFoodByID, (ItemID, ))
+    records = cursor.fetchall()
+    cursor.close()
+    return records
 
-@app.get("/bills/my_history")
-def get_my_bill_history(email: str, db=Depends(get_db)):
+@app.get("/admin/food/costs")
+def get_food_costs(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getMyBills
-        cursor.execute(getMyBills, (email, ))
-        bills_history = cursor.fetchall()
-        return bills_history
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-    finally:
-        cursor.close()
+    from dao.queries import getAllFoodCosts
+    cursor.execute(getAllFoodCosts)
+    records = cursor.fetchall()
+    cursor.close()
+    return records
 
-@app.get("/analytics/ingredients")
-def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import getIngredients
-        cursor.execute(getIngredients)
-        ingredients = cursor.fetchall()
-        return ingredients
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-    finally:
-        cursor.close()
+# WRITE OPERATIONS (POST, PATCH, DELETE)
+
+# Students
 
 @app.post("/admin/students/register")
-def register_student(data:models.StudentCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def register_student(data: models.StudentCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     try:
-        from dao.queries import registerStudent
-        values = (
-            data.First_Name, data.Last_Name, data.Email, data.Account_Type,
-            data.DoB, data.Department,
-            data.Contact_Number, data.Address, data.Father_Name,
-            data.Hostel_Name, data.Room_Number
-        )
-        cursor.execute(registerStudent, values)
+        from dao.queries import registerUser, registerStudent
+        # Create User
+        user_vals = (data.First_Name, data.Last_Name, data.Email, "Student")
+        cursor.execute(registerUser, user_vals)
+        new_user_id = cursor.lastrowid
+
+        # Create Student using the new_user_id
+        student_vals = (new_user_id, data.DoB, data.Department, data.Contact_Number,
+                        data.Address, data.Father_Name, data.Hostel_Name, data.Room_Number)
+        cursor.execute(registerStudent, student_vals)
+
         db.commit()
+        return {"message": "User and Student registered successfully", "UserID": new_user_id}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
 
 @app.patch("/admin/students/update/{UserID}")
 def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return update_record(db, "Student", data, "UserID", UserID)
+
+
+@app.delete("/admin/students/delete/{UserID}")
+def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return delete_record(db, "Student", "UserID" , UserID)
+
+
+# Staff
+
+@app.post("/admin/staff/register")
+def register_staff(data: models.Staff, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     try:
-        update_data = data.model_dump(exclude_unset=True)
-        if not update_data:
-            return {"message": "No changes detected"}
+        from dao.queries import registerUser, registerStaff
+        # Create User
+        user_vals = (data.First_Name, data.Last_Name, data.Email, "Staff")
+        cursor.execute(registerUser, user_vals)
+        new_user_id = cursor.lastrowid
 
-        column_placeholders = [f"{key} = %s" for key in update_data.keys()]
-        set_clause = ", ".join(column_placeholders)
-        update_query = f"""UPDATE Student 
-                           SET {set_clause} 
-                           WHERE UserID = %s"""
+        # Create Staff using the new_user_id
+        staff_vals = (new_user_id, data.Category)
+        cursor.execute(registerStaff, staff_vals)
 
-        parameters = list(update_data.values()) + [UserID]
-        cursor.execute(update_query, parameters)
         db.commit()
+        return {"message": "User and Staff registered successfully", "UserID": new_user_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
+
+@app.post("/admin/staff/update")
+def update_staff_profile(data: models.Staff, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return update_record(db, "Staff", data, "UserID", UserID)
+
+@app.delete("/admin/staff/delete/{UserID}")
+def delete_staff(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return delete_record(db, "Staff", "UserID" , UserID)
+
+@app.post("/admin/staff/contact/{UserID}")
+def add_staff_contact(data: models.StaffContactNumbers, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+     from dao.queries import AddStaffContactNumber
+     vals = (UserID, data.ContactID)
+     cursor = execute_transaction(db, AddStaffContactNumber, vals)
+     return {"message": "Food item created", "id": cursor.lastrowid}
+
+@app.post("/admin/staff/category")
+def add_staff_category(data: models.StaffCategory, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    from dao.queries import addStaffCategory
+    cursor = execute_transaction(db, addStaffCategory, data)
+    return {"message": "Food item created", "id": cursor.lastrowid}
+
+
+#Bills
 
 @app.post("/admin/bills/create")
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    cursor = db.cursor(dictionary=True)
-    try:
-        from dao.queries import createBill
-        values = (
-            data.UserID, data.Issue_Date, data.Amount, data.Extra_Fee, data.Due_Date, data.Month, data.Status.value
+    from dao.queries import createBill
+    vals = (data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value)
+    cursor = execute_transaction(db, createBill, vals)
+    return {"message": "Bill created", "id": cursor.lastrowid}
+
+
+@app.patch("/admin/bills/update/{BillID}")
+def update_bill(data: models.BillUpdate, BillID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return update_record(db, "Bills", data, "BillingID", BillID)
+
+
+@app.delete("/admin/bills/delete/{BillID}")
+def delete_bill(BillID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return delete_record(db, "Bills", "BillingID" , BillID)
+
+
+# Food Items
+
+@app.post("/admin/food_items/create")
+def create_food(data: models.Food, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    from dao.queries import createFood
+    vals = (data.Name, data.Quantity, data.Price)
+    cursor = execute_transaction(db, createFood, vals)
+    return {"message": "Food item created", "id": cursor.lastrowid}
+
+@app.patch("/admin/food_items/update/{ItemID}")
+def update_food(data: models.Food, ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return update_record(db, "Food_Items", data, "ItemID", ItemID)
+
+@app.delete("/admin/food_items/delete/{ItemID}")
+def delete_food(ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return delete_record(db, "Food_Items", "ItemID" , ItemID)
+
+
+# Ingredients
+
+@app.post("/admin/ingredients/create")
+def create_ingredient(data: models.Ingredient, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    from dao.queries import createIngredient
+    vals = (data.Name, data.Total_Quantity, data.Pricing, data.Unit)
+    cursor = execute_transaction(db, createIngredient, vals)
+    return {"message": "Ingredient created", "id": cursor.lastrowid}
+
+@app.patch("/admin/ingredients/update/{IngredientID}")
+def update_ingredient(data: models.Ingredient, IngredientID : int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return update_record(db, "Ingredients", data, "IngredientID", IngredientID)
+
+@app.delete("/admin/ingredients/delete/{IngredientID}")
+def delete_ingredient(IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return delete_record(db, "Ingredients", "IngredientID", IngredientID)
+
+
+# Recipes
+
+@app.post("/admin/add_recipe/{ItemID}/{IngredientID}")
+def add_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    from dao.queries import addRecipe
+    vals = (IngredientID, data.Ingredient_Quantity)
+    cursor = execute_transaction(db, addRecipe, vals)
+    return {"message": "Recipe added", "id": cursor.lastrowid}
+
+@app.patch("/admin/recipe/update/{ItemID}/{IngredientID}")
+def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    update_data = data.model_dump(exclude_unset=True)
+
+    if not update_data:
+        return {"message": "No changes detected"}
+
+    # To Build the dynamic SQL "SET column1 = %s, column2 = %s"
+    column_placeholders = [f"{key} = %s" for key in update_data.keys()]
+    set_clause = ", ".join(column_placeholders)
+    query = f"UPDATE Food_Item_Ingredients SET {set_clause} WHERE Item_ID= %s AND IngredientID = %s"
+    parameters = list(update_data.values()) + [ItemID, IngredientID]
+    execute_transaction(db, query, parameters)
+    return {"message": f"{FoodItemIngredient} updated successfully"}
+
+@app.delete("/admin/recipe/{ItemID}/{IngredientID}")
+def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    query = f"DELETE FROM Food_Item_Ingredients WHERE Item_ID = %s AND Ingredient_ID = %s"
+    cursor = execute_transaction(db, query, (ItemID, IngredientID))
+
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Record with ID {ItemID} + {IngredientID} not found in Food_Item_Ingredients."
         )
-        cursor.execute(createBill, values)
+
+    return {"message": f"Record {ItemID} + {IngredientID} deleted successfully from Food_Item_Ingredients."}
+
+
+# Voting
+
+@app.post("/admin/poll/start")
+def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        # Join IDs into "1,2,3"
+        poll_str = ",".join(map(str, item_ids))
+
+        query = "INSERT INTO System_Config (Config_Key, Value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE Value = %s"
+
+        cursor.execute(query, ("active_poll_items", poll_str, poll_str))
+        cursor.execute(query, ("active_poll_meal", meal_type, meal_type))
         db.commit()
-        return {"message": "Bill created successfully", "id": cursor.lastrowid}
+
+        return {"status": "Poll Started"}
+
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
     finally:
         cursor.close()
+
+@app.get("/poll/active")
+def get_active_poll(db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        query = "SELECT Config_Key, Value FROM System_Config WHERE Config_Key = 'active_poll_items'"
+        cursor.execute(query)
+        active_poll_items = cursor.fetchone()
+
+        if not active_poll_items or not active_poll_items['Value']:
+            return {"active": False}
+
+        id_list = active_poll_items['Value'].split(",")
+        format_strings = ','.join(['%s'] * len(id_list))
+        query = f"SELECT Item_ID, Name, Price FROM Food_Items WHERE Item_ID IN ({format_strings})"
+
+        cursor.execute(query, tuple(id_list))
+        return {"active": True, "items": cursor.fetchall()}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+
+@app.post("/poll/vote/{ItemID}")
+def cast_vote(ItemID: int, email: str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT Value FROM System_Config WHERE Config_Key = 'active_poll_items'")
+    result = cursor.fetchone()
+    cursor.close()
+
+    if not result or not result['Value']:
+        raise HTTPException(status_code=404, detail="No active poll")
+
+    active_ids = result['Value'].split(",")
+    if str(ItemID) not in active_ids:
+        raise HTTPException(status_code=400, detail="This item is not part of the active poll")
+
+    cursor2 = db.cursor()
+    try:
+        cursor2.callproc('sp_AddVote', [user['UserID'], ItemID])
+        db.commit()
+    except mysql.connector.Error as err:
+        if err.errno == 1062:  # MySQL Duplicate Entry Error
+            raise HTTPException(status_code=400, detail="You already voted for this!")
+        raise HTTPException(status_code=500, detail="Database error")
+    finally:
+        cursor2.close()
+
+
+@app.get("/admin/poll/results")
+def get_poll_results(db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT Value FROM System_Config WHERE Config_Key = 'active_poll_items'")
+        config = cursor.fetchone()
+
+        if not config or not config['Value']:
+            return {"results": [], "message": "No active poll items found"}
+
+        item_ids = config["Value"].split(",")
+        format_strings = ','.join(['%s'] * len(item_ids))
+
+        query = f"""SELECT Item_ID, Name, Vote_Count 
+                    FROM vw_FoodItemRatings 
+                    WHERE Item_ID IN ({format_strings})
+                    ORDER BY Vote_Count DESC"""
+        cursor.execute(query, tuple(item_ids))
+        results = cursor.fetchall()
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+
+
+# Menu Food Items
+
+@app.post("/admin/menu_schedule/{ItemID}/{menu_date}/{meal_type}")
+def add_recipe(meal_type: str, menu_date: date, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    from dao.queries import addMenuItem
+
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(f"""SELECT Schedule_ID FROM Menu_Schedule WHERE Date = %s AND Meal_Type = %s""", (menu_date, meal_type))
+    schedule_id = cursor.fetchone()
+
+    if not schedule_id:
+        raise HTTPException(status_code=400, detail="No schedule found")
+
+    cursor = execute_transaction(db, addMenuItem, (schedule_id, ItemID))
+
+@app.patch("/admin/menu_schedule/{ItemID}/{ScheduleID}")
+def update_recipe(data: models.MenuFoodItem, ItemID: int, ScheduleID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    update_data = data.model_dump(exclude_unset=True)
+
+    if not update_data:
+        return {"message": "No changes detected"}
+
+    # To build the dynamic SQL "SET column1 = %s, column2 = %s"
+    column_placeholders = [f"{key} = %s" for key in update_data.keys()]
+    set_clause = ", ".join(column_placeholders)
+    query = f"UPDATE Menu_Food_Items SET {set_clause} WHERE ItemID = %s AND ScheduleID = %s"
+    parameters = list(update_data.values()) + [ItemID, ScheduleID]
+    execute_transaction(db, query, parameters)
+    return {"message": f"Recipe updated successfully"}
+
+@app.delete("/admin/recipe/{ItemID}/{ScheduleID}")
+def delete_recipe(ItemID: int, ScheduleID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    query = f"DELETE FROM Menu_Food_Items WHERE Item_ID = %s AND Schedule_ID = %s"
+    cursor = execute_transaction(db, query, (ItemID, ScheduleID))
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Record with ID {ItemID} + {ScheduleID} not found in Menu_Food_Items table."
+        )
+
+    return {"message": f"Record {ItemID} + {ScheduleID} deleted successfully from Menu_Food_Items table."}
+
