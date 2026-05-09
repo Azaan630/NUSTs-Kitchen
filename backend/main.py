@@ -119,7 +119,6 @@ def maintain_menu_schedule(db):
 
 
 # READ OPERATIONS (GET)
-
 @app.get("/")
 def read_root():
     return {"status": "MEOWMEOW Backend is Online"}
@@ -135,21 +134,7 @@ def verify_registration(email: str, db=Depends(get_db)):
         raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
     return {"status": "authorized", "user_details": user_record}
 
-@app.get("/test/admin-only")
-def test_admin(user=Depends(permission_checker(["Admin"]))):
-    return {
-        "message": "Success! You are a certified Admin.",
-        "user_email": user["Email"]
-    }
-
-@app.get("/test/any-authorized")
-def test_student(user=Depends(permission_checker(["Student", "Admin"]))):
-    return {
-        "message": "Access Granted: Student/Admin level reached.",
-        "user_role": user["Account_Type"]
-    }
-
-@app.get("/users/me")
+@app.get("/users/me") # ALSO FOR STAFF
 def get_my_profile(email: str, db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     from dao.queries import findUserByEmail
@@ -158,7 +143,7 @@ def get_my_profile(email: str, db=Depends(get_db)):
     cursor.close()
     return user_record
 
-@app.get("/menu/today")
+@app.get("/menu/today") # ALSO FOR STAFF
 def get_todays_menu(target_date: date = Query(default=date.today()), db=Depends(get_db)):
     maintain_menu_schedule(db)
     cursor = db.cursor(dictionary=True)
@@ -168,7 +153,7 @@ def get_todays_menu(target_date: date = Query(default=date.today()), db=Depends(
     cursor.close()
     return {"date": target_date.isoformat(), "item_count": len(menu_items), "menu": menu_items}
 
-@app.get("/menu/weekly")
+@app.get("/menu/weekly") # ALSO FOR STAFF
 def get_weekly_menu(db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     from dao.queries import getWeeklyMenu
@@ -195,8 +180,9 @@ def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), 
     cursor.close()
     return records
 
-@app.get("/admin/food/{ItemID}")
-def get_food_by_id(ItemID: int, db=Depends(get_db)):
+@app.get("/admin/food/{ItemID}") # ALSO FOR STAFF
+def get_food_by_id(ItemID: int, db=Depends(get_db), user=permission_checker(["Admin", "Staff"])):
+    cursor = db.cursor(dictionary=True)
     cursor = db.cursor(dictionary=True)
     from dao.queries import getFoodByID
     cursor.execute(getFoodByID, (ItemID, ))
@@ -204,8 +190,8 @@ def get_food_by_id(ItemID: int, db=Depends(get_db)):
     cursor.close()
     return records
 
-@app.get("/admin/food/costs")
-def get_food_costs(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+@app.get("/admin/food/costs") # ALSO FOR STAFF
+def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     from dao.queries import getAllFoodCosts
     cursor.execute(getAllFoodCosts)
@@ -236,7 +222,7 @@ def get_student_bill_status(UserID: int, db=Depends(get_db), user=Depends(permis
         cursor.close()
 
 @app.get("/bills/my_history")
-def get_my_bill_history(email: str, db=Depends(get_db)):
+def get_my_bill_history(email: str, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getMyBills
@@ -248,8 +234,8 @@ def get_my_bill_history(email: str, db=Depends(get_db)):
     finally:
         cursor.close()
 
-@app.get("/analytics/ingredients")
-def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+@app.get("/analytics/ingredients") # ALSO FOR STAFF
+def get_ingredients(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getIngredients
@@ -261,7 +247,7 @@ def get_ingredients(user=Depends(permission_checker(["Admin"])), db=Depends(get_
     finally:
         cursor.close()
 
-@app.get("/recipes")
+@app.get("/recipes") # ALSO FOR STAFF
 def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     cursor = (db.cursor(dictionary=True))
     try:
@@ -275,7 +261,7 @@ def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends
         cursor.close()
 
 @app.get("/users/my_bills")
-def get_my_bills(email: str, db=Depends(get_db)):
+def get_my_bills(email: str, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getMyBills
@@ -440,7 +426,7 @@ def draw_challan_pdf(bill):
     return buffer
 
 @app.get("/student/bills/download/{BillingID}")
-def generate_pdf(BillingID: int, email:str, db=Depends(get_db)):
+def generate_pdf(BillingID: int, email:str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getBillPDF
@@ -541,7 +527,7 @@ def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checke
 # Voting
 
 @app.post("/admin/poll/start")
-def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db)):
+def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
     cursor = db.cursor(dictionary=True)
 
     try:
@@ -563,7 +549,7 @@ def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db)):
         cursor.close()
 
 @app.get("/poll/active")
-def get_active_poll(db=Depends(get_db)):
+def get_active_poll(db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
     cursor = db.cursor(dictionary=True)
     try:
         query = "SELECT Config_Key, Value FROM System_Config WHERE Config_Key = 'active_poll_items'"
@@ -698,7 +684,7 @@ def rate_food(score: int, Date: date, meal_type: str, UserID: int, ItemID: int, 
     return "Food Rated successfully"
 
 @app.get("/getFoodRating/{ItemID}/{Date}/{meal_type}")
-def get_food_rating(Date: date, meal_type: str, ItemID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
+def get_food_rating(Date: date, meal_type: str, ItemID: int, db=Depends(get_db)):
     from dao.queries import getCurrentScheduleID
     cursor = db.cursor(dictionary=True)
     cursor.execute(getCurrentScheduleID)
@@ -794,8 +780,8 @@ def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Ad
         cursor.close()
 
 @app.get("/student/mess-off/history")
-def get_mess_off_history(UserID: int, email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
-    if user["Account_Type"] == "Student" and user["UserID"] != UserID:
+def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    if user["Account_Type"] == "Student" and user["Email"] != email:
         raise HTTPException(status_code=403, detail="You can only view your own history.")
     cursor = db.cursor(dictionary=True)
     try:

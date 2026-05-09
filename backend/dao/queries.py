@@ -135,5 +135,6 @@ getBillPDF = ("""SELECT b.Billing_ID, b.Amount, b.Due_Date, b.Month, u.First_Nam
                  JOIN Users u ON b.User_ID = u.UserID
                  WHERE b.Billing_ID = %s AND u.Email = %s""")
 
-getRecipes = ("""SELECT *
-                 FROM Menu_Food_Items""")
+getRecipes = ("""SELECT Food_Item_Ingredients.Item_ID, Ingredients.Ingredient_ID, Ingredient_Quantity, Ingredients.Unit, Ingredients.Name
+                 FROM Food_Item_Ingredients ON Food_Items.Item_ID = Food_Item_Ingredients.Item_ID
+                 JOIN Ingredients ON Food_Item_Ingredients.Ingredient_ID = Ingredients.Ingredient_ID""")
