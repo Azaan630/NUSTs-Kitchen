@@ -40,7 +40,8 @@ registerStudent = ("""INSERT INTO Student
                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
 
 createBill = ("""INSERT INTO Bills
-                 VALUES (NULL, %s, %s, %s, %s, %s, %s)""")
+                 (User_ID, Issue_Date, Amount, Due_Date, Month, Status)
+                 VALUES (%s, %s, %s, %s, %s, %s)""")
 
 createFood = ("""INSERT INTO Food_Items
                  (Name, Quantity, Item_Expenditure)
@@ -53,3 +54,37 @@ createIngredient = ("""INSERT INTO Ingredients
 registerStaff = ("""INSERT INTO Staff
                       (UserID, Category)
                       VALUES (%s, %s)""")
+
+getStaffDetails = ("""SELECT *
+                      FROM vw_StaffDetails WHERE UserID = %s""")
+
+AddStaffContactNumber = ("""INSERT INTO Staff_Contact_Numbers
+                            (UserID, Contact_Number)
+                            VALUES (%s, %s)""")
+
+addRecipe = ("""INSERT INTO Food_Item_Ingredients
+                (Ingredient_ID, Ingredient_Quantity)
+                VALUES (%s, %s)""")
+
+
+getFoodByID = ("""SELECT 1
+                  FROM Food_Items
+                  WHERE ItemID = %s""")
+
+
+addStaffCategory = """INSERT INTO StaffCategories
+                      (Category, Working_hours, Salary)
+                      VALUES (%s, %s, %s)"""
+
+
+addMenuItem = """INSERT INTO Menu_Food_Items
+                 (Schedule_ID, Item_ID)
+                 VALUES (%s, %s)"""
+
+getAllFoodCosts = ("""SELECT *
+                      FROM vw_FoodItemCost""")
+
+getWeeklyMenu = ("""SELECT * 
+                    FROM vw_MenuSchedule
+                    WHERE Date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+                    ORDER BY Date ASC, meal_type;""")

@@ -45,9 +45,9 @@ FOREIGN KEY (UserID) REFERENCES Staff(UserID) ON DELETE CASCADE
 CREATE TABLE IF NOT EXISTS Ingredients (
 Ingredient_ID   INT PRIMARY KEY AUTO_INCREMENT,
 Name            VARCHAR(100) NOT NULL,
-Total_Quantity  DECIMAL(10,3) NOT NULL DEFAULT 0.000,
-Pricing         DECIMAL(10,2) NOT NULL,
-Total_Cost      DECIMAL(10,2) AS (Pricing * Total_Quantity) STORED
+Unit            VARCHAR(100) NOT NULL,
+Unit_cost       DECIMAL(10,2) NOT NULL,
+Total_Quantity  DECIMAL(10,3) NOT NULL DEFAULT 0.000
 );
 
 CREATE TABLE IF NOT EXISTS Food_Items (
@@ -56,12 +56,13 @@ Name                VARCHAR(100) NOT NULL,
 Quantity            DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 Ratings_Average     DECIMAL(3,2) DEFAULT NULL COMMENT 'Average rating (1-5), NULL if no ratings',
 Vote_Count          INT DEFAULT 0,
-Item_Expenditure    DECIMAL(10,2) NOT NULL DEFAULT 0.00
+Price    DECIMAL(10,2) NOT NULL DEFAULT 0.00
 );
 
 CREATE TABLE IF NOT EXISTS Food_Item_Ingredients (
 Item_ID         INT NOT NULL,
 Ingredient_ID   INT NOT NULL,
+Ingredient_Quantity DECIMAL(10,2) NOT NULL,
 PRIMARY KEY (Item_ID, Ingredient_ID),
 FOREIGN KEY (Item_ID)       REFERENCES Food_Items(Item_ID)      ON DELETE CASCADE,
 FOREIGN KEY (Ingredient_ID) REFERENCES Ingredients(Ingredient_ID) ON DELETE CASCADE
@@ -98,10 +99,12 @@ CREATE TABLE IF NOT EXISTS Ratings (
 Rating_ID   INT PRIMARY KEY AUTO_INCREMENT,
 User_ID     INT NOT NULL,
 Item_ID     INT NOT NULL,
+Schedule_ID INT NOT NULL,
 Score       TINYINT NOT NULL CHECK (Score BETWEEN 1 AND 5),
 Rated_At    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
-FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE
+FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE,
+FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Votes (
@@ -138,19 +141,14 @@ CREATE TABLE IF NOT EXISTS Transactions (
     FOREIGN KEY (Billing_ID) REFERENCES Bills(Billing_ID) ON DELETE CASCADE
 );
 
-CREATE TABLE USER_CONTACT (
-UserID            INT NOT NULL,
-Contact_Number    VARCHAR(15) NOT NULL,
-PRIMARY KEY (UserID, Contact_Number),
-CONSTRAINT FK_UC_User FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
-);
-
 
 # SYSTEM CONFIGURATION (for daily mess rate)
 
 CREATE TABLE System_Config (
 Config_Key        VARCHAR(50) PRIMARY KEY,
-Value             VARCHAR(100) NOT NULL
+Value             VARCHAR(100) NOT NULL,
+Active_Poll_Items VARCHAR(100),
+Active_Poll_Type  VARCHAR(100)
 );
 # Insert default daily rate
 INSERT INTO System_Config VALUES ('daily_mess_rate', '150.00');
@@ -213,7 +211,7 @@ CREATE VIEW vw_FoodItemCost AS
 SELECT
 fi.Item_ID,
 fi.Name,
-SUM(i.Pricing * i.Total_Quantity) AS Estimated_Cost
+SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Estimated_Cost
 FROM Food_Items fi
 JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
 JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID

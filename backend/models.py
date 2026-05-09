@@ -33,6 +33,24 @@ class StudentUpdate(BaseModel):
     Room_Number: Optional[str] = None
     Father_Name: Optional[str] = None
 
+#Staff
+
+class Staff(UserBase):
+    Category: str
+
+class StaffUpdate(BaseModel):
+    Category: str
+
+class StaffCategory(BaseModel):
+    Category: str
+    WorkingHours: float
+    Salary: float
+
+class StaffContactNumbers(BaseModel):
+    ContactID: int
+    UserID: int
+    ContactNumber: str
+
 #Bill
 
 class BillStatus(str, Enum):
@@ -66,7 +84,7 @@ class BillUpdate(BaseModel):
 class Food(BaseModel):
     Name: str
     Quantity: float
-    Item_Expenditure: float
+    Price: float
 
 #Ingredient
 
@@ -74,29 +92,24 @@ class Ingredient(BaseModel):
     Name: str
     Total_Quantity: float
     Pricing: float
+    Unit: str
 
 #FoodIngredientLink
 
 class FoodIngredientLink(BaseModel):
     ItemID: int
     Ingredient_ID: int
-    Quantity_Required: int
-    Unit: stff
+    Ingredient_Quantity: int
 
-#Staff
+#Recipes
 
-class Staff(UserBase):
-    Category: str
+class FoodItemIngredient(BaseModel):
+    Ingredient_ID: int
+    Ingredient_Quantity: int
 
-class StaffUpdate(BaseModel):
-    Category: str
 
-class StaffCategory(BaseModel):
-    Category: str
-    WorkingHours: float
-    Salary: float
+# Menu Schedule
 
-class StaffContactNumbers(BaseModel):
-    ContactID: int
-    UserID: int
-    ContactNumber: str
+class MenuFoodItem(BaseModel):
+    ScheduleID: int
+    ItemID: int
