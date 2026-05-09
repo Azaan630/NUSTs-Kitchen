@@ -2,3 +2,7 @@ streamlit
 pandas
 httpx
 matplotlib
+plotly
+seaborn
+folium
+streamlit-echarts

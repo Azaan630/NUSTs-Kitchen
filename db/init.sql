@@ -221,6 +221,10 @@ FROM Staff s
 JOIN Users u ON s.UserID = u.UserID
 JOIN Staff_Category sc ON s.Category = sc.Category;
 
+CREATE VIEW vw_FoodItemRatings AS
+SELECT Item_ID, Name, Vote_Count, Ratings_Average
+FROM Food_Items;
+
 
 # STORED PROCEDURES
 
@@ -460,5 +464,63 @@ ON SCHEDULE EVERY 1 MONTH
 STARTS '2026-05-09 00:00:00'
 DO
   CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+
+# --- TEST DATA SEEDING ---
+
+# 1. Ingredients
+INSERT INTO Ingredients (Name, Unit, Unit_cost, Total_Quantity) VALUES
+('Basmati Rice', 'kg', 350.00, 500),
+('Chicken', 'kg', 600.00, 200),
+('Lentils (Daal)', 'kg', 280.00, 150),
+('Cooking Oil', 'Litre', 450.00, 100),
+('Milk', 'Litre', 220.00, 300),
+('Flour (Atta)', 'kg', 140.00, 400);
+
+# 2. Food Items
+INSERT INTO Food_Items (Name, Quantity, Price) VALUES
+('Chicken Biryani', 1.0, 250.00),
+('Daal Mash', 1.0, 150.00),
+('Special Tea', 1.0, 50.00),
+('Aloo Paratha', 1.0, 80.00),
+('Chicken Karahi', 1.0, 350.00);
+
+# 3. User & Student (Your Details)
+INSERT INTO Users (First_Name, Last_Name, Email, Account_Type) VALUES
+('Azaan', 'User', 'azaan@nust.edu.pk', 'Student'),
+('Admin', 'Boss', 'admin@nust.edu.pk', 'Admin');
+
+INSERT INTO Student (UserID, DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number)
+SELECT UserID, '2004-01-01', 'SEECS - CS', '0300-1234567', 'NUST H-12, Islamabad', 'Father Name', 'Ghazali', 'A-101'
+FROM Users WHERE Email = 'azaan@nust.edu.pk';
+
+# 4. Menu Schedule
+INSERT IGNORE INTO Menu_Schedule (Date, meal_type, status) VALUES
+(CURDATE(), 'Breakfast', 'Active'),
+(CURDATE(), 'Lunch', 'Active'),
+(CURDATE(), 'Dinner', 'Active');
+
+INSERT INTO Menu_Food_Items (Schedule_ID, Item_ID)
+SELECT Schedule_ID, (SELECT Item_ID FROM Food_Items WHERE Name = 'Aloo Paratha') FROM Menu_Schedule WHERE Date = CURDATE() AND meal_type = 'Breakfast';
+INSERT INTO Menu_Food_Items (Schedule_ID, Item_ID)
+SELECT Schedule_ID, (SELECT Item_ID FROM Food_Items WHERE Name = 'Daal Mash') FROM Menu_Schedule WHERE Date = CURDATE() AND meal_type = 'Lunch';
+INSERT INTO Menu_Food_Items (Schedule_ID, Item_ID)
+SELECT Schedule_ID, (SELECT Item_ID FROM Food_Items WHERE Name = 'Chicken Biryani') FROM Menu_Schedule WHERE Date = CURDATE() AND meal_type = 'Dinner';
+
+# 5. Dummy Bills
+INSERT INTO Bills (User_ID, Issue_Date, Amount, Due_Date, Month, Status)
+SELECT UserID, '2026-04-01', 4500.00, '2026-04-10', '2026-04-01', 'Paid'
+FROM Users WHERE Email = 'azaan@nust.edu.pk';
+
+INSERT INTO Bills (User_ID, Issue_Date, Amount, Due_Date, Month, Status)
+SELECT UserID, '2026-05-01', 5200.00, '2026-05-10', '2026-05-01', 'Unpaid'
+FROM Users WHERE Email = 'azaan@nust.edu.pk';
+
+# 6. Dummy Transactions
+INSERT INTO Transactions (Billing_ID, Amount_Paid, Payment_Method, Transaction_Status)
+SELECT Billing_ID, 4500.00, 'Online', 'Success' FROM Bills WHERE Status = 'Paid';
+
+# 7. System Config for Polls
+INSERT INTO System_Config VALUES ('active_poll_items', '1,5', '1,5');
+INSERT INTO System_Config VALUES ('active_poll_meal', 'Dinner', 'Dinner');
 
 
