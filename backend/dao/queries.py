@@ -1,5 +1,3 @@
-from main import request_mess_off
-
 findUserByEmail = ("""SELECT *
                       FROM Users
                       WHERE Email = %s""")
