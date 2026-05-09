@@ -117,3 +117,6 @@ requestMessOff = """INSERT INTO MessOff
                     VALUES (%s, %s, %s)"""
 
 cancelMessOff = ("""DELETE FROM MessOff WHERE Mess_Off_ID = %s AND Status = 'Pending'""")
+
+getMessOffStatus = ("""SELECT *
+                       FROM MessOff WHERE Mess_Off_ID = %s""")
