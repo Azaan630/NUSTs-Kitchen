@@ -55,7 +55,7 @@ st.markdown("""
             border: none;
         }
     </style>
-""", unsafe_index=True)
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # ENVIRONMENT CONFIGURATION
