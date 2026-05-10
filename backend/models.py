@@ -94,18 +94,11 @@ class Ingredient(BaseModel):
     Pricing: float
     Unit: str
 
-#FoodIngredientLink
-
-class FoodIngredientLink(BaseModel):
-    ItemID: int
-    Ingredient_ID: int
-    Ingredient_Quantity: int
 
 #Recipes
 
 class FoodItemIngredient(BaseModel):
-    Ingredient_ID: int
-    Ingredient_Quantity: int
+    Ingredient_Quantity: float
 
 
 # Menu Schedule

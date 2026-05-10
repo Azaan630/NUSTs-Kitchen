@@ -486,10 +486,10 @@ def delete_ingredient(IngredientID: int, user=Depends(permission_checker(["Admin
 
 # Recipes
 
-@app.post("/admin/add_recipe/{ItemID}/{IngredientID}")
-def add_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+@app.post("/admin/add_recipe/{ItemID}/{IngredientID}/{Ingredient_Quantity}")
+def add_recipe(Ingredient_Quantity: float, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import addRecipe
-    vals = (IngredientID, data.Ingredient_Quantity,)
+    vals = (ItemID, IngredientID, Ingredient_Quantity)
     cursor = execute_transaction(db, addRecipe, vals)
     return {"message": "Recipe added", "id": cursor.lastrowid}
 
@@ -503,7 +503,7 @@ def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: in
     # To Build the dynamic SQL "SET column1 = %s, column2 = %s"
     column_placeholders = [f"{key} = %s" for key in update_data.keys()]
     set_clause = ", ".join(column_placeholders)
-    query = f"UPDATE Food_Item_Ingredients SET {set_clause} WHERE Item_ID= %s AND IngredientID = %s"
+    query = f"UPDATE Food_Item_Ingredients SET {set_clause} WHERE Item_ID= %s AND Ingredient_ID = %s"
     parameters = list(update_data.values()) + [ItemID, IngredientID]
     execute_transaction(db, query, parameters)
     return {"message": "Recipe updated successfully"}
