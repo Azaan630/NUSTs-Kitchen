@@ -72,8 +72,7 @@ async def rate_food_item(
     POST /student/rating/{UserID}/{ItemID}/{Date}/{meal_type}/{score}
     """
     endpoint = (
-        f"/student/rating/{user_id}/{item_id}"
-        f"/{meal_date.isoformat()}/{meal_type}/{score}"
+        f"/student/rating/{user_id}/{item_id}/{meal_date.isoformat()}/{meal_type}/{score}"
     )
     return await _make_request("POST", endpoint, params={"email": email})
 
