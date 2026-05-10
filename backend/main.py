@@ -179,6 +179,15 @@ def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), 
     cursor.close()
     return records
 
+@app.get("/admin/food/costs") # ALSO FOR STAFF
+def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    from dao.queries import getAllFoodCosts
+    cursor.execute(getAllFoodCosts)
+    records = cursor.fetchall()
+    cursor.close()
+    return records
+
 @app.get("/admin/food/{ItemID}") # ALSO FOR STAFF
 def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Staff"]))):
     cursor = db.cursor(dictionary=True)
@@ -188,14 +197,7 @@ def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_chec
     cursor.close()
     return records
 
-@app.get("/admin/food/costs") # ALSO FOR STAFF
-def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
-    cursor = db.cursor(dictionary=True)
-    from dao.queries import getAllFoodCosts
-    cursor.execute(getAllFoodCosts)
-    records = cursor.fetchall()
-    cursor.close()
-    return records
+
 
 @app.get("/admin/monthly_billing_summary")
 def get_monthly_billing_summary(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
