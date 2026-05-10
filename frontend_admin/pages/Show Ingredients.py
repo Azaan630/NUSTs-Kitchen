@@ -3,10 +3,10 @@ import requests
 import pandas as pd
 
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = "http://backend:8000"
 
 #test email
-USER_EMAIL = "admin@nust.edu.pk"
+USER_EMAIL = "mazaan.bscs25seecs@seecs.edu.pk"
 
 st.set_page_config(page_title="RotiRouter - Ingredients", layout="wide")
 st.title("🥦 Mess Ingredients & Inventory Manager")
@@ -15,7 +15,7 @@ st.write("Manage daily stock, pricing, and raw materials for the NUST SEECS Mess
 
 auth_params = {"email": USER_EMAIL}
 
--
+
 def load_ingredients():
     try:
         response = requests.get(f"{BACKEND_URL}/analytics/ingredients", params=auth_params)
@@ -30,6 +30,12 @@ def load_ingredients():
 
 
 ingredients_list = load_ingredients()
+
+if ingredients_list:
+    st.header("📦 Current Inventory")
+    st.dataframe(pd.DataFrame(ingredients_list), use_container_width=True)
+else:
+    st.info("No ingredients found in the system.")
 
 
 st.write("---")
@@ -92,8 +98,7 @@ menu_items = fetch_today_menu()
 all_recipes = fetch_all_recipes()
 
 
-
-filtered_menu = [item for item in menu_items if item.get("Meal_Type", "").lower() == current_meal.lower()]
+filtered_menu = [item for item in menu_items if item.get("meal_type", "").lower() == current_meal.lower()]
 
 if not filtered_menu:
     st.info(f"No items scheduled for {current_meal} today.")
@@ -130,8 +135,7 @@ else:
                 add_sub = st.form_submit_button("Link Ingredient")
                 if add_sub:
                     add_res = requests.post(
-                        f"{BACKEND_URL}/admin/add_recipe/{item_id}/{new_ing_id}",
-                        json={"Ingredient_Quantity": new_ing_qty},
+                        f"{BACKEND_URL}/admin/add_recipe/{item_id}/{new_ing_id}/{new_ing_qty}",
                         params=auth_params
                     )
                     if add_res.status_code == 200:
@@ -168,7 +172,9 @@ else:
 
                     # Call the PATCH recipe endpoint
                     patch_url = f"{BACKEND_URL}/admin/recipe/update/{item_id}/{ing_id}"
-                    payload = {"Ingredient_Quantity": qty}
+                    payload = {
+                                "Ingredient_Quantity": qty
+                    }
 
                     response = requests.patch(patch_url, json=payload, params=auth_params)
                     if response.status_code == 200:

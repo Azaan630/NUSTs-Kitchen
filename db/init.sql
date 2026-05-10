@@ -461,4 +461,44 @@ STARTS '2026-05-09 00:00:00'
 DO
   CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
 
+# --- DUMMY DATA SEEDING ---
+
+# 1. Admin User
+INSERT INTO Users (First_Name, Last_Name, Email, Account_Type) VALUES 
+('M', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Admin');
+
+# 2. Ingredients
+INSERT INTO Ingredients (Name, Unit, Unit_cost, Total_Quantity) VALUES
+('Basmati Rice', 'kg', 350.00, 500.00),
+('Chicken', 'kg', 600.00, 200.00),
+('Cooking Oil', 'Litre', 450.00, 100.00),
+('Salt', 'kg', 50.00, 50.00),
+('Lentils (Daal)', 'kg', 280.00, 150.00);
+
+# 3. Food Items
+INSERT INTO Food_Items (Name, Quantity, Price) VALUES
+('Chicken Biryani', 1.0, 250.00),
+('Daal Mash', 1.0, 150.00),
+('Special Tea', 1.0, 50.00);
+
+# 4. Food Item Ingredients (Recipes)
+INSERT INTO Food_Item_Ingredients (Item_ID, Ingredient_ID, Ingredient_Quantity) VALUES
+(1, 1, 0.5), # Biryani needs 0.5kg Rice
+(1, 2, 0.3), # Biryani needs 0.3kg Chicken
+(1, 3, 0.1), # Biryani needs 0.1L Oil
+(2, 5, 0.4), # Daal needs 0.4kg Lentils
+(2, 3, 0.05); # Daal needs 0.05L Oil
+
+# 5. Menu Schedule
+INSERT INTO Menu_Schedule (Date, meal_type, status) VALUES
+(CURDATE(), 'Breakfast', 'Active'),
+(CURDATE(), 'Lunch', 'Active'),
+(CURDATE(), 'Dinner', 'Active');
+
+# 6. Menu Food Items
+INSERT INTO Menu_Food_Items (Schedule_ID, Item_ID) VALUES
+(1, 3), # Tea for Breakfast
+(2, 1), # Biryani for Lunch
+(3, 2); # Daal for Dinner
+
 
