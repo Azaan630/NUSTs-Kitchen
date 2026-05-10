@@ -28,7 +28,8 @@ class StudentHomePage:
     def _item_name(self, item: dict) -> str:
         """Safely get item name regardless of API key casing."""
         return (
-            item.get("Name")
+            item.get("Food_Item_Name")  # <--- Add this at the top
+            or item.get("Name")
             or item.get("Item_Name")
             or item.get("item_name")
             or item.get("name")
@@ -37,12 +38,12 @@ class StudentHomePage:
 
     def _item_meal_type(self, item: dict) -> str:
         """Safely get meal type regardless of API key casing."""
-        return (
-            item.get("meal_type")
-            or item.get("Meal_Type")
-            or item.get("MealType")
-            or "Meal"
-        )
+        mt = item.get("meal_type") or item.get("Meal_Type") or item.get("MealType")
+
+        if mt:
+            # Normalize to Title Case to match SQL ENUM exactly (e.g., 'breakfast' -> 'Breakfast')
+            return mt.capitalize()
+        return "Meal"
 
     def _item_rating(self, item: dict):
         """Safely get average rating."""

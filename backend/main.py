@@ -672,7 +672,7 @@ def delete_menu(ItemID: int, ScheduleID: int, user=Depends(permission_checker(["
 def rate_food(score: int, Date: date, meal_type: str, UserID: int, ItemID: int, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
     from dao.queries import getCurrentScheduleID
     cursor = db.cursor(dictionary=True)
-    cursor.execute(getCurrentScheduleID)
+    cursor.execute(getCurrentScheduleID, (Date, meal_type,))
     current_schedule = cursor.fetchone()
     cursor.close()
     if not current_schedule:
@@ -687,7 +687,7 @@ def rate_food(score: int, Date: date, meal_type: str, UserID: int, ItemID: int, 
 def get_food_rating(Date: date, meal_type: str, ItemID: int, db=Depends(get_db)):
     from dao.queries import getCurrentScheduleID
     cursor = db.cursor(dictionary=True)
-    cursor.execute(getCurrentScheduleID)
+    cursor.execute(getCurrentScheduleID, (Date, meal_type,))
     current_schedule = cursor.fetchone()
     cursor.close()
     if not current_schedule:
