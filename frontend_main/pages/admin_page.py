@@ -100,7 +100,7 @@ class AdminPage:
         self._tab   = {"v": 0}
         self.main   = ft.Container(expand=True)
 
-    # ── Generic UI helpers ──────────────────────────────────────────────────
+    # ── Generic UI helpers
 
     def _loading(self, msg="Loading…"):
         return ft.Container(
@@ -214,7 +214,7 @@ class AdminPage:
         students = [u for u in (data if isinstance(data, list) else [])
                     if u.get("Account_Type") == "Student"]
 
-        # ── Add-student form ────────────────────────────────────────────────
+        # ── Add-student form
         f_fn   = self._field("First Name")
         f_ln   = self._field("Last Name")
         f_em   = self._field("Email", "student@seecs.edu.pk")
@@ -525,9 +525,9 @@ class AdminPage:
         ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
-    # ════════════════════════════════════════════════════════════════════════
+
     #  TAB 4 — BILLS
-    # ════════════════════════════════════════════════════════════════════════
+
 
     async def _render_bills(self, content_ref):
         content_ref.content = self._loading("Fetching billing data…")
@@ -611,7 +611,7 @@ class AdminPage:
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
-    
+
     #  TAB 5 — MENU
 
 
@@ -622,7 +622,7 @@ class AdminPage:
         data = await api_get_weekly_menu(self.email)
         items = data if isinstance(data, list) else []
 
-        # ── Add-to-menu form ────────────────────────────────────────────────
+        # Add-to-menu form
         f_item_id   = self._field("Food Item ID")
         f_date      = self._field("Date", "YYYY-MM-DD")
         f_meal_type = self._field("Meal Type", "Breakfast / Lunch / Dinner")
@@ -702,7 +702,7 @@ class AdminPage:
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
-    # ── Tab dispatcher ──────────────────────────────────────────────────────
+    # Tab dispatcher
 
     RENDERERS = [
         "_render_students",
@@ -713,7 +713,7 @@ class AdminPage:
         "_render_menu",
     ]
 
-    # ── Build ───────────────────────────────────────────────────────────────
+    # Build
 
     def build(self):
         content_ref = ft.Container(expand=True)

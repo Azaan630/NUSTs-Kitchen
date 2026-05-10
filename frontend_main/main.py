@@ -25,7 +25,7 @@ async def main(page: ft.Page):
         "DM Sans": "https://fonts.gstatic.com/s/dmsans/v14/rP2Hp2ywxg089UriCZa4ET-DNl0.woff2",
     }
 
-    # ── Theme colours ──────────────────────────────────────────────
+    # ── Theme colours
     NAVY       = "#0D1B2A"
     NAVY_LIGHT = "#1A2D42"
     AMBER      = "#F4A228"
@@ -38,7 +38,7 @@ async def main(page: ft.Page):
     WHITE      = "#FFFFFF"
     GREY       = "#8A97A8"
 
-    # ── Dark-mode state ────────────────────────────────────────────
+    # ── Dark-mode state
     is_dark = {"v": False}
 
     def bg():    return DARK_BG   if is_dark["v"] else CREAM
@@ -58,7 +58,7 @@ async def main(page: ft.Page):
     def get_val(key, default="N/A"):
         return get_user_data().get(key, default)
 
-    # ── DASHBOARD ──────────────────────────────────────────────────
+    # ── DASHBOARD
     async def show_dashboard():
         page.clean()
         page.bgcolor = bg()
@@ -67,7 +67,7 @@ async def main(page: ft.Page):
         current_index = {"v": 0}
         page_content = ft.Container(expand=True, padding=0)
 
-        # ── Dark mode toggle ──────────────────────────────────────
+        # ── Dark mode toggle
         dark_btn = ft.IconButton(
             icon=ft.Icons.DARK_MODE_OUTLINED,
             icon_color=AMBER,
@@ -136,7 +136,7 @@ async def main(page: ft.Page):
             ),
         )
 
-        # ── Floating Dock ─────────────────────────────────────────
+        # ── Floating Dock
         NAV_ITEMS = [
             {"icon": ft.Icons.RESTAURANT_MENU_ROUNDED, "label": "Menu",     "index": 0},
             {"icon": ft.Icons.HOW_TO_VOTE_ROUNDED,      "label": "Vote",     "index": 1},
@@ -222,7 +222,7 @@ async def main(page: ft.Page):
             dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
             page.update()
 
-        # ── Page loader (role-based) ──────────────────────────────
+        # ── Page loader (role-based)
         def load_page(index):
             current_index["v"] = index
             page_content.content = None
@@ -246,7 +246,7 @@ async def main(page: ft.Page):
                 "DARK_CARD2": DARK_CARD2,
             }
 
-            # ── Admin: single full-screen dashboard ───────────────
+            # ── Admin: single full-screen dashboard
             if role == "Admin":
                 page_content.content = AdminPage(page, ud, theme).build()
                 refresh_dock()
@@ -254,7 +254,7 @@ async def main(page: ft.Page):
                 dock_wrapper.visible = False
                 return
 
-            # ── Staff: single full-screen portal ──────────────────
+            # ── Staff: single full-screen portal
             if role == "Staff":
                 page_content.content = StaffPage(page, ud, theme).build()
                 refresh_dock()
@@ -262,7 +262,7 @@ async def main(page: ft.Page):
                 dock_wrapper.visible = False
                 return
 
-            # ── Student: four-tab navigation ──────────────────────
+            # ── Student: four-tab navigation
             dock_wrapper.visible = True
             if index == 0:
                 page_content.content = StudentHomePage(page, ud, theme).build()
@@ -276,7 +276,7 @@ async def main(page: ft.Page):
             refresh_dock()
             page.update()
 
-        # ── Layout ────────────────────────────────────────────────
+        # ── Layout
         body = ft.Column([
             top_bar,
             ft.Container(content=page_content, expand=True),
@@ -287,7 +287,7 @@ async def main(page: ft.Page):
         load_page(0)
         page.update()
 
-    # ── AUTH ───────────────────────────────────────────────────────
+    # ── AUTH
     async def on_login(e: ft.LoginEvent):
         if e.error:
             page.add(ft.Text(f"Auth Error: {e.error}", color="red"))
@@ -328,7 +328,7 @@ async def main(page: ft.Page):
     async def login_click(e):
         await page.login(provider, scope=["email", "profile"])
 
-    # ── LANDING ────────────────────────────────────────────────────
+    # ── LANDING
     if page.auth and page.auth.user and hasattr(page, "current_user_data"):
         await show_dashboard()
     else:
