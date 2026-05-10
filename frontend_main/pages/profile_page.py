@@ -1,149 +1,260 @@
 import flet as ft
 import asyncio
-import webbrowser
 from pages.api_client import get_my_bills, download_bill_pdf
 
+
 class StudentProfilePage:
-    def __init__(self, page: ft.Page, user_data: dict):
+    def __init__(self, page: ft.Page, user_data: dict, theme: dict):
         self.page = page
         self.user_data = user_data
-        self.email = user_data.get("Email")
-        self.bill_container = ft.Container(padding=20, border_radius=15, bgcolor=ft.Colors.WHITE)
-        self.loading_text = ft.Text("Loading your bills...", color=ft.Colors.GREY_600)
-        self.bills_data = []  # Store bills for PDF download
+        self.theme = theme
+        self.email = user_data.get("Email", "")
 
-    async def load_bills(self):
-        self.bill_container.content = ft.Column([
-            ft.Row([ft.ProgressRing(), self.loading_text], alignment=ft.MainAxisAlignment.CENTER)
-        ])
-        self.page.update()
+        t = theme
+        self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
+        self.card  = t["DARK_CARD"]  if t["is_dark"] else t["WHITE"]
+        self.card2 = t["DARK_CARD2"] if t["is_dark"] else t["CREAM2"]
+        self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
+        self.sub   = t["GREY"]
+        self.amber = t["AMBER"]
 
-        bills_data = await get_my_bills(self.email)
-        self.bills_data = bills_data if isinstance(bills_data, list) else []
+        self.main_container = ft.Container(expand=True)
+        self.bills_data = []
 
-        if "error" in bills_data:
-            self.bill_container.content = ft.Column([
-                ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED, size=50),
-                ft.Text(f"Failed to load bills: {bills_data['error']}", color=ft.Colors.RED)
-            ])
-            self.page.update()
-            return
-
-        if not self.bills_data:
-            self.bill_container.content = ft.Text("No bills found for your account.", color=ft.Colors.GREY)
-            self.page.update()
-            return
-
-        bill_rows = []
-        for bill in self.bills_data:
-            status_color = ft.Colors.GREEN
-            if bill.get("Status") == "Unpaid":
-                status_color = ft.Colors.ORANGE
-            elif bill.get("Status") == "Overdue":
-                status_color = ft.Colors.RED
-
-            bill_row = ft.DataRow([
-                ft.DataCell(ft.Text(str(bill.get("Billing_ID", "N/A")))),
-                ft.DataCell(ft.Text(bill.get("Month", "N/A"))),
-                ft.DataCell(ft.Text(f"PKR {bill.get('Amount', 0.00)}")),
-                ft.DataCell(ft.Text(bill.get("Due_Date", "N/A"))),
-                ft.DataCell(ft.Container(
-                    content=ft.Text(bill.get("Status", "Unknown"), color=ft.Colors.WHITE),
-                    bgcolor=status_color,
-                    padding=5,
-                    border_radius=5
-                )),
-            ])
-            bill_rows.append(bill_row)
-
-        bill_table = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("Bill ID")),
-                ft.DataColumn(ft.Text("Month")),
-                ft.DataColumn(ft.Text("Amount")),
-                ft.DataColumn(ft.Text("Due Date")),
-                ft.DataColumn(ft.Text("Status")),
-            ],
-            rows=bill_rows,
-            border=ft.border.all(1, ft.Colors.GREY_300),
-            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
-            horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
-            heading_row_color=ft.Colors.BLUE_50,
-            heading_row_height=50,
+    def _loading(self):
+        return ft.Container(
+            content=ft.Column([
+                ft.ProgressRing(color=self.amber, width=40, height=40, stroke_width=3),
+                ft.Text("Loading your bills…", color=self.sub, font_family="DM Sans", size=14),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
+            alignment=ft.Alignment(0, 0),
+            expand=True,
+            padding=60,
         )
 
-        self.bill_container.content = ft.Column([
-            ft.Text("📄 Your Bill History", size=18, weight="bold"),
-            ft.Container(height=10),
-            ft.Column([bill_table], scroll=ft.ScrollMode.ADAPTIVE),
-        ])
-        self.page.update()
+    def _status_chip(self, status):
+        colors = {
+            "Paid":    ("#10B981", "#D1FAE5"),
+            "Unpaid":  ("#F59E0B", "#FEF3C7"),
+            "Overdue": ("#EF4444", "#FEE2E2"),
+        }
+        fg, bg = colors.get(status, (self.sub, self.card2))
+        return ft.Container(
+            content=ft.Text(status, size=11, color=fg, weight="bold", font_family="DM Sans"),
+            bgcolor=bg,
+            border_radius=8,
+            padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+        )
 
-    async def download_pdf(self, e):
-        """Downloads the selected bill as PDF."""
-        # You need to know which bill to download – let's use the first one
-        if not self.bills_data:
-            self.page.snack_bar = ft.SnackBar(content=ft.Text("No bills to download"), bgcolor=ft.Colors.RED)
-            self.page.snack_bar.open = True
-            self.page.update()
-            return
+    def _bill_card(self, bill, on_download):
+        status = bill.get("Status", "Unknown")
+        return ft.Container(
+            content=ft.Row([
+                ft.Column([
+                    ft.Text(
+                        bill.get("Month", "N/A"),
+                        size=15,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        f"Due: {bill.get('Due_Date', 'N/A')}",
+                        size=12,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        f"Bill #{bill.get('Billing_ID', '?')}",
+                        size=11,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], expand=True, spacing=4),
+                ft.Column([
+                    ft.Text(
+                        f"PKR {bill.get('Amount', 0):,.0f}",
+                        size=18,
+                        weight="bold",
+                        color=self.amber,
+                        font_family="DM Sans",
+                    ),
+                    self._status_chip(status),
+                    ft.TextButton(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.PICTURE_AS_PDF_ROUNDED, size=14, color=self.amber),
+                            ft.Text("Download", size=12, color=self.amber, font_family="DM Sans"),
+                        ], spacing=4, tight=True),
+                        on_click=lambda e, b=bill: asyncio.create_task(on_download(b)),
+                        style=ft.ButtonStyle(padding=ft.Padding.all(4)),
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.END, spacing=4),
+            ]),
+            bgcolor=self.card,
+            border_radius=16,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=14),
+            margin=ft.Margin.only(bottom=10),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.06, "#000")),
+        )
 
-        # For now, download the first bill (you can add a selector later)
-        billing_id = self.bills_data[0].get("Billing_ID")
+    async def _download(self, bill):
+        billing_id = bill.get("Billing_ID")
         if not billing_id:
-            self.page.snack_bar = ft.SnackBar(content=ft.Text("Invalid bill ID"), bgcolor=ft.Colors.RED)
-            self.page.snack_bar.open = True
-            self.page.update()
             return
-
         pdf_bytes = await download_bill_pdf(billing_id, self.email)
         if pdf_bytes:
-            # Option 1: Save file using FilePicker
-            # Option 2: Open in browser (simpler for now)
             import base64
-            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-            # Open PDF in a new browser tab (works in web mode)
-            self.page.launch_url(f"data:application/pdf;base64,{pdf_base64}")
-            self.page.snack_bar = ft.SnackBar(content=ft.Text("PDF downloaded and opened!"), bgcolor=ft.Colors.GREEN)
+            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            self.page.launch_url(f"data:application/pdf;base64,{pdf_b64}")
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text("✅ PDF opened!", color="#FFF"), bgcolor="#10B981"
+            )
         else:
-            self.page.snack_bar = ft.SnackBar(content=ft.Text("Failed to download PDF"), bgcolor=ft.Colors.RED)
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text("Failed to download PDF", color="#FFF"), bgcolor="#EF4444"
+            )
         self.page.snack_bar.open = True
         self.page.update()
 
-    def build(self):
-        asyncio.create_task(self.load_bills())
+    async def _render(self):
+        self.main_container.content = self._loading()
+        self.page.update()
 
-        pdf_button = ft.ElevatedButton(
-            content=ft.Text("📄 Download Bill PDF"),
-            icon=ft.Icons.PICTURE_AS_PDF,
-            style=ft.ButtonStyle(
-                bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900},
-                color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
+        data = await get_my_bills(self.email)
+        self.bills_data = data if isinstance(data, list) else []
+
+        error = None
+        if isinstance(data, dict) and "error" in data:
+            error = data["error"]
+
+        # ── Profile card ─────────────────────────────────────────
+        first = self.user_data.get("First_Name", "")
+        last  = self.user_data.get("Last_Name",  "")
+        initials = (first[0] + (last[0] if last else "")).upper() if first else "U"
+
+        profile_card = ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Text(initials, size=28, weight="bold", color="#FFF"),
+                    width=64, height=64,
+                    bgcolor=self.amber,
+                    border_radius=32,
+                    alignment=ft.Alignment(0, 0),
+                ),
+                ft.Column([
+                    ft.Text(
+                        f"{first} {last}".strip(),
+                        size=20,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(self.email, size=13, color=self.sub, font_family="DM Sans"),
+                    ft.Container(
+                        content=ft.Text(
+                            self.user_data.get("Account_Type", "Student"),
+                            size=11,
+                            color=self.amber,
+                            weight="bold",
+                            font_family="DM Sans",
+                        ),
+                        bgcolor=ft.Colors.with_opacity(0.12, self.amber),
+                        border_radius=8,
+                        padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+                    ),
+                ], spacing=4, expand=True),
+            ], spacing=16),
+            bgcolor=self.card,
+            border_radius=20,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=18),
+            shadow=ft.BoxShadow(
+                blur_radius=16,
+                color=ft.Colors.with_opacity(0.07, "#000"),
+                offset=ft.Offset(0, 3),
+            ),
+            margin=ft.Margin.only(bottom=20),
+        )
+
+        # ── Bills section ────────────────────────────────────────
+        if error:
+            bills_section = ft.Column([
+                ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="#EF4444", size=40),
+                ft.Text(error, color="#EF4444", font_family="DM Sans"),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        elif not self.bills_data:
+            bills_section = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.RECEIPT_LONG_ROUNDED, size=48, color=self.sub),
+                    ft.Text("No bills yet", color=self.sub, font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
+                alignment=ft.Alignment(0, 0),
+                padding=40,
             )
-        )
-        pdf_button.on_click = self.download_pdf
+        else:
+            total_due = sum(
+                b.get("Amount", 0) for b in self.bills_data
+                if b.get("Status") in ("Unpaid", "Overdue")
+            )
+            summary = ft.Container(
+                content=ft.Row([
+                    ft.Column([
+                        ft.Text("Total Due", size=11, color=self.sub, font_family="DM Sans"),
+                        ft.Text(
+                            f"PKR {total_due:,.0f}",
+                            size=20,
+                            weight="bold",
+                            color=self.amber,
+                            font_family="DM Sans",
+                        ),
+                    ]),
+                    ft.Column([
+                        ft.Text("Bills", size=11, color=self.sub, font_family="DM Sans"),
+                        ft.Text(
+                            str(len(self.bills_data)),
+                            size=20,
+                            weight="bold",
+                            color=self.txt,
+                            font_family="DM Sans",
+                        ),
+                    ]),
+                ], spacing=32),
+                bgcolor=self.card2,
+                border_radius=16,
+                padding=ft.Padding.symmetric(horizontal=20, vertical=14),
+                margin=ft.Margin.only(bottom=16),
+            )
+            bill_cards = [self._bill_card(b, self._download) for b in self.bills_data]
+            bills_section = ft.Column([summary] + bill_cards, spacing=0)
 
-        profile_details = ft.Container(
-            content=ft.Column([
-                ft.Text("🧑‍🎓 Student Profile", size=24, weight="bold", color=ft.Colors.BLUE_900),
-                ft.Divider(height=10),
-                ft.Row([ft.Text("Name:", weight="bold"), ft.Text(f"{self.user_data.get('First_Name', '')} {self.user_data.get('Last_Name', '')}")]),
-                ft.Row([ft.Text("Email:", weight="bold"), ft.Text(self.user_data.get("Email", "N/A"))]),
-                ft.Row([ft.Text("Account Type:", weight="bold"), ft.Text(self.user_data.get("Account_Type", "N/A"))]),
-                ft.Container(height=20),
-                pdf_button
-            ]),
-            padding=20,
-            bgcolor=ft.Colors.GREY_50,
-            border_radius=10
-        )
+        self.main_container.content = ft.Column([
+            ft.Text("Profile", size=28, weight="bold", font_family="DM Sans", color=self.txt),
+            ft.Container(height=12),
+            profile_card,
+            ft.Row([
+                ft.Text("Billing History", size=18, weight="bold", color=self.txt, font_family="DM Sans"),
+                ft.IconButton(
+                    icon=ft.Icons.REFRESH_ROUNDED,
+                    icon_color=self.sub,
+                    tooltip="Refresh",
+                    on_click=lambda e: asyncio.create_task(self._render()),
+                ),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=8),
+            bills_section,
+        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
 
+        self.page.update()
+
+    def build(self):
+        asyncio.create_task(self._render())
         return ft.Container(
-            content=ft.Column([
-                profile_details,
-                ft.Container(height=20),
-                self.bill_container
-            ], scroll=ft.ScrollMode.ADAPTIVE),
-            padding=40,
-            expand=True
+            content=self.main_container,
+            bgcolor=self.bg,
+            expand=True,
+            padding=ft.Padding.symmetric(horizontal=24, vertical=20),
         )

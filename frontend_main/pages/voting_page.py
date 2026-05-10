@@ -4,138 +4,224 @@ from pages.api_client import get_active_poll, cast_vote
 
 
 class StudentVotingPage:
-    def __init__(self, page: ft.Page, user_data: dict):
+    def __init__(self, page: ft.Page, user_data: dict, theme: dict):
         self.page = page
         self.user_data = user_data
+        self.theme = theme
+        self.email   = user_data.get("Email", "")
         self.user_id = int(user_data.get("UserID", 0))
-        self.email = user_data.get("Email")
-        self.poll_container = ft.Container(
-            padding=20,
-            border_radius=15,
-            bgcolor=ft.Colors.WHITE,
-        )
-        self.loading_text = ft.Text("Checking for active polls...", color=ft.Colors.GREY_600)
 
-    async def load_poll(self):
-        """Fetches active poll data and updates UI"""
-        # Show loading
-        self.poll_container.content = ft.Column([
-            ft.Row([ft.ProgressRing(), self.loading_text], alignment=ft.MainAxisAlignment.CENTER)
-        ])
+        t = theme
+        self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
+        self.card  = t["DARK_CARD"]  if t["is_dark"] else t["WHITE"]
+        self.card2 = t["DARK_CARD2"] if t["is_dark"] else t["CREAM2"]
+        self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
+        self.sub   = t["GREY"]
+        self.amber = t["AMBER"]
+
+        self.main_container = ft.Container(expand=True)
+        self._voted = set()
+
+    def _loading(self):
+        return ft.Container(
+            content=ft.Column([
+                ft.ProgressRing(color=self.amber, width=40, height=40, stroke_width=3),
+                ft.Text("Checking for active polls…", color=self.sub, font_family="DM Sans", size=14),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
+            alignment=ft.Alignment(0, 0),
+            expand=True,
+            padding=60,
+        )
+
+    def _poll_card(self, item):
+        item_id  = item.get("Item_ID")
+        voted    = item_id in self._voted
+        btn_refs = {}
+
+        async def handle_vote(e):
+            if voted:
+                return
+            btn_refs["btn"].disabled = True
+            btn_refs["btn"].content.controls[0].name = ft.Icons.HOURGLASS_TOP_ROUNDED
+            self.page.update()
+
+            result = await cast_vote(item_id, self.user_id, self.email)
+
+            if result and "error" not in result:
+                self._voted.add(item_id)
+                btn_refs["btn"].disabled = True
+                btn_refs["btn"].content.controls[0].name  = ft.Icons.CHECK_CIRCLE_ROUNDED
+                btn_refs["btn"].content.controls[0].color = "#10B981"
+                btn_refs["btn"].content.controls[1].value = "Voted!"
+                btn_refs["btn"].content.controls[1].color = "#10B981"
+                btn_refs["btn"].style.bgcolor = ft.Colors.with_opacity(0.1, "#10B981")
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text("🗳️ Vote cast!", color="#FFF"), bgcolor="#10B981"
+                )
+                self.page.snack_bar.open = True
+            else:
+                err = result.get("error", "Already voted") if result else "Already voted"
+                btn_refs["btn"].disabled = False
+                btn_refs["btn"].content.controls[0].name = ft.Icons.HOW_TO_VOTE_ROUNDED
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"⚠️ {err}", color="#FFF"), bgcolor="#F59E0B"
+                )
+                self.page.snack_bar.open = True
+            self.page.update()
+
+        vote_btn = ft.FilledButton(
+            content=ft.Row([
+                ft.Icon(
+                    ft.Icons.CHECK_CIRCLE_ROUNDED if voted else ft.Icons.HOW_TO_VOTE_ROUNDED,
+                    size=18,
+                    color="#10B981" if voted else self.amber,
+                ),
+                ft.Text(
+                    "Voted!" if voted else "Vote",
+                    size=13,
+                    weight="bold",
+                    font_family="DM Sans",
+                    color="#10B981" if voted else self.amber,
+                ),
+            ], spacing=6, tight=True),
+            disabled=voted,
+            on_click=handle_vote,
+            style=ft.ButtonStyle(
+                bgcolor=(
+                    ft.Colors.with_opacity(0.1, "#10B981") if voted
+                    else ft.Colors.with_opacity(0.12, self.amber)
+                ),
+                elevation=0,
+                shape=ft.RoundedRectangleBorder(radius=12),
+                padding=ft.Padding.symmetric(horizontal=20, vertical=10),
+            ),
+        )
+        btn_refs["btn"] = vote_btn
+
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Icon(ft.Icons.SET_MEAL_ROUNDED, size=22, color=self.amber),
+                    width=48, height=48,
+                    bgcolor=ft.Colors.with_opacity(0.12, self.amber),
+                    border_radius=14,
+                    alignment=ft.Alignment(0, 0),
+                ),
+                ft.Column([
+                    ft.Text(
+                        item.get("Name", "Item"),
+                        size=15,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        f"PKR {item.get('Price', '—')}",
+                        size=12,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], expand=True, spacing=4),
+                vote_btn,
+            ], spacing=14),
+            bgcolor=self.card,
+            border_radius=18,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=14),
+            margin=ft.Margin.only(bottom=10),
+            shadow=ft.BoxShadow(
+                blur_radius=12,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
+            border=ft.Border.all(
+                1,
+                ft.Colors.with_opacity(0.2, "#10B981") if voted
+                else ft.Colors.with_opacity(0.06, "#000"),
+            ),
+            animate=ft.Animation(200, "easeOut"),
+        )
+
+    async def _render(self):
+        self.main_container.content = self._loading()
         self.page.update()
 
-        # Fetch poll
         poll_data = await get_active_poll(self.email)
 
-        if "error" in poll_data:
-            self.poll_container.content = ft.Column([
-                ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED, size=50),
-                ft.Text(f"Failed to load poll: {poll_data['error']}", color=ft.Colors.RED)
-            ])
-            self.page.update()
-            return
-
-        # If no active poll
-        if not poll_data.get("active", False):
-            self.poll_container.content = ft.Column([
-                ft.Icon(ft.Icons.HOURGLASS_TOP, size=50, color=ft.Colors.GREY_400),
-                ft.Text("No active poll right now.", size=16, color=ft.Colors.GREY),
-                ft.Text("Check back later when the mess admin opens voting.", size=14, color=ft.Colors.GREY_500)
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-            self.page.update()
-            return
-
-        items = poll_data.get("items", [])
-        if not items:
-            self.poll_container.content = ft.Column([
-                ft.Text("Active poll has no items yet.", size=16, color=ft.Colors.GREY)
-            ])
-            self.page.update()
-            return
-
-        # Build card for each food item
-        poll_cards = []
-        for item in items:
-            # Placeholder for price - some items might not have price but usually work with menu UX
-            card = ft.Container(
-                content=ft.Row([
-                    ft.Column([
-                        ft.Text(item.get("Name", "Unknown"), weight="bold", size=16),
-                        ft.Text(f"PKR {item.get('Price', 0)}", size=14, color=ft.Colors.GREY_600)
-                    ], expand=True),
-                    ft.ElevatedButton(
-                        content=ft.Text("Vote", weight="bold"),
-                        icon=ft.Icons.THUMB_UP,
-                        style=ft.ButtonStyle(
-                            bgcolor={ft.ControlState.DEFAULT: ft.Colors.GREEN_700},
-                            color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
-                        ),
-                        data=item.get("Item_ID"),
-                        on_click=self.handle_vote
-                    )
-                ]),
-                bgcolor=ft.Colors.GREY_50,
-                border_radius=8,
-                padding=15,
-                margin=ft.margin.symmetric(vertical=5),
-                shadow=ft.BoxShadow(blur_radius=4, color=ft.Colors.GREY_300)
+        if isinstance(poll_data, dict) and "error" in poll_data:
+            body = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="#EF4444", size=40),
+                    ft.Text(poll_data["error"], color="#EF4444", font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
+                alignment=ft.Alignment(0, 0),
+                padding=60,
             )
-            poll_cards.append(card)
-
-        # Build Final UI
-        self.poll_container.content = ft.Column(
-            [
-                ft.Text("🗳️ Vote for tomorrow's menu!", size=18, weight="bold", color=ft.Colors.BLUE_900),
-                ft.Container(height=10),
-                ft.Column(poll_cards, scroll=ft.ScrollMode.ADAPTIVE),
-                ft.Container(height=20),
-                ft.ElevatedButton(
-                    content=ft.Text("Refresh Poll"),
-                    icon=ft.Icons.REFRESH,
-                    on_click=self.load_poll
-                )
-            ],
-            scroll=ft.ScrollMode.ADAPTIVE
-        )
-        self.page.update()
-
-    async def handle_vote(self, e):
-        item_id = e.control.data
-        # Show loading state on the clicked button
-        e.control.disabled = True
-        self.page.update()
-
-        # Cast vote
-        result = await cast_vote(item_id, self.user_id, self.email)
-
-        # Reset button
-        e.control.disabled = False
-
-        # Show result
-        if result.get("success"):
-            self.page.snack_bar = ft.SnackBar(
-                content=ft.Text("✅ Vote cast successfully!", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.GREEN_700
+        elif not poll_data.get("active", False):
+            body = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.HOURGLASS_EMPTY_ROUNDED, size=64, color=self.sub),
+                    ft.Text(
+                        "No active poll right now",
+                        size=18,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        "Check back when the mess admin opens voting",
+                        size=14,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
+                alignment=ft.Alignment(0, 0),
+                padding=60,
             )
-            self.page.snack_bar.open = True
-            # Refresh poll data to update state if needed
-            await self.load_poll()
         else:
-            error_msg = result.get("error", "Failed to cast vote")
-            self.page.snack_bar = ft.SnackBar(
-                content=ft.Text(f"❌ {error_msg}", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED_700
+            items = poll_data.get("items", [])
+            cards = [self._poll_card(item) for item in items]
+
+            info_strip = ft.Container(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=14, color=self.amber),
+                    ft.Text(
+                        "Vote for what you want in tomorrow's menu. One vote per item.",
+                        size=12,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], spacing=8),
+                bgcolor=ft.Colors.with_opacity(0.08, self.amber),
+                border_radius=10,
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                margin=ft.Margin.only(bottom=16),
             )
-            self.page.snack_bar.open = True
+            body = ft.Column([info_strip] + cards, spacing=0)
+
+        self.main_container.content = ft.Column([
+            ft.Row([
+                ft.Column([
+                    ft.Text("Vote", size=28, weight="bold", color=self.txt, font_family="DM Sans"),
+                    ft.Text("Help shape tomorrow's menu", size=13, color=self.sub, font_family="DM Sans"),
+                ]),
+                ft.IconButton(
+                    icon=ft.Icons.REFRESH_ROUNDED,
+                    icon_color=self.sub,
+                    tooltip="Refresh",
+                    on_click=lambda e: asyncio.create_task(self._render()),
+                ),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=12),
+            body,
+        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
         self.page.update()
 
     def build(self):
-        asyncio.create_task(self.load_poll())
+        asyncio.create_task(self._render())
         return ft.Container(
-            content=ft.Column([
-                ft.Text("Voting", size=30, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
-                self.poll_container
-            ], scroll=ft.ScrollMode.ADAPTIVE),
-            padding=40,
-            expand=True
+            content=self.main_container,
+            bgcolor=self.bg,
+            expand=True,
+            padding=ft.Padding.symmetric(horizontal=24, vertical=20),
         )

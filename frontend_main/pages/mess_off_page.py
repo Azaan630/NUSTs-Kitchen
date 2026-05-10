@@ -1,279 +1,369 @@
 import flet as ft
 import asyncio
-from datetime import date, datetime
 import calendar
-from pages.api_client import (
-    request_mess_off,
-    cancel_mess_off,
-    get_mess_off_history
-)
+from datetime import date, datetime
+from pages.api_client import request_mess_off, cancel_mess_off, get_mess_off_history
 
 
 class StudentMessOffPage:
-    def __init__(self, page: ft.Page, user_data: dict):
+    def __init__(self, page: ft.Page, user_data: dict, theme: dict):
         self.page = page
         self.user_data = user_data
+        self.theme = theme
         self.user_id = int(user_data.get("UserID", 0))
-        self.email = user_data.get("Email")
-        self.first_name = user_data.get("First_Name", "")
-        self.last_name = user_data.get("Last_Name", "")
+        self.email   = user_data.get("Email", "")
 
-        # Container for dynamic content
-        self.content = ft.Container(
-            padding=20,
-            border_radius=15,
-            bgcolor=ft.Colors.WHITE,
+        t = theme
+        self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
+        self.card  = t["DARK_CARD"]  if t["is_dark"] else t["WHITE"]
+        self.card2 = t["DARK_CARD2"] if t["is_dark"] else t["CREAM2"]
+        self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
+        self.sub   = t["GREY"]
+        self.amber = t["AMBER"]
+
+        self.main_container = ft.Container(expand=True)
+
+    def _loading(self):
+        return ft.Container(
+            content=ft.Column([
+                ft.ProgressRing(color=self.amber, width=40, height=40, stroke_width=3),
+                ft.Text("Loading mess off data…", color=self.sub, font_family="DM Sans", size=14),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
+            alignment=ft.Alignment(0, 0),
+            expand=True,
+            padding=60,
         )
-        self.loading_text = ft.Text("Loading Mess Off data...", color=ft.Colors.GREY_600)
-        self.history_table = None
 
-    async def load_data(self):
-        """Loads mess-off history and updates UI."""
-        # Show loading
-        self.content.content = ft.Column([
-            ft.Row([ft.ProgressRing(), self.loading_text], alignment=ft.MainAxisAlignment.CENTER)
-        ])
+    def _calc_remaining(self, requests):
+        today       = date.today()
+        month_start = date(today.year, today.month, 1)
+        month_end   = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+        total = 0
+        for req in requests:
+            if req.get("Status") != "Approved":
+                continue
+            try:
+                start = datetime.strptime(req["Start_Date"], "%Y-%m-%d").date()
+                end   = datetime.strptime(req["End_Date"],   "%Y-%m-%d").date()
+                if start > month_end or end < month_start:
+                    continue
+                os_ = max(start, month_start)
+                oe_ = min(end, month_end)
+                d   = (oe_ - os_).days + 1
+                if d > 0:
+                    total += d
+            except:
+                continue
+        return max(12 - total, 0)
+
+    def _status_chip(self, status):
+        colours = {
+            "Approved":  ("#10B981", "#D1FAE5"),
+            "Pending":   ("#F59E0B", "#FEF3C7"),
+            "Rejected":  ("#EF4444", "#FEE2E2"),
+            "Cancelled": (self.sub, self.card2),
+        }
+        fg, bg = colours.get(status, (self.sub, self.card2))
+        return ft.Container(
+            content=ft.Text(status, size=11, color=fg, weight="bold", font_family="DM Sans"),
+            bgcolor=bg,
+            border_radius=8,
+            padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+        )
+
+    def _request_card(self, req, on_cancel):
+        status      = req.get("Status", "Pending")
+        mess_off_id = req.get("Mess_Off_ID")
+
+        cancel_btn = ft.Container()
+        if status == "Pending":
+            cancel_btn = ft.TextButton(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.CANCEL_ROUNDED, size=14, color="#EF4444"),
+                    ft.Text("Cancel", size=12, color="#EF4444", font_family="DM Sans"),
+                ], spacing=4, tight=True),
+                on_click=lambda e, mid=mess_off_id: asyncio.create_task(on_cancel(mid)),
+                style=ft.ButtonStyle(padding=ft.Padding.all(4)),
+            )
+
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Icon(ft.Icons.CALENDAR_MONTH_ROUNDED, size=20, color=self.amber),
+                    width=44, height=44,
+                    bgcolor=ft.Colors.with_opacity(0.12, self.amber),
+                    border_radius=12,
+                    alignment=ft.Alignment(0, 0),
+                ),
+                ft.Column([
+                    ft.Row([
+                        ft.Text(
+                            f"{req.get('Start_Date','?')} → {req.get('End_Date','?')}",
+                            size=14,
+                            weight="bold",
+                            color=self.txt,
+                            font_family="DM Sans",
+                        ),
+                        self._status_chip(status),
+                    ], spacing=8),
+                    ft.Text(
+                        f"Requested: {req.get('Request_Date', req.get('Start_Date','?'))}  •  ID #{mess_off_id}",
+                        size=11,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], expand=True, spacing=4),
+                cancel_btn,
+            ], spacing=12),
+            bgcolor=self.card,
+            border_radius=16,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=14),
+            margin=ft.Margin.only(bottom=10),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.06, "#000")),
+        )
+
+    async def _render(self):
+        self.main_container.content = self._loading()
         self.page.update()
 
-        # Fetch history
         result = await get_mess_off_history(self.email)
-
         requests = []
         if isinstance(result, dict) and "status" in result:
             requests = result["status"] if isinstance(result["status"], list) else []
         elif isinstance(result, list):
             requests = result
 
-        # Calculate remaining days
-        remaining_days = self.calculate_remaining_days(requests)
+        remaining = self._calc_remaining(requests)
 
-        # Build the UI
-        await self.build_ui(requests, remaining_days)
-
-    def calculate_remaining_days(self, requests):
-        """Calculates approved mess-off days in the current month (max 12)."""
-        today = date.today()
-        month_start = date(today.year, today.month, 1)
-        month_end = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
-
-        total_days = 0
-        for req in requests:
-            if req.get("Status") != "Approved":
-                continue
-            try:
-                start = datetime.strptime(req["Start_Date"], "%Y-%m-%d").date()
-                end = datetime.strptime(req["End_Date"], "%Y-%m-%d").date()
-                if start > month_end or end < month_start:
-                    continue
-                overlap_start = max(start, month_start)
-                overlap_end = min(end, month_end)
-                days = (overlap_end - overlap_start).days + 1
-                if days > 0:
-                    total_days += days
-            except:
-                continue
-        return max(12 - total_days, 0)
-
-    async def build_ui(self, requests, remaining_days):
-        """Constructs the UI with history table and request form."""
-        # Build history table rows
-        rows = []
-        for req in requests:
-            status = req.get("Status", "Pending")
-            status_color = ft.Colors.BLUE
-            if status == "Approved":
-                status_color = ft.Colors.GREEN
-            elif status == "Rejected":
-                status_color = ft.Colors.RED
-            elif status == "Cancelled":
-                status_color = ft.Colors.GREY_600
-
-            cancel_btn = None
-            if status == "Pending":
-                cancel_btn = ft.IconButton(
-                    icon=ft.Icons.CANCEL,
-                    icon_color=ft.Colors.RED,
-                    tooltip="Cancel request",
-                    data=req.get("Mess_Off_ID"),
-                    on_click=self.handle_cancel
-                )
-
-            row = ft.DataRow([
-                ft.DataCell(ft.Text(str(req.get("Mess_Off_ID", "N/A")))),
-                ft.DataCell(ft.Text(req.get("Start_Date", "N/A"))),
-                ft.DataCell(ft.Text(req.get("End_Date", "N/A"))),
-                ft.DataCell(ft.Text(req.get("Request_Date", "N/A"))),
-                ft.DataCell(ft.Container(
-                    content=ft.Text(status, color=ft.Colors.WHITE),
-                    bgcolor=status_color,
-                    padding=5,
-                    border_radius=5
-                )),
-                ft.DataCell(cancel_btn if cancel_btn else ft.Text("—", color=ft.Colors.GREY_400))
-            ])
-            rows.append(row)
-
-        # Create DataTable
-        self.history_table = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("Start")),
-                ft.DataColumn(ft.Text("End")),
-                ft.DataColumn(ft.Text("Requested")),
-                ft.DataColumn(ft.Text("Status")),
-                ft.DataColumn(ft.Text("Action")),
-            ],
-            rows=rows,
-            border=ft.border.all(1, ft.Colors.GREY_300),
-            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
-            horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
-            heading_row_color=ft.Colors.BLUE_50,
-            heading_row_height=50,
-        )
-
-        # Build final UI
-        self.content.content = ft.Column([
-            # Header
-            ft.Container(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.CALENDAR_MONTH, color=ft.Colors.BLUE_900, size=30),
-                    ft.Text("Mess Off Management", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
+        # ── Quota ring ───────────────────────────────────────────
+        used     = 12 - remaining
+        fraction = used / 12
+        quota_card = ft.Container(
+            content=ft.Row([
+                ft.Stack([
+                    ft.Container(
+                        content=ft.ProgressRing(
+                            value=fraction,
+                            color=self.amber,
+                            bgcolor=ft.Colors.with_opacity(0.15, self.amber),
+                            width=64, height=64,
+                            stroke_width=6,
+                        ),
+                    ),
+                    ft.Container(
+                        content=ft.Text(
+                            str(remaining),
+                            size=18,
+                            weight="bold",
+                            color=self.amber,
+                            font_family="DM Sans",
+                        ),
+                        width=64, height=64,
+                        alignment=ft.Alignment(0, 0),
+                    ),
                 ]),
-                padding=ft.padding.only(bottom=20)
-            ),
-
-            # Remaining days
-            ft.Container(
-                content=ft.Row([
-                    ft.Text("📅 Remaining mess-off days this month:", weight="bold", size=16),
-                    ft.Text(f"{remaining_days} / 12", size=18, weight="bold", color=ft.Colors.BLUE_700),
-                ]),
-                padding=10,
-                bgcolor=ft.Colors.BLUE_50,
-                border_radius=10,
-                margin=ft.margin.only(bottom=15)
-            ),
-
-            # Section 1: History Table
-            ft.Text("📋 Your Requests", size=18, weight=ft.FontWeight.BOLD),
-            ft.Container(height=5),
-            ft.Container(
-                content=ft.Column([self.history_table], scroll=ft.ScrollMode.ADAPTIVE),
-                padding=10,
-                bgcolor=ft.Colors.GREY_50,
-                border_radius=10,
-                margin=ft.margin.only(bottom=15)
-            ),
-
-            # Section 2: Request Form
-            self.build_request_form(),
-        ], scroll=ft.ScrollMode.ADAPTIVE)
-        self.page.update()
-
-    def build_request_form(self):
-        """Creates the form to request new mess off."""
-        start_picker = ft.TextField(
-            label="Start Date (YYYY-MM-DD)",
-            hint_text="e.g. 2026-05-10",
-            width=200,
+                ft.Column([
+                    ft.Text(
+                        "Days remaining this month",
+                        size=14,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        f"{used} used of 12 allowed",
+                        size=12,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
+                ], spacing=4, expand=True),
+            ], spacing=16),
+            bgcolor=self.card2,
+            border_radius=18,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=16),
+            margin=ft.Margin.only(bottom=20),
         )
-        end_picker = ft.TextField(
-            label="End Date (YYYY-MM-DD)",
-            hint_text="e.g. 2026-05-12",
-            width=200,
+
+        # ── Request form ─────────────────────────────────────────
+        start_field = ft.TextField(
+            label="Start Date",
+            hint_text="YYYY-MM-DD",
+            expand=True,
+            border_color=self.amber,
+            focused_border_color=self.amber,
+            label_style=ft.TextStyle(color=self.sub, font_family="DM Sans"),
+            text_style=ft.TextStyle(color=self.txt, font_family="DM Sans"),
+            border_radius=12,
+            filled=True,
+            fill_color=self.card,
         )
-        submit_btn = ft.ElevatedButton(
-            content=ft.Text("Submit Request"),
-            icon=ft.Icons.SEND,
-            style=ft.ButtonStyle(
-                bgcolor={ft.ControlState.DEFAULT: ft.Colors.BLUE_900},
-                color={ft.ControlState.DEFAULT: ft.Colors.WHITE}
-            )
+        end_field = ft.TextField(
+            label="End Date",
+            hint_text="YYYY-MM-DD",
+            expand=True,
+            border_color=self.amber,
+            focused_border_color=self.amber,
+            label_style=ft.TextStyle(color=self.sub, font_family="DM Sans"),
+            text_style=ft.TextStyle(color=self.txt, font_family="DM Sans"),
+            border_radius=12,
+            filled=True,
+            fill_color=self.card,
         )
 
         async def submit(e):
             try:
-                start = date.fromisoformat(start_picker.value)
-                end = date.fromisoformat(end_picker.value)
-                if start > end:
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text("Start date must be before end date"),
-                        bgcolor=ft.Colors.RED
-                    )
-                    self.page.snack_bar.open = True
-                    self.page.update()
-                    return
-                result = await request_mess_off(self.user_id, start, end,self.email)
-                if result.get("success"):
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(result.get("message", "Request submitted successfully")),
-                        bgcolor=ft.Colors.GREEN
-                    )
-                    self.page.snack_bar.open = True
-                    start_picker.value = ""
-                    end_picker.value = ""
-                    # Reload data
-                    await self.load_data()
-                else:
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(result.get("error", "Request failed")),
-                        bgcolor=ft.Colors.RED
-                    )
-                    self.page.snack_bar.open = True
-            except ValueError:
+                start = date.fromisoformat(start_field.value.strip())
+                end   = date.fromisoformat(end_field.value.strip())
+            except:
                 self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Invalid date format. Use YYYY-MM-DD"),
-                    bgcolor=ft.Colors.RED
+                    content=ft.Text("Invalid date format — use YYYY-MM-DD", color="#FFF"),
+                    bgcolor="#EF4444",
                 )
                 self.page.snack_bar.open = True
+                self.page.update()
+                return
+
+            if start > end:
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text("Start date must be before end date", color="#FFF"),
+                    bgcolor="#EF4444",
+                )
+                self.page.snack_bar.open = True
+                self.page.update()
+                return
+
+            result = await request_mess_off(self.user_id, start, end, self.email)
+
+            if isinstance(result, dict) and "error" in result:
+                msg = result["error"]
+                colour = "#EF4444"
+            else:
+                msg    = result.get("message", "Request submitted!") if isinstance(result, dict) else "Submitted!"
+                colour = "#10B981"
+                start_field.value = ""
+                end_field.value   = ""
+                asyncio.create_task(self._render())
+
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text(msg, color="#FFF"), bgcolor=colour
+            )
+            self.page.snack_bar.open = True
             self.page.update()
 
-        submit_btn.on_click = submit
-
-        return ft.Container(
-            content=ft.Column([
-                ft.Text("📝 Request New Mess Off", size=18, weight=ft.FontWeight.BOLD),
-                ft.Container(height=5),
-                ft.Row([
-                    start_picker,
-                    end_picker,
-                    submit_btn
-                ], wrap=True),
-                ft.Container(height=10),
-                ft.Text("Note: You can request up to 12 days per month.", size=14, color=ft.Colors.GREY_600),
-            ]),
-            padding=10,
-            bgcolor=ft.Colors.GREY_50,
-            border_radius=10,
-            margin=ft.margin.only(top=15)
+        submit_btn = ft.FilledButton(
+            content=ft.Row([
+                ft.Icon(ft.Icons.SEND_ROUNDED, size=16, color=self.card),
+                ft.Text("Submit", size=13, weight="bold", color=self.card, font_family="DM Sans"),
+            ], spacing=8, tight=True),
+            on_click=submit,
+            style=ft.ButtonStyle(
+                bgcolor=self.amber,
+                elevation=0,
+                shape=ft.RoundedRectangleBorder(radius=12),
+                padding=ft.Padding.symmetric(horizontal=20, vertical=14),
+            ),
         )
 
-    async def handle_cancel(self, e):
-        """Handles cancellation of a pending request."""
-        mess_off_id = e.control.data
-        result = await cancel_mess_off(mess_off_id, self.email)
-        if result.get("success"):
+        form_card = ft.Container(
+            content=ft.Column([
+                ft.Text(
+                    "New Request",
+                    size=15,
+                    weight="bold",
+                    color=self.txt,
+                    font_family="DM Sans",
+                ),
+                ft.Container(height=8),
+                ft.Row([start_field, end_field], spacing=10),
+                ft.Container(height=10),
+                ft.Row([submit_btn], alignment=ft.MainAxisAlignment.END),
+                ft.Text(
+                    "Max 12 days per month. Approved requests will deduct from your quota.",
+                    size=11,
+                    color=self.sub,
+                    font_family="DM Sans",
+                ),
+            ], spacing=0),
+            bgcolor=self.card,
+            border_radius=18,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=16),
+            margin=ft.Margin.only(bottom=20),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
+        )
+
+        # ── Cancel handler ───────────────────────────────────────
+        async def handle_cancel(mid):
+            result = await cancel_mess_off(mid, self.email)
+            if isinstance(result, dict) and "error" in result:
+                msg, colour = result["error"], "#EF4444"
+            else:
+                msg    = result.get("message", "Cancelled") if isinstance(result, dict) else "Cancelled"
+                colour = "#10B981"
+                asyncio.create_task(self._render())
             self.page.snack_bar = ft.SnackBar(
-                content=ft.Text(result.get("message", "Request cancelled successfully")),
-                bgcolor=ft.Colors.GREEN
+                content=ft.Text(msg, color="#FFF"), bgcolor=colour
             )
             self.page.snack_bar.open = True
-            await self.load_data()
+            self.page.update()
+
+        # ── History list ─────────────────────────────────────────
+        if not requests:
+            history_body = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.INBOX_ROUNDED, size=40, color=self.sub),
+                    ft.Text("No requests this month", color=self.sub, font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                alignment=ft.Alignment(0, 0),
+                padding=40,
+            )
         else:
-            self.page.snack_bar = ft.SnackBar(
-                content=ft.Text(result.get("error", "Failed to cancel request")),
-                bgcolor=ft.Colors.RED
+            history_body = ft.Column(
+                [self._request_card(r, handle_cancel) for r in requests], spacing=0
             )
-            self.page.snack_bar.open = True
+
+        self.main_container.content = ft.Column([
+            ft.Row([
+                ft.Column([
+                    ft.Text("Mess Off", size=28, weight="bold", color=self.txt, font_family="DM Sans"),
+                    ft.Text("Manage your meal absences", size=13, color=self.sub, font_family="DM Sans"),
+                ]),
+                ft.IconButton(
+                    icon=ft.Icons.REFRESH_ROUNDED,
+                    icon_color=self.sub,
+                    tooltip="Refresh",
+                    on_click=lambda e: asyncio.create_task(self._render()),
+                ),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=12),
+            quota_card,
+            form_card,
+            ft.Text(
+                "Your Requests",
+                size=16,
+                weight="bold",
+                color=self.txt,
+                font_family="DM Sans",
+            ),
+            ft.Container(height=8),
+            history_body,
+        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
         self.page.update()
 
     def build(self):
-        asyncio.create_task(self.load_data())
+        asyncio.create_task(self._render())
         return ft.Container(
-            content=ft.Column([
-                ft.Text("Mess Off", size=30, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
-                self.content
-            ], scroll=ft.ScrollMode.ADAPTIVE),
-            padding=40,
-            expand=True
+            content=self.main_container,
+            bgcolor=self.bg,
+            expand=True,
+            padding=ft.Padding.symmetric(horizontal=24, vertical=20),
         )
