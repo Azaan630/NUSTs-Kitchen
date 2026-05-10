@@ -7,6 +7,8 @@ from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
 from pages.voting_page import StudentVotingPage
 from pages.mess_off_page import StudentMessOffPage
+from pages.admin_page import AdminPage
+from pages.staff_page import StaffPage
 
 load_dotenv()
 
@@ -220,22 +222,48 @@ async def main(page: ft.Page):
             dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
             page.update()
 
-        # ── Page loader ───────────────────────────────────────────
+        # ── Page loader (role-based) ──────────────────────────────
         def load_page(index):
             current_index["v"] = index
             page_content.content = None
             page.update()
 
             ud = page.current_user_data
+            role = ud.get("Account_Type", "Student")   # "Student" | "Staff" | "Admin"
+
             theme = {
-                "is_dark": is_dark["v"],
-                "NAVY": NAVY, "AMBER": AMBER, "CREAM": CREAM,
-                "DARK_BG": DARK_BG, "DARK_CARD": DARK_CARD,
-                "GREY": GREY, "WHITE": WHITE,
-                "AMBER_DIM": AMBER_DIM, "NAVY_LIGHT": NAVY_LIGHT,
-                "CREAM2": CREAM2, "DARK_CARD2": DARK_CARD2,
+                "is_dark":    is_dark["v"],
+                "NAVY":       NAVY,
+                "AMBER":      AMBER,
+                "CREAM":      CREAM,
+                "DARK_BG":    DARK_BG,
+                "DARK_CARD":  DARK_CARD,
+                "GREY":       GREY,
+                "WHITE":      WHITE,
+                "AMBER_DIM":  AMBER_DIM,
+                "NAVY_LIGHT": NAVY_LIGHT,
+                "CREAM2":     CREAM2,
+                "DARK_CARD2": DARK_CARD2,
             }
 
+            # ── Admin: single full-screen dashboard ───────────────
+            if role == "Admin":
+                page_content.content = AdminPage(page, ud, theme).build()
+                refresh_dock()
+                page.update()
+                dock_wrapper.visible = False
+                return
+
+            # ── Staff: single full-screen portal ──────────────────
+            if role == "Staff":
+                page_content.content = StaffPage(page, ud, theme).build()
+                refresh_dock()
+                page.update()
+                dock_wrapper.visible = False
+                return
+
+            # ── Student: four-tab navigation ──────────────────────
+            dock_wrapper.visible = True
             if index == 0:
                 page_content.content = StudentHomePage(page, ud, theme).build()
             elif index == 1:
