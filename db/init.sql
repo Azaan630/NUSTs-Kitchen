@@ -105,7 +105,8 @@ Score       TINYINT NOT NULL CHECK (Score BETWEEN 1 AND 5),
 Rated_At    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
 FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE,
-FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE
+FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE,
+CONSTRAINT UQ_Rating UNIQUE (User_ID, Item_ID, Schedule_ID)
 );
 
 CREATE TABLE IF NOT EXISTS Votes (
@@ -188,8 +189,8 @@ GROUP BY User_ID, Month;
 CREATE VIEW vw_MenuSchedule AS
 SELECT
 ms.Schedule_ID,
-ms.Date,
-ms.meal_type,
+ms.Date AS Date,
+ms.meal_type AS meal_type,
 ms.status AS Slot_Status,
 fi.Item_ID,
 fi.Name AS Food_Item_Name
@@ -465,7 +466,7 @@ DO
 
 # 1. Admin User
 INSERT INTO Users (First_Name, Last_Name, Email, Account_Type) VALUES
-('M', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Admin');
+('M', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student');
 
 # 2. Ingredients
 INSERT INTO Ingredients (Name, Unit, Unit_cost, Total_Quantity) VALUES
