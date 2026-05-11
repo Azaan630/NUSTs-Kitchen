@@ -5,7 +5,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
-from dao.queries import findUserByEmail, getMessOffAdmin
+from dao.queries import findUserByEmail
 from database import get_db
 from datetime import date, timedelta
 import models
@@ -48,7 +48,7 @@ def execute_transaction(db, query, params=None):
     try:
         cursor.execute(query, params or ())
         db.commit()
-        return cursor.rowcount, cursor.lastrowid
+        return cursor
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
@@ -75,8 +75,8 @@ def update_record(db, table_name, data_model, id_column, id_value):
 def delete_record(db, table_name, id_column, id_value):
     # 1. Create the query
     query = f"DELETE FROM {table_name} WHERE {id_column} = %s"
-    rowcount, _ = execute_transaction(db, query, (id_value,))
-    if rowcount == 0:
+    cursor = execute_transaction(db, query, (id_value,))
+    if cursor.rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail=f"Record with ID {id_value} not found in {table_name}."
@@ -182,8 +182,8 @@ def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), 
 @app.get("/admin/food/costs") # ALSO FOR STAFF
 def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
-    from dao.queries import getAllFoodItems
-    cursor.execute(getAllFoodItems)
+    from dao.queries import getAllFoodCosts
+    cursor.execute(getAllFoodCosts)
     records = cursor.fetchall()
     cursor.close()
     return records
@@ -196,6 +196,8 @@ def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_chec
     records = cursor.fetchall()
     cursor.close()
     return records
+
+
 
 @app.get("/admin/monthly_billing_summary")
 def get_monthly_billing_summary(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
@@ -308,7 +310,7 @@ def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends
 
 @app.delete("/admin/students/delete/{UserID}")
 def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Users", "UserID" , UserID)
+    return delete_record(db, "Student", "UserID" , UserID)
 
 
 # Staff
@@ -320,12 +322,12 @@ def register_staff(data: models.Staff, user=Depends(permission_checker(["Admin"]
         from dao.queries import registerUser, registerStaff
         # Create User
         user_vals = (data.First_Name, data.Last_Name, data.Email, "Staff")
-        cursor.execute(registerUser, user_vals)
+        cursor.execute(registerUser, (user_vals,))
         new_user_id = cursor.lastrowid
 
         # Create Staff using the new_user_id
         staff_vals = (new_user_id, data.Category)
-        cursor.execute(registerStaff, staff_vals)
+        cursor.execute(registerStaff, (staff_vals,))
 
         db.commit()
         return {"message": "User and Staff registered successfully", "UserID": new_user_id}
@@ -341,21 +343,20 @@ def update_staff_profile(data: models.Staff, UserID: int, user=Depends(permissio
 
 @app.delete("/admin/staff/delete/{UserID}")
 def delete_staff(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Users", "UserID" , UserID)
+    return delete_record(db, "Staff", "UserID" , UserID)
 
 @app.post("/admin/staff/contact/{UserID}")
 def add_staff_contact(data: models.StaffContactNumbers, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
      from dao.queries import AddStaffContactNumber
-     vals = (UserID, data.ContactNumber,)
-     _, lastrowid = execute_transaction(db, AddStaffContactNumber, vals)
-     return {"message": "Staff contact added", "id": lastrowid}
+     vals = (UserID, data.ContactID,)
+     cursor = execute_transaction(db, AddStaffContactNumber, vals)
+     return {"message": "Food item created", "id": cursor.lastrowid}
 
 @app.post("/admin/staff/category")
 def add_staff_category(data: models.StaffCategory, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
     from dao.queries import addStaffCategory
-    vals = (data.Category, data.WorkingHours, data.Salary)
-    _, lastrowid = execute_transaction(db, addStaffCategory, vals)
-    return {"message": "Staff category created", "id": lastrowid}
+    cursor = execute_transaction(db, addStaffCategory, data)
+    return {"message": "Food item created", "id": cursor.lastrowid}
 
 
 #Bills
@@ -364,8 +365,8 @@ def add_staff_category(data: models.StaffCategory, db=Depends(get_db), user=Depe
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import createBill
     vals = (data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value,)
-    _, lastrowid = execute_transaction(db, createBill, vals)
-    return {"message": "Bill created", "id": lastrowid}
+    cursor = execute_transaction(db, createBill, vals)
+    return {"message": "Bill created", "id": cursor.lastrowid}
 
 
 @app.patch("/admin/bills/update/{BillID}")
@@ -455,16 +456,16 @@ def generate_pdf(BillingID: int, email:str, db=Depends(get_db), user=Depends(per
 def create_food(data: models.Food, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import createFood
     vals = (data.Name, data.Quantity, data.Price,)
-    _, lastrowid = execute_transaction(db, createFood, vals)
-    return {"message": "Food item created", "id": lastrowid}
+    cursor = execute_transaction(db, createFood, vals)
+    return {"message": "Food item created", "id": cursor.lastrowid}
 
 @app.patch("/admin/food_items/update/{ItemID}")
 def update_food(data: models.Food, ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return update_record(db, "Food_Items", data, "Item_ID", ItemID)
+    return update_record(db, "Food_Items", data, "ItemID", ItemID)
 
 @app.delete("/admin/food_items/delete/{ItemID}")
 def delete_food(ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Food_Items", "Item_ID" , ItemID)
+    return delete_record(db, "Food_Items", "ItemID" , ItemID)
 
 
 # Ingredients
@@ -472,9 +473,9 @@ def delete_food(ItemID: int, user=Depends(permission_checker(["Admin"])), db=Dep
 @app.post("/admin/ingredients/create")
 def create_ingredient(data: models.Ingredient, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import createIngredient
-    vals = (data.Name, data.Unit, data.Unit_cost, data.Total_Quantity,)
-    _, lastrowid = execute_transaction(db, createIngredient, vals)
-    return {"message": "Ingredient created", "id": lastrowid}
+    vals = (data.Name, data.Total_Quantity, data.Pricing, data.Unit,)
+    cursor = execute_transaction(db, createIngredient, vals)
+    return {"message": "Ingredient created", "id": cursor.lastrowid}
 
 @app.patch("/admin/ingredients/update/{IngredientID}")
 def update_ingredient(data: models.Ingredient, IngredientID : int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
@@ -491,8 +492,8 @@ def delete_ingredient(IngredientID: int, user=Depends(permission_checker(["Admin
 def add_recipe(Ingredient_Quantity: float, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import addRecipe
     vals = (ItemID, IngredientID, Ingredient_Quantity)
-    _, lastrowid = execute_transaction(db, addRecipe, vals)
-    return {"message": "Recipe added", "id": lastrowid}
+    cursor = execute_transaction(db, addRecipe, vals)
+    return {"message": "Recipe added", "id": cursor.lastrowid}
 
 @app.patch("/admin/recipe/update/{ItemID}/{IngredientID}")
 def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
@@ -512,9 +513,9 @@ def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: in
 @app.delete("/admin/recipe/{ItemID}/{IngredientID}")
 def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     query = f"DELETE FROM Food_Item_Ingredients WHERE Item_ID = %s AND Ingredient_ID = %s"
-    rowcount, _ = execute_transaction(db, query, (ItemID, IngredientID))
+    cursor = execute_transaction(db, query, (ItemID, IngredientID))
 
-    if rowcount == 0:
+    if cursor.rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail=f"Record with ID {ItemID} + {IngredientID} not found in Food_Item_Ingredients."
@@ -526,16 +527,17 @@ def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checke
 # Voting
 
 @app.post("/admin/poll/start")
-def start_poll(payload: models.PollRequest, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
     cursor = db.cursor(dictionary=True)
 
     try:
         # Join IDs into "1,2,3"
-        poll_str = ",".join(map(str, payload.item_ids))
+        poll_str = ",".join(map(str, item_ids))
 
         query = "INSERT INTO System_Config (Config_Key, Value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE Value = %s"
 
         cursor.execute(query, ("active_poll_items", poll_str, poll_str))
+        cursor.execute(query, ("active_poll_meal", meal_type, meal_type))
         db.commit()
 
         return {"status": "Poll Started"}
@@ -609,7 +611,7 @@ def get_poll_results(db=Depends(get_db), user=Depends(permission_checker(["Admin
         format_strings = ','.join(['%s'] * len(item_ids))
 
         query = f"""SELECT Item_ID, Name, Vote_Count 
-                    FROM  Votes JOIN Food_Items ON Food_Items.Item_ID = Votes.Food_ID 
+                    FROM vw_FoodItemRatings 
                     WHERE Item_ID IN ({format_strings})
                     ORDER BY Vote_Count DESC"""
         cursor.execute(query, tuple(item_ids))
@@ -653,11 +655,11 @@ def update_menu(data: models.MenuFoodItem, ItemID: int, ScheduleID: int, user=De
     execute_transaction(db, query, parameters)
     return {"message": f"Recipe updated successfully"}
 
-@app.delete("/admin/menu_schedule/{ItemID}/{ScheduleID}")
+@app.delete("/admin/recipe/{ItemID}/{ScheduleID}")
 def delete_menu(ItemID: int, ScheduleID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     query = f"DELETE FROM Menu_Food_Items WHERE Item_ID = %s AND Schedule_ID = %s"
-    rowcount, _ = execute_transaction(db, query, (ItemID, ScheduleID,))
-    if rowcount == 0:
+    cursor = execute_transaction(db, query, (ItemID, ScheduleID,))
+    if cursor.rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail=f"Record with ID {ItemID} + {ScheduleID} not found in Menu_Food_Items table."
@@ -739,7 +741,7 @@ def request_mess_off(UserID: int, StartDate: date, EndDate: date, user=Depends(p
         cursor.close()
 
 @app.post("/student/mess_off/cancel/{MessOffID}")
-def cancel_mess_off_request(MessOffID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
+def cancel_mess_off_request(MessOffID: int, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
     cursor = db.cursor()
     try:
         from dao.queries import cancelMessOff
@@ -772,7 +774,7 @@ def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getMessOffThisMonth
-        cursor.execute(getMessOffAdmin)
+        cursor.execute(getMessOffThisMonth, (email,))
         result = cursor.fetchall()
         return {"status": result}
     except Exception as e:
