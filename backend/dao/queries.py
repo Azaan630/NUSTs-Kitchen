@@ -2,11 +2,18 @@ findUserByEmail = ("""SELECT *
                       FROM Users
                       WHERE Email = %s""")
 
-getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type
+getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date
                     FROM Food_Items fi
                             JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
                             JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
                     WHERE ms.Date = %s""")
+
+getWeeklyMenu = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date
+                    FROM Food_Items fi
+                             JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
+                             JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
+                    WHERE ms.Date BETWEEN %s AND DATE_ADD(%s, INTERVAL 7 DAY)
+                    ORDER BY ms.DATE """)
 
 getAllUsers = ("""SELECT * 
                   FROM Users""")
@@ -37,12 +44,12 @@ createBill = ("""INSERT INTO Bills
                  VALUES (%s, %s, %s, %s, %s, %s)""")
 
 createFood = ("""INSERT INTO Food_Items
-                 (Name, Quantity, Item_Expenditure)
+                 (Name, Quantity, Price)
                  VALUES (%s, %s, %s)""")
 
 createIngredient = ("""INSERT INTO Ingredients
-                       (Name, Total_Quantity, Pricing)
-                       VALUES (%s, %s, %s)""")
+                       (Name, Unit, Unit_cost, Total_Quantity)
+                       VALUES (%s, %s, %s, %s)""")
 
 registerStaff = ("""INSERT INTO Staff
                       (UserID, Category)
@@ -56,8 +63,8 @@ AddStaffContactNumber = ("""INSERT INTO Staff_Contact_Numbers
                             VALUES (%s, %s)""")
 
 addRecipe = ("""INSERT INTO Food_Item_Ingredients
-                (Ingredient_ID, Ingredient_Quantity)
-                VALUES (%s, %s)""")
+                (Item_ID, Ingredient_ID, Ingredient_Quantity)
+                VALUES (%s, %s, %s)""")
 
 
 getFoodByID = ("""SELECT 1
@@ -65,7 +72,7 @@ getFoodByID = ("""SELECT 1
                   WHERE ItemID = %s""")
 
 
-addStaffCategory = """INSERT INTO StaffCategories
+addStaffCategory = """INSERT INTO Staff_Category
                       (Category, Working_hours, Salary)
                       VALUES (%s, %s, %s)"""
 
@@ -76,6 +83,9 @@ addMenuItem = """INSERT INTO Menu_Food_Items
 
 getAllFoodCosts = ("""SELECT *
                       FROM vw_FoodItemCost""")
+
+getAllFoodItems = ("""SELECT *
+                      FROM Food_Items""")
 
 getWeeklyMenu = ("""SELECT * 
                     FROM vw_MenuSchedule
@@ -90,7 +100,7 @@ getCurrentScheduleID = ("""SELECT Schedule_ID
                            WHERE Date = %s AND meal_type = %s""")
 
 giveFoodRating = ("""INSERT INTO Ratings
-                     (User_ID, Item_ID, Schedule_ID, Score)
+                     (User_ID, Item_ID, ScheduleID, Score)
                      VALUES (%s, %s, %s, %s)""")
 
 getFoodRating = ("""SELECT
@@ -100,7 +110,7 @@ getFoodRating = ("""SELECT
                     (SELECT COUNT(*) FROM Ratings r WHERE r.Item_ID = fi.Item_ID) AS Rating_Count,
                     fi.Vote_Count
                     FROM Food_Items fi
-                    JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
+                    JOIN Menu_Food_Items mfi
                     WHERE mfi.Schedule_ID = %s AND mfi.Item_ID = %s;""")
 
 requestMessOff = """INSERT INTO Mess_Off
@@ -117,6 +127,14 @@ getMessOffThisMonth = ("""SELECT *
                           JOIN Users ON Users.UserID = Mess_Off.User_ID
                           WHERE Users.Email = %s
                           AND (
+                          Start_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') 
+                          OR End_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                          );""")
+
+getMessOffAdmin = ("""SELECT *
+                          FROM Mess_Off 
+                          JOIN Users ON Users.UserID = Mess_Off.User_ID
+                          WHERE (
                           Start_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') 
                           OR End_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
                           );""")

@@ -8,7 +8,6 @@ from pages.profile_page import StudentProfilePage
 from pages.voting_page import StudentVotingPage
 from pages.mess_off_page import StudentMessOffPage
 from pages.admin_page import AdminPage
-from pages.staff_page import StaffPage
 
 load_dotenv()
 

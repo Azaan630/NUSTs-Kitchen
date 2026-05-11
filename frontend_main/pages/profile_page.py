@@ -105,19 +105,27 @@ class StudentProfilePage:
     async def _download(self, bill):
         billing_id = bill.get("Billing_ID")
         if not billing_id:
+            self._snack("Invalid Bill ID", ok=False)
             return
-        pdf_bytes = await download_bill_pdf(billing_id, self.email)
-        if pdf_bytes:
-            import base64
-            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            self.page.launch_url(f"data:application/pdf;base64,{pdf_b64}")
+
+        actual_url = f"http://localhost:8000/student/bills/download/{billing_id}"
+
+        params = f"?email={self.email}"
+        full_path = f"{actual_url}{params}"
+
+        try:
+            await self.page.launch_url(full_path)
+
             self.page.snack_bar = ft.SnackBar(
-                content=ft.Text("✅ PDF opened!", color="#FFF"), bgcolor="#10B981"
+                content=ft.Text("Attempting to download PDF...", color="#FFF"),
+                bgcolor=self.amber
             )
-        else:
+        except Exception as e:
             self.page.snack_bar = ft.SnackBar(
-                content=ft.Text("Failed to download PDF", color="#FFF"), bgcolor="#EF4444"
+                content=ft.Text(f"Error: {str(e)}", color="#FFF"),
+                bgcolor="#EF4444"
             )
+
         self.page.snack_bar.open = True
         self.page.update()
 

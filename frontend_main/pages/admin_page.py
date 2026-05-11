@@ -65,9 +65,14 @@ async def api_get_weekly_menu(email): return await _req("GET", "/menu/weekly", {
 async def api_add_menu_item(email, item_id, menu_date, meal_type):
     return await _req("POST", f"/admin/menu_schedule/{item_id}/{menu_date}/{meal_type}", {"email": email})
 async def api_delete_menu_item(email, item_id, schedule_id):
-    return await _req("DELETE", f"/admin/recipe/{item_id}/{schedule_id}", {"email": email})
+    return await _req("DELETE", f"/admin/menu_schedule/{item_id}/{schedule_id}", {"email": email})
 
+async def api_start_poll(email, data):
+    # Pass email in params, and the actual poll data in the JSON body
+    return await _req("POST", "/admin/poll/start", params={"email": email}, json_data=data)
 
+async def api_get_poll_results(email):
+    return await _req("GET", "/admin/poll/results", {"email": email})
 
 
 class AdminPage:
@@ -80,6 +85,7 @@ class AdminPage:
         ("Mess Off",  ft.Icons.EVENT_BUSY_ROUNDED),
         ("Bills",     ft.Icons.RECEIPT_LONG_ROUNDED),
         ("Menu",      ft.Icons.RESTAURANT_MENU_ROUNDED),
+        ("Polls", ft.Icons.POLL_ROUNDED),
     ]
 
     def __init__(self, page: ft.Page, user_data: dict, theme: dict):
@@ -702,6 +708,61 @@ class AdminPage:
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
+    async def _render_polls(self, content_ref):
+        content_ref.content = self._loading("Fetching poll data…")
+        self.page.update()
+
+        # 1. Fetch live results from backend
+        res = await api_get_poll_results(self.email)
+        poll_results = res.get("results", []) if isinstance(res, dict) else []
+
+        # 2. Results Section UI
+        result_cards = []
+        for r in poll_results:
+            result_cards.append(self._row_card([
+                ft.Text(r.get("Name", "?"), expand=True, weight="bold", color=self.txt, font_family="DM Sans"),
+                ft.Text(f"{r.get('Vote_Count', 0)} Votes", color=self.amber, weight="bold", font_family="DM Sans")
+            ]))
+
+        # 3. New Poll Form Fields
+        f_meal = self._field("Meal Type", "e.g. Dinner")
+        f_ids = self._field("Food Item IDs", "e.g. 102, 105")
+
+        async def launch_poll(e):
+            try:
+                id_list = [int(i.strip()) for i in f_ids.value.split(",") if i.strip()]
+                payload = {"meal_type": f_meal.value, "item_ids": id_list}
+
+                resp = await api_start_poll(self.email, payload)
+                ok = "error" not in (resp or {})
+                self._snack("Poll launched!" if ok else resp.get("error", "Error"), ok)
+
+                if ok:  # Refresh to show the new (empty) results list
+                    await self._render_polls(content_ref)
+            except:
+                self._snack("IDs must be numbers separated by commas", False)
+
+        # 4. Final Assembly
+        content_ref.content = ft.Column([
+            self._section_title("Live Poll Standings"),
+            ft.Column(result_cards) if result_cards else ft.Text("No active poll results found.", color=self.sub),
+
+            ft.Container(height=20),  # Spacer
+
+            self._section_title("Launch New Poll"),
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("This will replace the current active poll.", size=12, color=self.sub),
+                    ft.Row([f_meal, f_ids], spacing=8),
+                    ft.Row([self._fab("Start Poll", ft.Icons.HOW_TO_VOTE, launch_poll)],
+                           alignment=ft.MainAxisAlignment.END),
+                ], spacing=12),
+                bgcolor=self.card2, border_radius=14, padding=16
+            )
+        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
+        self.page.update()
+
     # Tab dispatcher
 
     RENDERERS = [
@@ -711,6 +772,7 @@ class AdminPage:
         "_render_mess_off",
         "_render_bills",
         "_render_menu",
+        "_render_polls"
     ]
 
     # Build

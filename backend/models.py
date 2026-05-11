@@ -10,7 +10,7 @@ class UserBase(BaseModel):
     First_Name: str
     Last_Name: str
     Email: str
-    Account_Type: str
+    Account_Type: Optional[str] = None
 
 #Student
 
@@ -83,7 +83,7 @@ class BillUpdate(BaseModel):
 
 class Food(BaseModel):
     Name: str
-    Quantity: float
+    Quantity: Optional[float] = 0
     Price: float
 
 #Ingredient
@@ -91,7 +91,7 @@ class Food(BaseModel):
 class Ingredient(BaseModel):
     Name: str
     Total_Quantity: float
-    Pricing: float
+    Unit_cost: float
     Unit: str
 
 
@@ -106,3 +106,7 @@ class FoodItemIngredient(BaseModel):
 class MenuFoodItem(BaseModel):
     ScheduleID: int
     ItemID: int
+
+class PollRequest(BaseModel):
+    meal_type: str
+    item_ids: list[int]
