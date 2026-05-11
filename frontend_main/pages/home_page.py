@@ -28,7 +28,7 @@ class StudentHomePage:
     def _item_name(self, item: dict) -> str:
         """Safely get item name regardless of API key casing."""
         return (
-            item.get("Food_Item_Name")  # <--- Add this at the top
+            item.get("Food_Item_Name")
             or item.get("Name")
             or item.get("Item_Name")
             or item.get("item_name")

@@ -2,7 +2,7 @@ findUserByEmail = ("""SELECT *
                       FROM Users
                       WHERE Email = %s""")
 
-getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date
+getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type
                     FROM Food_Items fi
                             JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
                             JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
@@ -100,7 +100,7 @@ getCurrentScheduleID = ("""SELECT Schedule_ID
                            WHERE Date = %s AND meal_type = %s""")
 
 giveFoodRating = ("""INSERT INTO Ratings
-                     (User_ID, Item_ID, ScheduleID, Score)
+                     (User_ID, Item_ID, Schedule_ID, Score)
                      VALUES (%s, %s, %s, %s)""")
 
 getFoodRating = ("""SELECT
@@ -123,13 +123,8 @@ getMessOffStatus = ("""SELECT *
                        FROM Mess_Off WHERE Mess_Off_ID = %s""")
 
 getMessOffThisMonth = ("""SELECT *
-                          FROM Mess_Off 
-                          JOIN Users ON Users.UserID = Mess_Off.User_ID
-                          WHERE Users.Email = %s
-                          AND (
-                          Start_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') 
-                          OR End_Date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
-                          );""")
+                          FROM Mess_Off
+                          ;""")
 
 getMessOffAdmin = ("""SELECT *
                           FROM Mess_Off 
@@ -145,5 +140,4 @@ getBillPDF = ("""SELECT b.Billing_ID, b.Amount, b.Due_Date, b.Month, u.First_Nam
                  WHERE b.Billing_ID = %s AND u.Email = %s""")
 
 getRecipes = ("""SELECT Food_Item_Ingredients.Item_ID, Ingredients.Ingredient_ID, Ingredient_Quantity, Ingredients.Unit, Ingredients.Name
-                 FROM Food_Item_Ingredients ON Food_Items.Item_ID = Food_Item_Ingredients.Item_ID
-                 JOIN Ingredients ON Food_Item_Ingredients.Ingredient_ID = Ingredients.Ingredient_ID""")
+                 FROM Food_Item_Ingredients JOIN Ingredients ON Food_Item_Ingredients.Ingredient_ID = Ingredients.Ingredient_ID""")

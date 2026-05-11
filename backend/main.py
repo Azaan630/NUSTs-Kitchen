@@ -11,6 +11,8 @@ from datetime import date, timedelta
 import models
 import mysql.connector
 
+from models import PollRequest
+
 app = FastAPI(title="RotiRouter API")
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
@@ -310,7 +312,8 @@ def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends
 
 @app.delete("/admin/students/delete/{UserID}")
 def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Student", "UserID" , UserID)
+    delete_record(db, "Student", "UserID", UserID)
+    return delete_record(db, "Users", "UserID" , UserID)
 
 
 # Staff
@@ -527,22 +530,30 @@ def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checke
 # Voting
 
 @app.post("/admin/poll/start")
-def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+def start_poll(poll: PollRequest, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
     cursor = db.cursor(dictionary=True)
 
     try:
-        # Join IDs into "1,2,3"
-        poll_str = ",".join(map(str, item_ids))
+        # 1. Reset Vote_Count for all items
+        cursor.execute("UPDATE Food_Items SET Vote_Count = 0")
+
+        # 2. Clear all previous votes
+        cursor.execute("DELETE FROM Votes")
+
+        # 3. Join IDs into "1,2,3"
+        poll_str = ",".join(map(str, poll.item_ids))
 
         query = "INSERT INTO System_Config (Config_Key, Value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE Value = %s"
 
         cursor.execute(query, ("active_poll_items", poll_str, poll_str))
-        cursor.execute(query, ("active_poll_meal", meal_type, meal_type))
+        cursor.execute(query, ("active_poll_meal_type", poll.meal_type, poll.meal_type))
+
         db.commit()
 
         return {"status": "Poll Started"}
 
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
     finally:
@@ -552,9 +563,11 @@ def start_poll(meal_type: str, item_ids: list[int], db=Depends(get_db), user=Dep
 def get_active_poll(db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
     cursor = db.cursor(dictionary=True)
     try:
-        query = "SELECT Config_Key, Value FROM System_Config WHERE Config_Key = 'active_poll_items'"
-        cursor.execute(query)
+        cursor.execute("SELECT Value FROM System_Config WHERE Config_Key = 'active_poll_items'")
         active_poll_items = cursor.fetchone()
+
+        cursor.execute("SELECT Value FROM System_Config WHERE Config_Key = 'active_poll_meal_type'")
+        active_meal_type = cursor.fetchone()
 
         if not active_poll_items or not active_poll_items['Value']:
             return {"active": False}
@@ -564,7 +577,18 @@ def get_active_poll(db=Depends(get_db), user=Depends(permission_checker(["Admin"
         query = f"SELECT Item_ID, Name, Price FROM Food_Items WHERE Item_ID IN ({format_strings})"
 
         cursor.execute(query, tuple(id_list))
-        return {"active": True, "items": cursor.fetchall()}
+        items = cursor.fetchall()
+
+        # Convert Decimal to float for JSON serialization
+        for item in items:
+            if 'Price' in item and item['Price'] is not None:
+                item['Price'] = float(item['Price'])
+
+        return {
+            "active": True, 
+            "meal_type": active_meal_type['Value'] if active_meal_type else "Poll",
+            "items": items
+        }
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -582,7 +606,7 @@ def cast_vote(UserID: int, ItemID: int, email: str, db=Depends(get_db), user=Dep
         raise HTTPException(status_code=404, detail="No active poll")
 
     active_ids = result['Value'].split(",")
-    if str(ItemID) not in active_ids:
+    if str(ItemID) not in [i.strip() for i in active_ids]:
         raise HTTPException(status_code=400, detail="This item is not part of the active poll")
 
     cursor2 = db.cursor()
@@ -592,9 +616,10 @@ def cast_vote(UserID: int, ItemID: int, email: str, db=Depends(get_db), user=Dep
     except mysql.connector.Error as err:
         if err.errno == 1062:  # MySQL Duplicate Entry Error
             raise HTTPException(status_code=400, detail="You already voted for this!")
-        raise HTTPException(status_code=500, detail="Database error")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(err)}")
     finally:
         cursor2.close()
+    return {"status": "Voted successfully"}
 
 
 @app.get("/admin/poll/results")
@@ -607,11 +632,14 @@ def get_poll_results(db=Depends(get_db), user=Depends(permission_checker(["Admin
         if not config or not config['Value']:
             return {"results": [], "message": "No active poll items found"}
 
-        item_ids = config["Value"].split(",")
+        item_ids = [i.strip() for i in config["Value"].split(",") if i.strip()]
+        if not item_ids:
+            return {"results": []}
+
         format_strings = ','.join(['%s'] * len(item_ids))
 
-        query = f"""SELECT Item_ID, Name, Vote_Count 
-                    FROM vw_FoodItemRatings 
+        query = f"""SELECT Item_ID, Name, Vote_Count
+                    FROM Food_Items
                     WHERE Item_ID IN ({format_strings})
                     ORDER BY Vote_Count DESC"""
         cursor.execute(query, tuple(item_ids))
@@ -630,7 +658,7 @@ def add_menu(meal_type: str, menu_date: date, ItemID: int, user=Depends(permissi
     from dao.queries import addMenuItem
 
     cursor = db.cursor(dictionary=True)
-    cursor.execute(f"""SELECT Schedule_ID FROM Menu_Schedule WHERE Date = %s AND Meal_Type = %s""", (menu_date, meal_type,))
+    cursor.execute(f"""SELECT Schedule_ID FROM Menu_Schedule WHERE Date = %s AND meal_type = %s""", (menu_date, meal_type,))
     result = cursor.fetchone()
 
     if not result:
@@ -650,7 +678,7 @@ def update_menu(data: models.MenuFoodItem, ItemID: int, ScheduleID: int, user=De
     # To build the dynamic SQL "SET column1 = %s, column2 = %s"
     column_placeholders = [f"{key} = %s" for key in update_data.keys()]
     set_clause = ", ".join(column_placeholders)
-    query = f"UPDATE Menu_Food_Items SET {set_clause} WHERE ItemID = %s AND ScheduleID = %s"
+    query = f"UPDATE Menu_Food_Items SET {set_clause} WHERE Item_ID = %s AND Schedule_ID = %s"
     parameters = list(update_data.values()) + [ItemID, ScheduleID]
     execute_transaction(db, query, parameters)
     return {"message": f"Recipe updated successfully"}
@@ -666,6 +694,7 @@ def delete_menu(ItemID: int, ScheduleID: int, user=Depends(permission_checker(["
         )
 
     return {"message": f"Record {ItemID} + {ScheduleID} deleted successfully from Menu_Food_Items table."}
+
 
 
 # Ratings
@@ -774,7 +803,7 @@ def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "
     cursor = db.cursor(dictionary=True)
     try:
         from dao.queries import getMessOffThisMonth
-        cursor.execute(getMessOffThisMonth, (email,))
+        cursor.execute(getMessOffThisMonth)
         result = cursor.fetchall()
         return {"status": result}
     except Exception as e:

@@ -466,8 +466,9 @@ DO
 
 # 1. Users (Admin, Student, Staff)
 INSERT INTO Users (First_Name, Last_Name, Email, Account_Type) VALUES
-('M', 'Azaan', 'zainif63@gmail.com', 'Admin'),
-('M', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
+('Muhammad', 'Azaan', 'zainif63@gmail.com', 'Admin'),
+('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
+('Muhammad', 'Azaan', 'zainif630@gmail.com', 'Staff'),
 ('Jane', 'Smith', 'jane.student@seecs.edu.pk', 'Student'),
 ('Bob', 'Jones', 'bob.student@seecs.edu.pk', 'Student'),
 ('Alice', 'Staff', 'alice.staff@seecs.edu.pk', 'Staff'),
