@@ -8,7 +8,7 @@ BACKEND_URL = "http://backend:8000"
 #test email
 USER_EMAIL = "mazaan.bscs25seecs@seecs.edu.pk"
 
-st.set_page_config(page_title="RotiRouter - Ingredients", layout="wide")
+st.set_page_config(page_title="NUST's Kitchen - Ingredients", layout="wide")
 st.title("🥦 Mess Ingredients & Inventory Manager")
 st.write("Manage daily stock, pricing, and raw materials for the NUST SEECS Mess.")
 

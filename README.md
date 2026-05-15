@@ -1,6 +1,6 @@
-# RotiRouter - Mess Management System
+# NUST's Kitchen - Mess Management System
 
-RotiRouter is a comprehensive mess management solution designed to streamline dining hall operations. It provides a robust backend API, a user-friendly interface for diners, and a data-driven dashboard for administrators.
+NUST's Kitchen is a comprehensive mess management solution designed to streamline dining hall operations. It provides a robust backend API, a user-friendly interface for diners, and a data-driven dashboard for administrators.
 
 ## 🚀 Tech Stack
 

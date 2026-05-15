@@ -340,7 +340,7 @@ async def main(page: ft.Page):
                     ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=72, color=AMBER),
                     ft.Container(height=16),
                     ft.Text(
-                        "RotiRouter",
+                        "NUST's Kitchen",
                         size=56,
                         weight="bold",
                         font_family="Playfair",

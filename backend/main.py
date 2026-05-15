@@ -13,7 +13,7 @@ import mysql.connector
 
 from models import PollRequest
 
-app = FastAPI(title="RotiRouter API")
+app = FastAPI(title="NUST's Kitchen API")
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
 origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
