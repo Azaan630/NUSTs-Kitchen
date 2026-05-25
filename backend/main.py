@@ -325,12 +325,12 @@ def register_staff(data: models.Staff, user=Depends(permission_checker(["Admin"]
         from dao.queries import registerUser, registerStaff
         # Create User
         user_vals = (data.First_Name, data.Last_Name, data.Email, "Staff")
-        cursor.execute(registerUser, (user_vals,))
+        cursor.execute(registerUser, user_vals)
         new_user_id = cursor.lastrowid
 
         # Create Staff using the new_user_id
         staff_vals = (new_user_id, data.Category)
-        cursor.execute(registerStaff, (staff_vals,))
+        cursor.execute(registerStaff, staff_vals)
 
         db.commit()
         return {"message": "User and Staff registered successfully", "UserID": new_user_id}
@@ -346,7 +346,8 @@ def update_staff_profile(data: models.Staff, UserID: int, user=Depends(permissio
 
 @app.delete("/admin/staff/delete/{UserID}")
 def delete_staff(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Staff", "UserID" , UserID)
+    delete_record(db, "Staff", "UserID" , UserID)
+    return delete_record(db, "Users", "UserID", UserID)
 
 @app.post("/admin/staff/contact/{UserID}")
 def add_staff_contact(data: models.StaffContactNumbers, UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
@@ -464,11 +465,11 @@ def create_food(data: models.Food, user=Depends(permission_checker(["Admin"])), 
 
 @app.patch("/admin/food_items/update/{ItemID}")
 def update_food(data: models.Food, ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return update_record(db, "Food_Items", data, "ItemID", ItemID)
+    return update_record(db, "Food_Items", data, "Item_ID", ItemID)
 
 @app.delete("/admin/food_items/delete/{ItemID}")
 def delete_food(ItemID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return delete_record(db, "Food_Items", "ItemID" , ItemID)
+    return delete_record(db, "Food_Items", "Item_ID" , ItemID)
 
 
 # Ingredients
@@ -476,7 +477,7 @@ def delete_food(ItemID: int, user=Depends(permission_checker(["Admin"])), db=Dep
 @app.post("/admin/ingredients/create")
 def create_ingredient(data: models.Ingredient, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     from dao.queries import createIngredient
-    vals = (data.Name, data.Total_Quantity, data.Pricing, data.Unit,)
+    vals = (data.Name, data.Total_Quantity, data.Unit, data.Unit_cost,)
     cursor = execute_transaction(db, createIngredient, vals)
     return {"message": "Ingredient created", "id": cursor.lastrowid}
 

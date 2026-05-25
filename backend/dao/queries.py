@@ -69,7 +69,7 @@ addRecipe = ("""INSERT INTO Food_Item_Ingredients
 
 getFoodByID = ("""SELECT 1
                   FROM Food_Items
-                  WHERE ItemID = %s""")
+                  WHERE Item_ID = %s""")
 
 
 addStaffCategory = """INSERT INTO Staff_Category
@@ -86,11 +86,6 @@ getAllFoodCosts = ("""SELECT *
 
 getAllFoodItems = ("""SELECT *
                       FROM Food_Items""")
-
-getWeeklyMenu = ("""SELECT * 
-                    FROM vw_MenuSchedule
-                    WHERE Date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-                    ORDER BY Date ASC, meal_type;""")
 
 getMonthBills = ("""SELECT *
                     FROM vw_MonthlyBillingSummary""")
