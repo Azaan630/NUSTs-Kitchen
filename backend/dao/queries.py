@@ -105,7 +105,7 @@ getFoodRating = ("""SELECT
                     (SELECT COUNT(*) FROM Ratings r WHERE r.Item_ID = fi.Item_ID) AS Rating_Count,
                     fi.Vote_Count
                     FROM Food_Items fi
-                    JOIN Menu_Food_Items mfi
+                    JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
                     WHERE mfi.Schedule_ID = %s AND mfi.Item_ID = %s;""")
 
 requestMessOff = """INSERT INTO Mess_Off
