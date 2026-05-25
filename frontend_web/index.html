@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NUST Kitchen</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0d;
+    --bg2: #1a1916;
+    --bg3: #252320;
+    --bg4: #2e2c28;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ece4;
+    --text2: #a09a8e;
+    --text3: #6b6560;
+    --accent: #e8b84b;
+    --accent2: #c9922a;
+    --accent-bg: rgba(232,184,75,0.12);
+    --green: #5cb87a;
+    --green-bg: rgba(92,184,122,0.12);
+    --red: #e06c6c;
+    --red-bg: rgba(224,108,108,0.12);
+    --blue: #6ca8e0;
+    --blue-bg: rgba(108,168,224,0.12);
+    --purple: #a889e0;
+    --purple-bg: rgba(168,137,224,0.12);
+    --radius: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* LOGIN */
+  #login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    background: var(--bg);
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+  }
+  .login-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
+  .login-sub { color: var(--text3); font-size: 13px; margin-bottom: 2rem; }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group select option { background: var(--bg3); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #1a1400; }
+  .btn-primary:hover { background: #f5c85a; }
+  .btn-primary:disabled { background: var(--bg4); color: var(--text3); cursor: not-allowed; }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:hover { background: var(--bg4); }
+  .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(224,108,108,0.2); }
+  .btn-danger:hover { background: rgba(224,108,108,0.2); }
+  .btn-success { background: var(--green-bg); color: var(--green); border: 1px solid rgba(92,184,122,0.2); }
+  .btn-success:hover { background: rgba(92,184,122,0.2); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-full { width: 100%; justify-content: center; }
+
+  /* APP LAYOUT */
+  #app-screen { display: none; height: 100vh; flex-direction: row; }
+  #app-screen.visible { display: flex; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 240px; min-width: 240px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+    z-index: 10;
+  }
+  .sidebar-header {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+  .sidebar-role {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 20px; margin-top: 4px;
+  }
+  .role-admin { background: var(--accent-bg); color: var(--accent); }
+  .role-staff { background: var(--blue-bg); color: var(--blue); }
+  .role-student { background: var(--green-bg); color: var(--green); }
+
+  .sidebar-nav { flex: 1; padding: 0.75rem 0; }
+  .nav-section { padding: 0.5rem 1.25rem 0.25rem; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 1.25rem; cursor: pointer;
+    color: var(--text2); font-size: 13.5px; font-weight: 400;
+    transition: all 0.15s; border-left: 2px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--bg3); }
+  .nav-item.active { color: var(--accent); background: var(--accent-bg); border-left-color: var(--accent); font-weight: 500; }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+  .sidebar-user { font-size: 12px; color: var(--text2); }
+  .sidebar-user strong { display: block; color: var(--text); font-size: 13px; margin-bottom: 2px; }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg2); flex-shrink: 0;
+  }
+  .topbar h1 { font-size: 18px; font-weight: 500; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+  /* PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .card-title { font-size: 15px; font-weight: 500; }
+  .card-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem;
+  }
+  .stat-label { font-size: 11px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 300; color: var(--text); font-family: 'DM Serif Display', serif; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.blue { color: var(--blue); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); color: var(--text); }
+
+  /* BADGES */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-amber { background: var(--accent-bg); color: var(--accent); }
+  .badge-blue { background: var(--blue-bg); color: var(--blue); }
+  .badge-purple { background: var(--purple-bg); color: var(--purple); }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 1000;
+    align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--radius-lg); padding: 1.75rem;
+    width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 17px; font-weight: 500; margin-bottom: 1.25rem; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+  /* TOAST */
+  #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 12px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+    border: 1px solid; max-width: 320px;
+    animation: slideIn 0.25s ease;
+  }
+  .toast-success { background: var(--green-bg); color: var(--green); border-color: rgba(92,184,122,0.25); }
+  .toast-error { background: var(--red-bg); color: var(--red); border-color: rgba(224,108,108,0.25); }
+  .toast-info { background: var(--blue-bg); color: var(--blue); border-color: rgba(108,168,224,0.25); }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* LOADING */
+  .loading { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 13px; padding: 2rem; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text3); }
+  .empty svg { opacity: 0.3; margin: 0 auto 1rem; display: block; }
+
+  /* MENU GRID */
+  .meal-section { margin-bottom: 1.5rem; }
+  .meal-header { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
+  .meal-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .food-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+  .food-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px;
+    transition: border-color 0.2s;
+  }
+  .food-card:hover { border-color: var(--border2); }
+  .food-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .food-price { font-size: 12px; color: var(--accent); }
+  .food-rating { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* POLL */
+  .poll-item {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+  }
+  .poll-item:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .poll-item.voted { border-color: var(--green); background: var(--green-bg); }
+  .poll-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .poll-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s ease; }
+
+  /* DATE BADGE */
+  .date-display { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; }
+  .date-big { font-family: 'DM Serif Display', serif; font-size: 48px; color: var(--accent); line-height: 1; }
+  .date-info { }
+  .date-day { font-size: 16px; font-weight: 500; }
+  .date-full { font-size: 12px; color: var(--text2); }
+
+  /* BILL PDF BUTTON */
+  .bill-row td:last-child { white-space: nowrap; }
+
+  /* INLINE ALERT */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 1rem; border: 1px solid; }
+  .alert-info { background: var(--blue-bg); color: var(--blue); border-color: rgba(108,168,224,0.2); }
+  .alert-success { background: var(--green-bg); color: var(--green); border-color: rgba(92,184,122,0.2); }
+  .alert-warning { background: var(--accent-bg); color: var(--accent); border-color: rgba(232,184,75,0.2); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  /* SECTION TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  .tab { padding: 8px 14px; font-size: 13px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; transition: all 0.15s; margin-bottom: -1px; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+  .inline-form .form-group { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🍽 NUST Kitchen</div>
+    <div class="login-sub">Mess Management System — SEECS</div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="login-email" placeholder="you@seecs.nust.edu.pk" autocomplete="email" />
+    </div>
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="login()">Sign In</button>
+    <div id="login-error" style="display:none;margin-top:0.75rem;padding:10px 14px;border-radius:10px;font-size:13px;background:var(--red-bg);color:var(--red);border:1px solid rgba(224,108,108,0.25);"></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-title" id="modal-title">Modal</div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🍽 NUST Kitchen</div>
+      <span class="sidebar-role" id="role-badge">Admin</span>
+    </div>
+    <div class="sidebar-nav" id="sidebar-nav"></div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="sidebar-email-display">user@nust.edu.pk</strong>
+        <span id="sidebar-role-display" style="color:var(--text3);">Loading...</span>
+      </div>
+      <button class="btn btn-secondary btn-sm btn-full" style="margin-top:8px;" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <div class="topbar">
+      <h1 id="topbar-title">Dashboard</h1>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="content" id="content-area"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let currentUser = null;
+let currentRole = null;
+let currentEmail = null;
+
+// ─── NAV CONFIG ─────────────────────────────────────────
+const NAV = {
+  Admin: [
+    { section: 'Overview' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+    { id: 'menu-today', label: 'Today\'s Menu', icon: 'bowl' },
+    { id: 'menu-weekly', label: 'Weekly Menu', icon: 'calendar' },
+    { section: 'Management' },
+    { id: 'students', label: 'Students', icon: 'users' },
+    { id: 'staff', label: 'Staff', icon: 'id' },
+    { id: 'food-items', label: 'Food Items', icon: 'salad' },
+    { id: 'ingredients', label: 'Ingredients', icon: 'plant' },
+    { id: 'recipes', label: 'Recipes', icon: 'book' },
+    { id: 'menu-manage', label: 'Menu Schedule', icon: 'calendar-stats' },
+    { section: 'Finance' },
+    { id: 'bills', label: 'Bills', icon: 'receipt' },
+    { id: 'billing-summary', label: 'Billing Summary', icon: 'report-analytics' },
+    { section: 'Polls' },
+    { id: 'poll-manage', label: 'Manage Poll', icon: 'chart-bar' },
+    { id: 'poll-results', label: 'Poll Results', icon: 'chart-pie' },
+    { section: 'Operations' },
+    { id: 'mess-off-admin', label: 'Mess Off Requests', icon: 'door-exit' },
+    { id: 'payments', label: 'Payments', icon: 'cash' },
+  ],
+  Staff: [
+    { section: 'Overview' },
+    { id: 'menu-today', label: 'Today\'s Menu', icon: 'bowl' },
+    { id: 'menu-weekly', label: 'Weekly Menu', icon: 'calendar' },
+    { section: 'Kitchen' },
+    { id: 'food-items', label: 'Food Items', icon: 'salad' },
+    { id: 'ingredients', label: 'Ingredients', icon: 'plant' },
+    { id: 'recipes', label: 'Recipes', icon: 'book' },
+  ],
+  Student: [
+    { section: 'My Dashboard' },
+    { id: 'menu-today', label: 'Today\'s Menu', icon: 'bowl' },
+    { id: 'menu-weekly', label: 'Weekly Menu', icon: 'calendar' },
+    { id: 'my-bills', label: 'My Bills', icon: 'receipt' },
+    { id: 'poll-vote', label: 'Vote on Menu', icon: 'thumb-up' },
+    { id: 'mess-off-student', label: 'Mess Off', icon: 'door-exit' },
+  ]
+};
+
+const ICONS = {
+  grid: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  bowl: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M4 11c0 4.418 3.582 8 8 8s8-3.582 8-8H4z"/><path d="M3 11h18M12 3v4"/></svg>',
+  calendar: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  users: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  id: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h4M6 13h3M14 9h4M14 13h3"/></svg>',
+  salad: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M2 12c0 5 4 9 10 9s10-4 10-9H2z"/><path d="M12 3C8 3 5 6 5 9"/><path d="M12 3c4 0 7 3 7 6"/></svg>',
+  plant: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 22v-7M12 15C8 15 5 12 5 8c0-1 .3-2 .8-2.8C7.5 7 9.5 8 12 8c2.5 0 4.5-1 5.2-2.8.5.8.8 1.8.8 2.8 0 4-3 7-6 7z"/></svg>',
+  book: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  'calendar-stats': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>',
+  receipt: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>',
+  'report-analytics': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M13 7H7a2 2 0 00-2 2v9a2 2 0 002 2h10a2 2 0 002-2v-5"/><path d="M17 3l4 4-8 8-4-1 1-4 7-7z"/></svg>',
+  'chart-bar': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 20h18M8 20V10M12 20V4M16 20v-6"/></svg>',
+  'chart-pie': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 11-9-9 9 9 0 019 9z"/><path d="M12 3v9l6 3"/></svg>',
+  'door-exit': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M13 4H6a2 2 0 00-2 2v14a2 2 0 002 2h7"/><path d="M16 15l5-3-5-3M21 12H9"/></svg>',
+  cash: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M2 10h2M20 10h2M2 14h2M20 14h2"/></svg>',
+  'thumb-up': '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>',
+};
+
+// ─── UTILS ─────────────────────────────────────────────
+async function api(path, opts = {}) {
+  try {
+    const r = await fetch(API + path, {
+      headers: { 'Content-Type': 'application/json', ...opts.headers },
+      ...opts
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.detail || `HTTP ${r.status}`);
+    }
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('application/pdf')) return r.blob();
+    return r.json();
+  } catch (e) {
+    throw e;
+  }
+}
+
+function toast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function loading() { return `<div class="loading"><div class="spinner"></div> Loading...</div>`; }
+function empty(msg = 'No data found') { return `<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>${msg}</div>`; }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function fmtCurrency(n) { return n != null ? `Rs. ${parseFloat(n).toLocaleString()}` : '—'; }
+
+function openModal(title, bodyHtml, actions = []) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const acts = document.getElementById('modal-actions');
+  acts.innerHTML = `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>`;
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = `btn ${a.cls || 'btn-primary'}`;
+    b.textContent = a.label;
+    b.onclick = a.action;
+    acts.appendChild(b);
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ─── AUTH ────────────────────────────────────────────
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const btn = document.getElementById('login-btn');
+  const errBox = document.getElementById('login-error');
+  errBox.style.display = 'none';
+
+  if (!email) { showLoginError('Enter your email address.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const res = await fetch(`${API}/users/verify?email=${encodeURIComponent(email)}`);
+    if (res.status === 403) {
+      showLoginError('Access denied — this email is not registered in the system.');
+      return;
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showLoginError(body.detail || `Server error (${res.status})`);
+      return;
+    }
+    const data = await res.json();
+    currentUser = data.user_details;
+    currentRole = currentUser?.Account_Type;
+    currentEmail = email;
+    if (!currentRole) { showLoginError('Account type not found. Contact admin.'); return; }
+    initApp();
+  } catch (e) {
+    if (e instanceof TypeError && e.message.includes('fetch')) {
+      showLoginError('Cannot reach the server. Make sure the backend is running on localhost:8000 and CORS includes this origin.');
+    } else {
+      showLoginError(e.message || 'Login failed.');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function showLoginError(msg) {
+  const errBox = document.getElementById('login-error');
+  errBox.style.display = 'block';
+  errBox.textContent = msg;
+}
+
+function logout() {
+  currentUser = null; currentRole = null; currentEmail = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').classList.remove('visible');
+}
+
+function initApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').classList.add('visible');
+  const badge = document.getElementById('role-badge');
+  badge.textContent = currentRole;
+  badge.className = `sidebar-role role-${currentRole.toLowerCase()}`;
+  document.getElementById('sidebar-email-display').textContent = currentEmail;
+  document.getElementById('sidebar-role-display').textContent = currentUser?.First_Name
+    ? `${currentUser.First_Name} ${currentUser.Last_Name}`
+    : currentRole;
+  buildNav();
+  navigateTo(NAV[currentRole].find(n => n.id)?.id || 'menu-today');
+}
+
+function buildNav() {
+  const nav = document.getElementById('sidebar-nav');
+  const items = NAV[currentRole] || [];
+  nav.innerHTML = items.map(item => {
+    if (item.section) return `<div class="nav-section">${item.section}</div>`;
+    const icon = ICONS[item.icon] || '';
+    return `<div class="nav-item" data-panel="${item.id}" onclick="navigateTo('${item.id}')">${icon}${item.label}</div>`;
+  }).join('');
+}
+
+function navigateTo(panelId) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const active = document.querySelector(`.nav-item[data-panel="${panelId}"]`);
+  if (active) active.classList.add('active');
+  const cfg = NAV[currentRole].find(n => n.id === panelId);
+  document.getElementById('topbar-title').textContent = cfg?.label || panelId;
+  document.getElementById('topbar-actions').innerHTML = '';
+  const content = document.getElementById('content-area');
+  content.innerHTML = loading();
+  PANELS[panelId]?.();
+}
+
+// ─── PANELS ─────────────────────────────────────────
+const PANELS = {
+
+  // ── DASHBOARD (Admin) ────────────────────────────
+  async dashboard() {
+    const area = document.getElementById('content-area');
+    try {
+      const [students, bills, ingredients] = await Promise.allSettled([
+        api(`/admin/students/all?email=${currentEmail}`),
+        api(`/admin/monthly_billing_summary?email=${currentEmail}`),
+        api(`/analytics/ingredients?email=${currentEmail}`)
+      ]);
+      const studs = students.value || [];
+      const billList = bills.value || [];
+      const ingreds = ingredients.value || [];
+      const totalRevenue = billList.reduce((s, b) => s + parseFloat(b.Total_Amount || 0), 0);
+      const paidCount = billList.filter(b => b.Status === 'paid').length;
+      const unpaidCount = billList.filter(b => b.Status === 'unpaid' || b.Status === 'pending').length;
+
+      area.innerHTML = `
+        <div class="date-display">
+          <div class="date-big">${new Date().getDate()}</div>
+          <div class="date-info">
+            <div class="date-day">${new Date().toLocaleDateString('en-PK',{weekday:'long'})}</div>
+            <div class="date-full">${new Date().toLocaleDateString('en-PK',{month:'long',year:'numeric'})}</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Students</div><div class="stat-value accent">${studs.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Monthly Bills</div><div class="stat-value blue">${billList.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Paid Bills</div><div class="stat-value green">${paidCount}</div></div>
+          <div class="stat-card"><div class="stat-label">Pending Bills</div><div class="stat-value red">${unpaidCount}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value accent">${fmtCurrency(totalRevenue)}</div></div>
+          <div class="stat-card"><div class="stat-label">Ingredients</div><div class="stat-value">${ingreds.length}</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Recent Bills</div></div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Student</th><th>Month</th><th>Amount</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${billList.slice(0,8).map(b => `
+                    <tr>
+                      <td style="color:var(--text)">${b.First_Name || '—'} ${b.Last_Name || ''}</td>
+                      <td>${b.Month || '—'}</td>
+                      <td>${fmtCurrency(b.Total_Amount)}</td>
+                      <td><span class="badge badge-${b.Status === 'paid' ? 'green' : 'amber'}">${b.Status || '—'}</span></td>
+                    </tr>`).join('') || '<tr><td colspan="4">' + empty('No bills yet') + '</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Ingredients Stock</div></div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Name</th><th>Qty</th><th>Unit</th><th>Price</th></tr></thead>
+                <tbody>
+                  ${ingreds.slice(0,8).map(i => `
+                    <tr>
+                      <td style="color:var(--text)">${i.Name}</td>
+                      <td>${parseFloat(i.Total_Quantity || 0).toFixed(1)}</td>
+                      <td>${i.Unit || '—'}</td>
+                      <td>${fmtCurrency(i.Pricing)}</td>
+                    </tr>`).join('') || '<tr><td colspan="4">' + empty('No ingredients') + '</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load dashboard: ${e.message}</div>`;
+    }
+  },
+
+  // ── TODAY'S MENU ─────────────────────────────────
+  async 'menu-today'() {
+    const area = document.getElementById('content-area');
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await api(`/menu/today?target_date=${today}`);
+      const items = data.menu || [];
+      const byMeal = {};
+      items.forEach(i => { if (!byMeal[i.meal_type]) byMeal[i.meal_type] = []; byMeal[i.meal_type].push(i); });
+      const mealOrder = ['Breakfast', 'Lunch', 'Dinner'];
+      const mealEmoji = { Breakfast: '🌅', Lunch: '☀️', Dinner: '🌙' };
+
+      area.innerHTML = `
+        <div class="date-display">
+          <div class="date-big">${new Date().getDate()}</div>
+          <div class="date-info">
+            <div class="date-day">${new Date().toLocaleDateString('en-PK',{weekday:'long'})}</div>
+            <div class="date-full">${new Date().toLocaleDateString('en-PK',{month:'long',year:'numeric'})}</div>
+          </div>
+        </div>
+        <div class="stat-grid" style="margin-bottom:1.5rem">
+          <div class="stat-card"><div class="stat-label">Total Items</div><div class="stat-value accent">${items.length}</div></div>
+          ${mealOrder.map(m => `<div class="stat-card"><div class="stat-label">${m}</div><div class="stat-value">${(byMeal[m]||[]).length}</div></div>`).join('')}
+        </div>
+        ${mealOrder.map(meal => (byMeal[meal]?.length ? `
+          <div class="meal-section">
+            <div class="meal-header">${mealEmoji[meal]} ${meal}</div>
+            <div class="food-grid">
+              ${byMeal[meal].map(it => `
+                <div class="food-card">
+                  <div class="food-name">${it.Name}</div>
+                  <div class="food-price">${fmtCurrency(it.Price)}</div>
+                  ${currentRole === 'Student' ? `<button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="rateFood(${it.Item_ID || it.ItemID}, '${meal}')">Rate ★</button>` : ''}
+                </div>`).join('')}
+            </div>
+          </div>` : '')).join('')}
+        ${!items.length ? empty('No menu items for today') : ''}`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load menu: ${e.message}</div>`;
+    }
+  },
+
+  // ── WEEKLY MENU ───────────────────────────────────
+  async 'menu-weekly'() {
+    const area = document.getElementById('content-area');
+    try {
+      const items = await api('/menu/weekly');
+      const byDate = {};
+      (items || []).forEach(i => {
+        const d = i.Date; if (!byDate[d]) byDate[d] = {};
+        if (!byDate[d][i.meal_type]) byDate[d][i.meal_type] = [];
+        byDate[d][i.meal_type].push(i);
+      });
+      const mealEmoji = { Breakfast: '🌅', Lunch: '☀️', Dinner: '🌙' };
+      const dates = Object.keys(byDate).sort().slice(0, 7);
+
+      area.innerHTML = `
+        ${dates.length ? dates.map(date => `
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">${new Date(date + 'T00:00:00').toLocaleDateString('en-PK',{weekday:'long',month:'long',day:'numeric'})}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+              ${['Breakfast','Lunch','Dinner'].map(meal => `
+                <div>
+                  <div style="font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">${mealEmoji[meal]} ${meal}</div>
+                  ${byDate[date][meal]?.map(it => `<div style="font-size:13px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border)">${it.Name} <span style="color:var(--accent);float:right">${fmtCurrency(it.Price)}</span></div>`).join('') || '<div style="font-size:12px;color:var(--text3)">—</div>'}
+                </div>`).join('')}
+            </div>
+          </div>`).join('') : empty('No weekly menu available')}`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load weekly menu: ${e.message}</div>`;
+    }
+  },
+
+  // ── STUDENTS ──────────────────────────────────────
+  async students() {
+    const area = document.getElementById('content-area');
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="showAddStudentModal()">+ Add Student</button>`;
+    try {
+      const data = await api(`/admin/students/all?email=${currentEmail}`);
+      const students = data || [];
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value accent">${students.length}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">All Students</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Hostel</th><th>Room</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${students.map(s => `
+                  <tr>
+                    <td>${s.UserID}</td>
+                    <td style="color:var(--text);font-weight:500">${s.First_Name} ${s.Last_Name}</td>
+                    <td style="color:var(--text2)">${s.Email}</td>
+                    <td>${s.Department || '—'}</td>
+                    <td>${s.Hostel_Name || '—'}</td>
+                    <td>${s.Room_Number || '—'}</td>
+                    <td>
+                      <div style="display:flex;gap:6px">
+                        <button class="btn btn-secondary btn-sm" onclick="viewStudentBill(${s.UserID})">Bills</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteStudent(${s.UserID})">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join('') || '<tr><td colspan="7">' + empty('No students registered') + '</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load students: ${e.message}</div>`;
+    }
+  },
+
+  // ── STAFF ────────────────────────────────────────
+  async staff() {
+    const area = document.getElementById('content-area');
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="showAddStaffModal()">+ Add Staff</button>`;
+    area.innerHTML = `<div class="alert alert-info">Staff management — connect to /admin/staff/details/{UserID} per staff member. Use Add Staff to register new staff.</div>`;
+  },
+
+  // ── FOOD ITEMS ────────────────────────────────────
+  async 'food-items'() {
+    const area = document.getElementById('content-area');
+    if (currentRole === 'Admin') {
+      document.getElementById('topbar-actions').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="showAddFoodModal()">+ Add Food Item</button>`;
+    }
+    try {
+      const data = await api(`/admin/food/costs?email=${currentEmail}`);
+      const items = data || [];
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Items</div><div class="stat-value accent">${items.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Price</div><div class="stat-value">${items.length ? fmtCurrency((items.reduce((s,i)=>s+parseFloat(i.Price||0),0)/items.length).toFixed(0)) : '—'}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Food Items</div></div>
+          <div class="food-grid">
+            ${items.map(item => `
+              <div class="food-card">
+                <div style="display:flex;justify-content:space-between;align-items:start">
+                  <div class="food-name">${item.Name}</div>
+                  ${currentRole === 'Admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteFoodItem(${item.ItemID || item.Item_ID})">✕</button>` : ''}
+                </div>
+                <div class="food-price">${fmtCurrency(item.Price)}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">Qty: ${item.Quantity || '—'} · Votes: ${item.Vote_Count || 0}</div>
+              </div>`).join('') || empty('No food items')}
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load food items: ${e.message}</div>`;
+    }
+  },
+
+  // ── INGREDIENTS ───────────────────────────────────
+  async ingredients() {
+    const area = document.getElementById('content-area');
+    if (currentRole === 'Admin') {
+      document.getElementById('topbar-actions').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="showAddIngredientModal()">+ Add Ingredient</button>`;
+    }
+    try {
+      const data = await api(`/analytics/ingredients?email=${currentEmail}`);
+      const items = data || [];
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value accent">${items.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Value</div><div class="stat-value green">${fmtCurrency(items.reduce((s,i)=>s+parseFloat(i.Pricing||0)*parseFloat(i.Total_Quantity||0),0).toFixed(0))}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Ingredients Inventory</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Quantity</th><th>Unit</th><th>Price/unit</th><th>Total Value</th>${currentRole==='Admin'?'<th>Actions</th>':''}</tr></thead>
+              <tbody>
+                ${items.map(i => `
+                  <tr>
+                    <td>${i.IngredientID}</td>
+                    <td style="color:var(--text);font-weight:500">${i.Name}</td>
+                    <td>${parseFloat(i.Total_Quantity||0).toFixed(2)}</td>
+                    <td>${i.Unit||'—'}</td>
+                    <td>${fmtCurrency(i.Pricing)}</td>
+                    <td style="color:var(--green)">${fmtCurrency((parseFloat(i.Pricing||0)*parseFloat(i.Total_Quantity||0)).toFixed(0))}</td>
+                    ${currentRole==='Admin'?`<td><button class="btn btn-danger btn-sm" onclick="deleteIngredient(${i.IngredientID})">Delete</button></td>`:''}
+                  </tr>`).join('') || '<tr><td colspan="7">' + empty('No ingredients') + '</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load ingredients: ${e.message}</div>`;
+    }
+  },
+
+  // ── RECIPES ───────────────────────────────────────
+  async recipes() {
+    const area = document.getElementById('content-area');
+    try {
+      const data = await api(`/recipes?email=${currentEmail}`);
+      const items = data || [];
+      const byItem = {};
+      items.forEach(r => {
+        const k = r.Item_ID || r.ItemID;
+        if (!byItem[k]) byItem[k] = { name: r.Item_Name || r.Name || k, ingredients: [] };
+        byItem[k].ingredients.push(r);
+      });
+
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Food Items</div><div class="stat-value accent">${Object.keys(byItem).length}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Recipe Entries</div><div class="stat-value">${items.length}</div></div>
+        </div>
+        ${Object.entries(byItem).map(([id, item]) => `
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">${item.name}</div><div class="card-subtitle">Item ID: ${id}</div></div>
+              ${currentRole==='Admin'?`<button class="btn btn-primary btn-sm" onclick="showAddRecipeModal(${id})">+ Add Ingredient</button>`:''}
+            </div>
+            <div class="tag-row">
+              ${item.ingredients.map(r => `
+                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
+                  <span>${r.Ingredient_Name || r.Name || r.IngredientID}</span>
+                  <span style="color:var(--accent)">${r.Ingredient_Quantity || r.Quantity || '?'} ${r.Unit||''}</span>
+                  ${currentRole==='Admin'?`<button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;padding:0" onclick="deleteRecipe(${id},${r.Ingredient_ID||r.IngredientID})">✕</button>`:''}
+                </div>`).join('')}
+            </div>
+          </div>`).join('') || empty('No recipes found')}`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load recipes: ${e.message}</div>`;
+    }
+  },
+
+  // ── BILLS (Admin) ─────────────────────────────────
+  async bills() {
+    const area = document.getElementById('content-area');
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="showCreateBillModal()">+ Create Bill</button>`;
+    try {
+      const data = await api(`/admin/monthly_billing_summary?email=${currentEmail}`);
+      const bills = data || [];
+      const paid = bills.filter(b => b.Status === 'paid').length;
+      const pending = bills.filter(b => b.Status !== 'paid').length;
+      const total = bills.reduce((s,b)=>s+parseFloat(b.Total_Amount||0),0);
+
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Bills</div><div class="stat-value accent">${bills.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Paid</div><div class="stat-value green">${paid}</div></div>
+          <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value red">${pending}</div></div>
+          <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value accent">${fmtCurrency(total.toFixed(0))}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Monthly Billing Summary</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Student</th><th>Month</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${bills.map(b => `
+                  <tr class="bill-row">
+                    <td style="color:var(--text);font-weight:500">${b.First_Name||''} ${b.Last_Name||''}</td>
+                    <td>${b.Month||'—'}</td>
+                    <td>${fmtCurrency(b.Total_Amount)}</td>
+                    <td>${fmtDate(b.Due_Date)}</td>
+                    <td><span class="badge badge-${b.Status==='paid'?'green':b.Status==='overdue'?'red':'amber'}">${b.Status||'—'}</span></td>
+                    <td>
+                      <div style="display:flex;gap:6px">
+                        ${b.Status!=='paid'?`<button class="btn btn-success btn-sm" onclick="recordPayment(${b.BillingID||b.Billing_ID})">Pay</button>`:''}
+                        <button class="btn btn-danger btn-sm" onclick="deleteBill(${b.BillingID||b.Billing_ID})">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join('') || '<tr><td colspan="6">' + empty('No bills found') + '</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load bills: ${e.message}</div>`;
+    }
+  },
+
+  // ── BILLING SUMMARY ───────────────────────────────
+  async 'billing-summary'() {
+    await PANELS['bills']();
+  },
+
+  // ── POLL MANAGE (Admin) ───────────────────────────
+  async 'poll-manage'() {
+    const area = document.getElementById('content-area');
+    try {
+      const foods = await api(`/admin/food/costs?email=${currentEmail}`);
+      const activePoll = await api(`/poll/active?email=${currentEmail}`).catch(() => ({ active: false }));
+
+      area.innerHTML = `
+        ${activePoll.active ? `
+          <div class="alert alert-success" style="margin-bottom:1rem">
+            ✓ Active poll for <strong>${activePoll.meal_type}</strong> — ${activePoll.items?.length || 0} items
+          </div>` : ''}
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Start New Poll</div><div class="card-subtitle">Select food items and meal type for the vote</div></div></div>
+          <div class="form-group">
+            <label>Meal Type</label>
+            <select id="poll-meal-type">
+              <option>Breakfast</option><option>Lunch</option><option>Dinner</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Select Items (click to toggle)</label>
+            <div id="poll-items-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px">
+              ${(foods||[]).map(f => `
+                <div class="poll-item" id="poll-item-${f.ItemID||f.Item_ID}" onclick="togglePollItem(this, ${f.ItemID||f.Item_ID})">
+                  <div>
+                    <div style="font-size:13px;font-weight:500;color:var(--text)">${f.Name}</div>
+                    <div style="font-size:11px;color:var(--text3)">${fmtCurrency(f.Price)}</div>
+                  </div>
+                  <div id="poll-check-${f.ItemID||f.Item_ID}" style="font-size:16px">○</div>
+                </div>`).join('')}
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="startPoll()">🗳 Start Poll</button>
+        </div>`;
+
+      window._selectedPollItems = new Set();
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load poll manager: ${e.message}</div>`;
+    }
+  },
+
+  // ── POLL RESULTS (Admin) ──────────────────────────
+  async 'poll-results'() {
+    const area = document.getElementById('content-area');
+    try {
+      const data = await api(`/admin/poll/results?email=${currentEmail}`);
+      const results = data.results || [];
+      const total = results.reduce((s, r) => s + (r.Vote_Count || 0), 0);
+
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Items in Poll</div><div class="stat-value accent">${results.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Votes</div><div class="stat-value blue">${total}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Poll Results</div></div>
+          ${results.map((r, idx) => `
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${idx===0?'<span style="color:var(--accent)">🏆</span>':''}
+                  <span style="font-size:14px;font-weight:500;color:var(--text)">${r.Name}</span>
+                </div>
+                <span style="font-size:13px;color:var(--text2)">${r.Vote_Count||0} votes</span>
+              </div>
+              <div class="poll-bar"><div class="poll-bar-fill" style="width:${total?Math.round((r.Vote_Count||0)/total*100):0}%"></div></div>
+            </div>`).join('') || empty('No poll results yet')}
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load poll results: ${e.message}</div>`;
+    }
+  },
+
+  // ── POLL VOTE (Student) ───────────────────────────
+  async 'poll-vote'() {
+    const area = document.getElementById('content-area');
+    try {
+      const data = await api(`/poll/active?email=${currentEmail}`);
+      if (!data.active) {
+        area.innerHTML = `<div class="card">${empty('No active poll right now. Check back later.')}</div>`;
+        return;
+      }
+
+      area.innerHTML = `
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Vote for ${data.meal_type}</div><div class="card-subtitle">Pick your preferred menu item — one vote per person</div></div></div>
+          ${(data.items||[]).map(item => `
+            <div class="poll-item" id="vote-item-${item.Item_ID}" onclick="castVote(${item.Item_ID})">
+              <div>
+                <div style="font-size:14px;font-weight:500;color:var(--text)">${item.Name}</div>
+                <div style="font-size:12px;color:var(--text2)">${fmtCurrency(item.Price)}</div>
+              </div>
+              <span style="font-size:20px">🗳</span>
+            </div>`).join('') || empty('No items in this poll')}
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load poll: ${e.message}</div>`;
+    }
+  },
+
+  // ── MY BILLS (Student) ────────────────────────────
+  async 'my-bills'() {
+    const area = document.getElementById('content-area');
+    try {
+      const bills = await api(`/users/my_bills?email=${currentEmail}`);
+      const items = bills || [];
+      const total = items.reduce((s,b)=>s+parseFloat(b.Amount||0),0);
+      const unpaid = items.filter(b=>b.Status!=='paid').length;
+
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Bills</div><div class="stat-value accent">${items.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Unpaid</div><div class="stat-value red">${unpaid}</div></div>
+          <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${fmtCurrency(total.toFixed(0))}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">My Billing History</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Bill ID</th><th>Month</th><th>Amount</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Download</th></tr></thead>
+              <tbody>
+                ${items.map(b => `
+                  <tr>
+                    <td>${b.BillingID||b.Billing_ID}</td>
+                    <td>${b.Month||'—'}</td>
+                    <td>${fmtCurrency(b.Amount)}</td>
+                    <td>${fmtDate(b.Issue_Date)}</td>
+                    <td>${fmtDate(b.Due_Date)}</td>
+                    <td><span class="badge badge-${b.Status==='paid'?'green':b.Status==='overdue'?'red':'amber'}">${b.Status||'—'}</span></td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="downloadBill(${b.BillingID||b.Billing_ID})">⬇ PDF</button></td>
+                  </tr>`).join('') || '<tr><td colspan="7">' + empty('No bills found') + '</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load bills: ${e.message}</div>`;
+    }
+  },
+
+  // ── MESS OFF (Student) ────────────────────────────
+  async 'mess-off-student'() {
+    const area = document.getElementById('content-area');
+    const uid = currentUser?.UserID;
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-header"><div class="card-title">Request Mess Off</div></div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="mo-start" />
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="mo-end" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="requestMessOff(${uid})">Submit Request</button>
+      </div>
+      <div class="card" id="mess-off-history-card">
+        <div class="card-header"><div class="card-title">My Mess Off History</div></div>
+        <div class="loading"><div class="spinner"></div> Loading...</div>
+      </div>`;
+
+    try {
+      const data = await api(`/student/mess-off/history?email=${currentEmail}`);
+      const list = data?.status || [];
+      document.getElementById('mess-off-history-card').innerHTML = `
+        <div class="card-header"><div class="card-title">Mess Off History</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${list.map(m => `
+                <tr>
+                  <td>${m.MessOff_ID||m.RequestID}</td>
+                  <td>${fmtDate(m.Start_Date)}</td>
+                  <td>${fmtDate(m.End_Date)}</td>
+                  <td><span class="badge badge-${m.Status==='approved'?'green':m.Status==='pending'?'amber':'red'}">${m.Status||'pending'}</span></td>
+                  <td>${m.Status==='pending'?`<button class="btn btn-danger btn-sm" onclick="cancelMessOff(${m.MessOff_ID||m.RequestID})">Cancel</button>`:'—'}</td>
+                </tr>`).join('') || '<tr><td colspan="5">' + empty('No requests yet') + '</td></tr>'}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (e) {
+      document.getElementById('mess-off-history-card').innerHTML = `<div class="alert alert-warning">Could not load history: ${e.message}</div>`;
+    }
+  },
+
+  // ── MESS OFF (Admin) ──────────────────────────────
+  async 'mess-off-admin'() {
+    const area = document.getElementById('content-area');
+    try {
+      const data = await api(`/student/mess-off/history?email=${currentEmail}`);
+      const list = data?.status || [];
+      const pending = list.filter(m => m.Status === 'pending' || !m.Status);
+
+      area.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Requests</div><div class="stat-value accent">${list.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value amber">${pending.length}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Mess Off Requests</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Student</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${list.map(m => `
+                  <tr>
+                    <td>${m.MessOff_ID||m.RequestID||'—'}</td>
+                    <td>${m.First_Name||''} ${m.Last_Name||''}</td>
+                    <td>${fmtDate(m.Start_Date)}</td>
+                    <td>${fmtDate(m.End_Date)}</td>
+                    <td><span class="badge badge-${m.Status==='approved'?'green':m.Status==='pending'?'amber':'red'}">${m.Status||'pending'}</span></td>
+                    <td>${(m.Status==='pending'||!m.Status)?`<button class="btn btn-success btn-sm" onclick="approveMessOff(${m.MessOff_ID||m.RequestID})">Approve</button>`:'—'}</td>
+                  </tr>`).join('') || '<tr><td colspan="6">' + empty('No requests') + '</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load mess off requests: ${e.message}</div>`;
+    }
+  },
+
+  // ── PAYMENTS ──────────────────────────────────────
+  async payments() {
+    const area = document.getElementById('content-area');
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Record Payment</div><div class="card-subtitle">Process a bill payment via the billing panel</div></div></div>
+        <div class="form-group"><label>Bill ID</label><input type="number" id="pay-bill-id" placeholder="Enter Bill ID" /></div>
+        <div class="form-group"><label>Amount (Rs.)</label><input type="number" id="pay-amount" placeholder="e.g. 8500" /></div>
+        <div class="form-group"><label>Payment Method</label>
+          <select id="pay-method"><option value="cash">Cash</option><option value="online">Online Transfer</option><option value="bank">Bank Challan</option></select>
+        </div>
+        <button class="btn btn-success" onclick="recordPaymentForm()">✓ Record Payment</button>
+      </div>`;
+  },
+
+  // ── MENU MANAGE ───────────────────────────────────
+  async 'menu-manage'() {
+    const area = document.getElementById('content-area');
+    try {
+      const foods = await api(`/admin/food/costs?email=${currentEmail}`);
+      const today = new Date().toISOString().split('T')[0];
+      area.innerHTML = `
+        <div class="card">
+          <div class="card-header"><div class="card-title">Add Item to Menu Schedule</div></div>
+          <div class="grid-2">
+            <div class="form-group"><label>Food Item</label>
+              <select id="menu-item-id">
+                ${(foods||[]).map(f=>`<option value="${f.ItemID||f.Item_ID}">${f.Name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group"><label>Date</label><input type="date" id="menu-date" value="${today}" /></div>
+          </div>
+          <div class="form-group"><label>Meal Type</label>
+            <select id="menu-meal">
+              <option>Breakfast</option><option>Lunch</option><option>Dinner</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="addMenuItem()">+ Add to Menu</button>
+        </div>
+        <div class="alert alert-info">Use Today's Menu or Weekly Menu to view and manage scheduled items.</div>`;
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-warning">Could not load menu manager: ${e.message}</div>`;
+    }
+  },
+
+};
+
+// ─── ACTIONS ─────────────────────────────────────────
+
+function togglePollItem(el, id) {
+  const set = window._selectedPollItems;
+  if (set.has(id)) {
+    set.delete(id);
+    el.classList.remove('voted');
+    document.getElementById(`poll-check-${id}`).textContent = '○';
+  } else {
+    set.add(id);
+    el.classList.add('voted');
+    document.getElementById(`poll-check-${id}`).textContent = '✓';
+  }
+}
+
+async function startPoll() {
+  const ids = [...window._selectedPollItems];
+  const meal_type = document.getElementById('poll-meal-type').value;
+  if (!ids.length) { toast('Select at least one food item', 'error'); return; }
+  try {
+    await api(`/admin/poll/start?email=${currentEmail}`, {
+      method: 'POST',
+      body: JSON.stringify({ item_ids: ids, meal_type })
+    });
+    toast('Poll started!', 'success');
+    navigateTo('poll-results');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function castVote(itemId) {
+  const uid = currentUser?.UserID;
+  if (!uid) { toast('User ID not found', 'error'); return; }
+  try {
+    await api(`/poll/vote/${itemId}/${uid}?email=${currentEmail}`, { method: 'POST' });
+    document.getElementById(`vote-item-${itemId}`)?.classList.add('voted');
+    toast('Vote cast!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function downloadBill(billId) {
+  try {
+    const blob = await api(`/student/bills/download/${billId}?email=${currentEmail}`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `MessBill_${billId}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+    toast('PDF downloaded', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function requestMessOff(uid) {
+  const start = document.getElementById('mo-start').value;
+  const end = document.getElementById('mo-end').value;
+  if (!start || !end) { toast('Select start and end dates', 'error'); return; }
+  try {
+    await api(`/student/mess_off/request/${uid}/${start}/${end}?email=${currentEmail}`, { method: 'POST' });
+    toast('Mess off requested!', 'success');
+    navigateTo('mess-off-student');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function cancelMessOff(id) {
+  try {
+    await api(`/student/mess_off/cancel/${id}?email=${currentEmail}`, { method: 'POST' });
+    toast('Request cancelled', 'success');
+    navigateTo('mess-off-student');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function approveMessOff(id) {
+  try {
+    await api(`/admin/mess-off/approve/${id}?email=${currentEmail}`, { method: 'POST' });
+    toast('Mess off approved!', 'success');
+    navigateTo('mess-off-admin');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteStudent(id) {
+  if (!confirm('Delete this student permanently?')) return;
+  try {
+    await api(`/admin/students/delete/${id}?email=${currentEmail}`, { method: 'DELETE' });
+    toast('Student deleted', 'success');
+    navigateTo('students');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteFoodItem(id) {
+  if (!confirm('Delete this food item?')) return;
+  try {
+    await api(`/admin/food_items/delete/${id}?email=${currentEmail}`, { method: 'DELETE' });
+    toast('Food item deleted', 'success');
+    navigateTo('food-items');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteIngredient(id) {
+  if (!confirm('Delete this ingredient?')) return;
+  try {
+    await api(`/admin/ingredients/delete/${id}?email=${currentEmail}`, { method: 'DELETE' });
+    toast('Ingredient deleted', 'success');
+    navigateTo('ingredients');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteRecipe(itemId, ingId) {
+  if (!confirm('Remove this ingredient from recipe?')) return;
+  try {
+    await api(`/admin/recipe/${itemId}/${ingId}?email=${currentEmail}`, { method: 'DELETE' });
+    toast('Recipe updated', 'success');
+    navigateTo('recipes');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteBill(id) {
+  if (!confirm('Delete this bill?')) return;
+  try {
+    await api(`/admin/bills/delete/${id}?email=${currentEmail}`, { method: 'DELETE' });
+    toast('Bill deleted', 'success');
+    navigateTo('bills');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function recordPayment(billId) {
+  openModal('Record Payment', `
+    <div class="form-group"><label>Amount (Rs.)</label><input type="number" id="rp-amount" placeholder="8500" /></div>
+    <div class="form-group"><label>Method</label>
+      <select id="rp-method"><option value="cash">Cash</option><option value="online">Online</option><option value="bank">Bank Challan</option></select>
+    </div>`,
+    [{ label: '✓ Record', cls: 'btn-success', action: async () => {
+      const amount = document.getElementById('rp-amount').value;
+      const method = document.getElementById('rp-method').value;
+      try {
+        await api(`/admin/bills/pay/${billId}?amount=${amount}&method=${method}&email=${currentEmail}`, { method: 'POST' });
+        closeModal(); toast('Payment recorded!', 'success'); navigateTo('bills');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+async function recordPaymentForm() {
+  const billId = document.getElementById('pay-bill-id').value;
+  const amount = document.getElementById('pay-amount').value;
+  const method = document.getElementById('pay-method').value;
+  if (!billId || !amount) { toast('Fill all fields', 'error'); return; }
+  try {
+    await api(`/admin/bills/pay/${billId}?amount=${amount}&method=${method}&email=${currentEmail}`, { method: 'POST' });
+    toast('Payment recorded!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function viewStudentBill(uid) {
+  try {
+    const data = await api(`/admin/${uid}/bill_status?email=${currentEmail}`);
+    const bills = data || [];
+    openModal(`Bills for Student #${uid}`, `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead>
+          <tbody>
+            ${bills.map(b=>`<tr>
+              <td>${b.Month||'—'}</td><td>${fmtCurrency(b.Amount)}</td>
+              <td>${fmtDate(b.Due_Date)}</td>
+              <td><span class="badge badge-${b.Status==='paid'?'green':'amber'}">${b.Status}</span></td>
+            </tr>`).join('') || '<tr><td colspan="4">No bills</td></tr>'}
+          </tbody>
+        </table>
+      </div>`);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addMenuItem() {
+  const itemId = document.getElementById('menu-item-id').value;
+  const date = document.getElementById('menu-date').value;
+  const meal = document.getElementById('menu-meal').value;
+  try {
+    await api(`/admin/menu_schedule/${itemId}/${date}/${meal}?email=${currentEmail}`, { method: 'POST' });
+    toast('Item added to menu!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function rateFood(itemId, meal) {
+  openModal(`Rate this dish`, `
+    <div class="form-group"><label>Score (1–5)</label>
+      <select id="rate-score"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select>
+    </div>`,
+    [{ label: '★ Submit Rating', action: async () => {
+      const score = document.getElementById('rate-score').value;
+      const today = new Date().toISOString().split('T')[0];
+      const uid = currentUser?.UserID;
+      try {
+        await api(`/student/rating/${uid}/${itemId}/${today}/${meal}/${score}?email=${currentEmail}`, { method: 'POST' });
+        closeModal(); toast('Rating submitted!', 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+// ─── ADD MODALS ──────────────────────────────────────
+
+function showAddStudentModal() {
+  openModal('Register New Student', `
+    <div class="grid-2">
+      <div class="form-group"><label>First Name</label><input id="s-fn" placeholder="Ali" /></div>
+      <div class="form-group"><label>Last Name</label><input id="s-ln" placeholder="Khan" /></div>
+    </div>
+    <div class="form-group"><label>Email</label><input id="s-email" type="email" placeholder="ali@seecs.nust.edu.pk" /></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Date of Birth</label><input id="s-dob" type="date" /></div>
+      <div class="form-group"><label>Contact</label><input id="s-contact" placeholder="+92..." /></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Department</label><input id="s-dept" placeholder="CS" /></div>
+      <div class="form-group"><label>Father's Name</label><input id="s-father" placeholder="Name" /></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Hostel</label><input id="s-hostel" placeholder="H-6" /></div>
+      <div class="form-group"><label>Room</label><input id="s-room" placeholder="101" /></div>
+    </div>
+    <div class="form-group"><label>Address</label><input id="s-addr" placeholder="Address" /></div>`,
+    [{ label: 'Register', action: async () => {
+      try {
+        const data = {
+          First_Name: document.getElementById('s-fn').value,
+          Last_Name: document.getElementById('s-ln').value,
+          Email: document.getElementById('s-email').value,
+          DoB: document.getElementById('s-dob').value,
+          Department: document.getElementById('s-dept').value,
+          Contact_Number: document.getElementById('s-contact').value,
+          Address: document.getElementById('s-addr').value,
+          Father_Name: document.getElementById('s-father').value,
+          Hostel_Name: document.getElementById('s-hostel').value,
+          Room_Number: document.getElementById('s-room').value,
+        };
+        await api(`/admin/students/register?email=${currentEmail}`, { method: 'POST', body: JSON.stringify(data) });
+        closeModal(); toast('Student registered!', 'success'); navigateTo('students');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+function showAddStaffModal() {
+  openModal('Register Staff', `
+    <div class="form-group"><label>First Name</label><input id="sf-fn" /></div>
+    <div class="form-group"><label>Last Name</label><input id="sf-ln" /></div>
+    <div class="form-group"><label>Email</label><input id="sf-email" type="email" /></div>
+    <div class="form-group"><label>Category</label><input id="sf-cat" placeholder="Cook / Cleaner..." /></div>`,
+    [{ label: 'Register', action: async () => {
+      try {
+        const data = {
+          First_Name: document.getElementById('sf-fn').value,
+          Last_Name: document.getElementById('sf-ln').value,
+          Email: document.getElementById('sf-email').value,
+          Category: document.getElementById('sf-cat').value
+        };
+        await api(`/admin/staff/register?email=${currentEmail}`, { method: 'POST', body: JSON.stringify(data) });
+        closeModal(); toast('Staff registered!', 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+function showAddFoodModal() {
+  openModal('Add Food Item', `
+    <div class="form-group"><label>Name</label><input id="f-name" placeholder="Nihari" /></div>
+    <div class="form-group"><label>Price (Rs.)</label><input id="f-price" type="number" placeholder="250" /></div>
+    <div class="form-group"><label>Quantity</label><input id="f-qty" placeholder="100 servings" /></div>`,
+    [{ label: 'Add', action: async () => {
+      try {
+        const data = {
+          Name: document.getElementById('f-name').value,
+          Price: parseFloat(document.getElementById('f-price').value),
+          Quantity: document.getElementById('f-qty').value
+        };
+        await api(`/admin/food_items/create?email=${currentEmail}`, { method: 'POST', body: JSON.stringify(data) });
+        closeModal(); toast('Food item added!', 'success'); navigateTo('food-items');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+function showAddIngredientModal() {
+  openModal('Add Ingredient', `
+    <div class="form-group"><label>Name</label><input id="ing-name" placeholder="Flour" /></div>
+    <div class="form-group"><label>Total Quantity</label><input id="ing-qty" type="number" placeholder="50" /></div>
+    <div class="form-group"><label>Unit</label><input id="ing-unit" placeholder="kg / L / pcs" /></div>
+    <div class="form-group"><label>Price per Unit (Rs.)</label><input id="ing-price" type="number" placeholder="120" /></div>`,
+    [{ label: 'Add', action: async () => {
+      try {
+        const data = {
+          Name: document.getElementById('ing-name').value,
+          Total_Quantity: parseFloat(document.getElementById('ing-qty').value),
+          Unit: document.getElementById('ing-unit').value,
+          Pricing: parseFloat(document.getElementById('ing-price').value)
+        };
+        await api(`/admin/ingredients/create?email=${currentEmail}`, { method: 'POST', body: JSON.stringify(data) });
+        closeModal(); toast('Ingredient added!', 'success'); navigateTo('ingredients');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+async function showAddRecipeModal(itemId) {
+  let ingreds = [];
+  try { ingreds = await api(`/analytics/ingredients?email=${currentEmail}`); } catch {}
+  openModal(`Add Ingredient to Recipe`, `
+    <div class="form-group"><label>Ingredient</label>
+      <select id="rec-ing-id">
+        ${ingreds.map(i=>`<option value="${i.IngredientID}">${i.Name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>Quantity</label><input id="rec-qty" type="number" placeholder="0.5" step="0.01" /></div>`,
+    [{ label: 'Add to Recipe', action: async () => {
+      const ingId = document.getElementById('rec-ing-id').value;
+      const qty = document.getElementById('rec-qty').value;
+      try {
+        await api(`/admin/add_recipe/${itemId}/${ingId}/${qty}?email=${currentEmail}`, { method: 'POST' });
+        closeModal(); toast('Ingredient added to recipe!', 'success'); navigateTo('recipes');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+function showCreateBillModal() {
+  openModal('Create Bill', `
+    <div class="form-group"><label>Student User ID</label><input id="bl-uid" type="number" /></div>
+    <div class="form-group"><label>Month</label><input id="bl-month" placeholder="May 2025" /></div>
+    <div class="form-group"><label>Amount (Rs.)</label><input id="bl-amount" type="number" /></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Issue Date</label><input id="bl-issue" type="date" value="${new Date().toISOString().split('T')[0]}" /></div>
+      <div class="form-group"><label>Due Date</label><input id="bl-due" type="date" /></div>
+    </div>`,
+    [{ label: 'Create', action: async () => {
+      try {
+        const data = {
+          UserID: parseInt(document.getElementById('bl-uid').value),
+          Month: document.getElementById('bl-month').value,
+          Amount: parseFloat(document.getElementById('bl-amount').value),
+          Issue_Date: document.getElementById('bl-issue').value,
+          Due_Date: document.getElementById('bl-due').value,
+          Status: 'unpaid'
+        };
+        await api(`/admin/bills/create?email=${currentEmail}`, { method: 'POST', body: JSON.stringify(data) });
+        closeModal(); toast('Bill created!', 'success'); navigateTo('bills');
+      } catch (e) { toast(e.message, 'error'); }
+    }}]);
+}
+
+// Enter key on login
+document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>

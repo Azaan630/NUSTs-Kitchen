@@ -60,5 +60,14 @@ services:
     volumes:
     - ./frontend_admin:/app
 
+  web_dashboard:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend_web:/usr/share/nginx/html
+    depends_on:
+      - backend
+
 volumes:
   mess_db_data:
