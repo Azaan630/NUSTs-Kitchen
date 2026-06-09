@@ -44,22 +44,6 @@ services:
     depends_on:
       - backend
 
-  admin_dashboard:
-    build: ./frontend_admin
-    container_name: mess_streamlit
-    ports:
-      - "8501:8501"
-    depends_on:
-      - backend
-
-  web_dashboard:
-    image: nginx:alpine
-    ports:
-      - "3000:80"
-    volumes:
-      - ./frontend_web:/usr/share/nginx/html
-    depends_on:
-      - backend
 
 volumes:
   mess_db_data:

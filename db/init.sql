@@ -1,133 +1,130 @@
-CREATE DATABASE IF NOT EXISTS mess_db;
-USE mess_db;
-
 CREATE TABLE IF NOT EXISTS Users (
-UserID      INT PRIMARY KEY AUTO_INCREMENT,
-First_Name  VARCHAR(50) NOT NULL,
-Last_Name   VARCHAR(50) NOT NULL,
-Email       VARCHAR(100) UNIQUE NOT NULL,
-Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL
+    UserID      INT PRIMARY KEY AUTO_INCREMENT,
+    First_Name  VARCHAR(50) NOT NULL,
+    Last_Name   VARCHAR(50) NOT NULL,
+    Email       VARCHAR(100) UNIQUE NOT NULL,
+    Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Student (
-UserID          INT PRIMARY KEY,
-DoB             DATE NOT NULL,
-Department      VARCHAR(100) NOT NULL,
-Contact_Number  VARCHAR(20),
-Address         TEXT,
-Father_Name     VARCHAR(100),
-Hostel_Name     VARCHAR(100),
-Room_Number     VARCHAR(20),
-FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+    UserID          INT PRIMARY KEY,
+    DoB             DATE NOT NULL,
+    Department      VARCHAR(100) NOT NULL,
+    Contact_Number  VARCHAR(20),
+    Address         TEXT,
+    Father_Name     VARCHAR(100),
+    Hostel_Name     VARCHAR(100),
+    Room_Number     VARCHAR(20),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Staff_Category (
-Category          VARCHAR(30) PRIMARY KEY,
-Working_hours     DECIMAL(4,1) NOT NULL,
-Salary            DECIMAL(10,2) NOT NULL
+    Category          VARCHAR(30) PRIMARY KEY,
+    Working_hours     DECIMAL(4,1) NOT NULL,
+    Salary            DECIMAL(10,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Staff (
-UserID            INT PRIMARY KEY,
-Category          VARCHAR(30) NOT NULL,
-CONSTRAINT FK_Staff_User      FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE,
-CONSTRAINT FK_Staff_Category  FOREIGN KEY (Category) REFERENCES Staff_Category(Category) ON DELETE RESTRICT ON UPDATE CASCADE
+    UserID            INT PRIMARY KEY,
+    Category          VARCHAR(30) NOT NULL,
+    CONSTRAINT FK_Staff_User      FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE,
+    CONSTRAINT FK_Staff_Category  FOREIGN KEY (Category) REFERENCES Staff_Category(Category) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 # Multivalued attribute: separate table
 CREATE TABLE IF NOT EXISTS Staff_Contact_Numbers (
-Contact_ID      INT PRIMARY KEY AUTO_INCREMENT,
-UserID          INT NOT NULL,
-Contact_Number  VARCHAR(20) NOT NULL,
-FOREIGN KEY (UserID) REFERENCES Staff(UserID) ON DELETE CASCADE
+    Contact_ID      INT PRIMARY KEY AUTO_INCREMENT,
+    UserID          INT NOT NULL,
+    Contact_Number  VARCHAR(20) NOT NULL,
+    FOREIGN KEY (UserID) REFERENCES Staff(UserID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Ingredients (
-Ingredient_ID   INT PRIMARY KEY AUTO_INCREMENT,
-Name            VARCHAR(100) NOT NULL,
-Unit            VARCHAR(100) NOT NULL,
-Unit_cost       DECIMAL(10,2) NOT NULL,
-Total_Quantity  DECIMAL(10,3) NOT NULL DEFAULT 0.000
+    Ingredient_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Name            VARCHAR(100) NOT NULL,
+    Unit            VARCHAR(100) NOT NULL,
+    Unit_cost       DECIMAL(10,2) NOT NULL,
+    Total_Quantity  DECIMAL(10,3) NOT NULL DEFAULT 0.000
 );
 
 CREATE TABLE IF NOT EXISTS Food_Items (
-Item_ID             INT PRIMARY KEY AUTO_INCREMENT,
-Name                VARCHAR(100) NOT NULL,
-Quantity            DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-Ratings_Average     DECIMAL(3,2) DEFAULT NULL COMMENT 'Average rating (1-5), NULL if no ratings',
-Vote_Count          INT DEFAULT 0,
-Price    DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    Item_ID             INT PRIMARY KEY AUTO_INCREMENT,
+    Name                VARCHAR(100) NOT NULL,
+    Quantity            DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    Ratings_Average     DECIMAL(3,2) DEFAULT NULL COMMENT 'Average rating (1-5), NULL if no ratings',
+    Vote_Count          INT DEFAULT 0,
+    Price               DECIMAL(10,2) NOT NULL DEFAULT 0.00
 );
 
 CREATE TABLE IF NOT EXISTS Food_Item_Ingredients (
-Item_ID         INT NOT NULL,
-Ingredient_ID   INT NOT NULL,
-Ingredient_Quantity DECIMAL(10,2) NOT NULL,
-PRIMARY KEY (Item_ID, Ingredient_ID),
-FOREIGN KEY (Item_ID)       REFERENCES Food_Items(Item_ID)      ON DELETE CASCADE,
-FOREIGN KEY (Ingredient_ID) REFERENCES Ingredients(Ingredient_ID) ON DELETE CASCADE
+    Item_ID         INT NOT NULL,
+    Ingredient_ID   INT NOT NULL,
+    Ingredient_Quantity DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (Item_ID, Ingredient_ID),
+    FOREIGN KEY (Item_ID)       REFERENCES Food_Items(Item_ID)      ON DELETE CASCADE,
+    FOREIGN KEY (Ingredient_ID) REFERENCES Ingredients(Ingredient_ID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Menu_Schedule (
-Schedule_ID INT PRIMARY KEY AUTO_INCREMENT,
-Date        DATE NOT NULL,
-meal_type   ENUM('Breakfast','Lunch','Dinner') NOT NULL,
-status      ENUM('Active','Cancelled') NOT NULL DEFAULT 'Active',
-CONSTRAINT UQ_Slot UNIQUE (Date, meal_type)
+    Schedule_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Date        DATE NOT NULL,
+    meal_type   ENUM('Breakfast','Lunch','Dinner') NOT NULL,
+    status      ENUM('Active','Cancelled') NOT NULL DEFAULT 'Active',
+    CONSTRAINT UQ_Slot UNIQUE (Date, meal_type)
 );
 
 CREATE TABLE IF NOT EXISTS Menu_Food_Items (
-Schedule_ID INT NOT NULL,
-Item_ID     INT NOT NULL,
-PRIMARY KEY (Schedule_ID, Item_ID),
-FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE,
-FOREIGN KEY (Item_ID)     REFERENCES Food_Items(Item_ID)        ON DELETE CASCADE
+    Schedule_ID INT NOT NULL,
+    Item_ID     INT NOT NULL,
+    PRIMARY KEY (Schedule_ID, Item_ID),
+    FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE,
+    FOREIGN KEY (Item_ID)     REFERENCES Food_Items(Item_ID)        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Mess_Off (
-Mess_Off_ID     INT PRIMARY KEY AUTO_INCREMENT,
-User_ID         INT NOT NULL,
-Start_Date      DATE NOT NULL,
-End_Date        DATE NOT NULL,
-Request_Date    DATE NOT NULL DEFAULT (CURRENT_DATE),
-Status          ENUM('Pending', 'Approved', 'Rejected', 'Cancelled') DEFAULT 'Pending',
-FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
-CONSTRAINT CHK_Date_Range CHECK (End_Date >= Start_Date),
-CONSTRAINT UQ_Request UNIQUE (User_ID, Start_Date, End_Date)
+    Mess_Off_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID         INT NOT NULL,
+    Start_Date      DATE NOT NULL,
+    End_Date        DATE NOT NULL,
+    Request_Date    DATE NOT NULL DEFAULT (CURRENT_DATE),
+    Status          ENUM('Pending', 'Approved', 'Rejected', 'Cancelled') DEFAULT 'Pending',
+    FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
+    CONSTRAINT CHK_Date_Range CHECK (End_Date >= Start_Date),
+    CONSTRAINT UQ_Request UNIQUE (User_ID, Start_Date, End_Date)
 );
 
 CREATE TABLE IF NOT EXISTS Ratings (
-Rating_ID   INT PRIMARY KEY AUTO_INCREMENT,
-User_ID     INT NOT NULL,
-Item_ID     INT NOT NULL,
-Schedule_ID INT NOT NULL,
-Score       TINYINT NOT NULL CHECK (Score BETWEEN 1 AND 5),
-Rated_At    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
-FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE,
-FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE,
-CONSTRAINT UQ_Rating UNIQUE (User_ID, Item_ID, Schedule_ID)
+    Rating_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID     INT NOT NULL,
+    Item_ID     INT NOT NULL,
+    Schedule_ID INT NOT NULL,
+    Score       TINYINT NOT NULL CHECK (Score BETWEEN 1 AND 5),
+    Rated_At    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE,
+    FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE,
+    FOREIGN KEY (Schedule_ID) REFERENCES Menu_Schedule(Schedule_ID) ON DELETE CASCADE,
+    CONSTRAINT UQ_Rating UNIQUE (User_ID, Item_ID, Schedule_ID)
 );
 
 CREATE TABLE IF NOT EXISTS Votes (
-Vote_ID     INT PRIMARY KEY AUTO_INCREMENT,
-User_ID     INT NOT NULL,
-Food_ID     INT NOT NULL,
-Date_Time   DATETIME DEFAULT CURRENT_TIMESTAMP,
-unique (User_ID, Food_ID),
-FOREIGN KEY (User_ID) REFERENCES Student(UserID)    ON DELETE CASCADE,
-FOREIGN KEY (Food_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE
+    Vote_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID     INT NOT NULL,
+    Food_ID     INT NOT NULL,
+    Date_Time   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (User_ID, Food_ID),
+    FOREIGN KEY (User_ID) REFERENCES Student(UserID)    ON DELETE CASCADE,
+    FOREIGN KEY (Food_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Bills (
-Billing_ID      INT PRIMARY KEY AUTO_INCREMENT,
-User_ID         INT NOT NULL,
-Issue_Date      DATE NOT NULL DEFAULT (CURRENT_DATE),
-Amount          DECIMAL(10,2) NOT NULL CHECK (Amount >= 0),
-Due_Date        DATE NOT NULL,
-Month           DATE NOT NULL COMMENT 'First day of the billing month',
-Status          ENUM('Paid', 'Unpaid', 'Overdue') DEFAULT 'Unpaid',
-FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE
+    Billing_ID      INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID         INT NOT NULL,
+    Issue_Date      DATE NOT NULL DEFAULT (CURRENT_DATE),
+    Amount          DECIMAL(10,2) NOT NULL CHECK (Amount >= 0),
+    Due_Date        DATE NOT NULL,
+    Month           DATE NOT NULL COMMENT 'First day of the billing month',
+    Status          ENUM('Paid', 'Unpaid', 'Overdue') DEFAULT 'Unpaid',
+    FOREIGN KEY (User_ID) REFERENCES Student(UserID) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Transactions (
@@ -137,347 +134,326 @@ CREATE TABLE IF NOT EXISTS Transactions (
     Payment_Date        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     Payment_Method      ENUM('Cash','Card','Online') NOT NULL,
     Transaction_Status  ENUM('Success', 'Failed', 'Pending') NOT NULL,
-
     PRIMARY KEY (Billing_ID, Transaction_ID),   # Composite PK
     KEY (Transaction_ID),                       # the "must be defined as a key" rule
     FOREIGN KEY (Billing_ID) REFERENCES Bills(Billing_ID) ON DELETE CASCADE
 );
 
-
-# SYSTEM CONFIGURATION (for daily mess rate)
-
-CREATE TABLE System_Config (
-Config_Key        VARCHAR(50) PRIMARY KEY,
-Value             VARCHAR(100) NOT NULL
+# SYSTEM CONFIGURATION
+CREATE TABLE IF NOT EXISTS System_Config (
+    Config_Key        VARCHAR(50) PRIMARY KEY,
+    Value             VARCHAR(100) NOT NULL
 );
-# Insert defaults
-INSERT INTO System_Config VALUES ('daily_mess_rate', '150.00');
 
-SET GLOBAL event_scheduler = ON;
+INSERT INTO System_Config VALUES ('daily_mess_rate', '150.00')
+ON DUPLICATE KEY UPDATE Value=Value;
 
-# VIEWS (for dashboard & analytics)
+# --- VIEWS ---
 
-# Monthly billing summary
-CREATE VIEW vw_MonthlyBillingSummary AS
+CREATE OR REPLACE VIEW vw_MonthlyBillingSummary AS
 SELECT
-User_ID,
-DATE_FORMAT(b.Month, '%Y-%m') AS Billing_Month,
-COUNT(b.Billing_ID) AS Total_Bills,
-SUM(b.Amount) AS Total_Amount,
-SUM(IFNULL(t.Total_Paid, 0)) AS Total_Collected,
-SUM(b.Amount) - SUM(IFNULL(t.Total_Paid, 0)) AS Outstanding
+    b.User_ID,
+    DATE_FORMAT(b.Month, '%Y-%m') AS Billing_Month,
+    COUNT(b.Billing_ID) AS Total_Bills,
+    SUM(b.Amount) AS Total_Amount,
+    SUM(IFNULL(t.Total_Paid, 0)) AS Total_Collected,
+    SUM(b.Amount) - SUM(IFNULL(t.Total_Paid, 0)) AS Outstanding
 FROM Bills b
 LEFT JOIN (
-SELECT Billing_ID, SUM(Amount_Paid) AS Total_Paid
-FROM Transactions
-WHERE Transaction_Status = 'Success'
-GROUP BY Billing_ID
+    SELECT Billing_ID, SUM(Amount_Paid) AS Total_Paid
+    FROM Transactions
+    WHERE Transaction_Status = 'Success'
+    GROUP BY Billing_ID
 ) t ON b.Billing_ID = t.Billing_ID
-GROUP BY User_ID, DATE_FORMAT(b.Month, '%Y-%m');
+GROUP BY b.User_ID, DATE_FORMAT(b.Month, '%Y-%m');
 
-# Mess-off usage per student per month
-CREATE VIEW vw_MessOffSummary AS
+CREATE OR REPLACE VIEW vw_MessOffSummary AS
 SELECT
-User_ID,
-DATE_FORMAT(Start_Date, '%Y-%m') AS Month,
-SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(Start_Date)), GREATEST(Start_Date, DATE_FORMAT(Start_Date, '%Y-%m-01'))) + 1) AS Approved_Days
+    User_ID,
+    DATE_FORMAT(Start_Date, '%Y-%m') AS Month,
+    SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(Start_Date)), GREATEST(Start_Date, DATE_FORMAT(Start_Date, '%Y-%m-01'))) + 1) AS Approved_Days
 FROM Mess_Off
 WHERE Status = 'Approved'
 GROUP BY User_ID, Month;
 
-# Menu schedule with food items
-CREATE VIEW vw_MenuSchedule AS
+CREATE OR REPLACE VIEW vw_MenuSchedule AS
 SELECT
-ms.Schedule_ID,
-ms.Date AS Date,
-ms.meal_type AS meal_type,
-ms.status AS Slot_Status,
-fi.Item_ID,
-fi.Name AS Food_Item_Name
+    ms.Schedule_ID,
+    ms.Date AS Date,
+    ms.meal_type AS meal_type,
+    ms.status AS Slot_Status,
+    fi.Item_ID,
+    fi.Name AS Food_Item_Name
 FROM Menu_Schedule ms
 LEFT JOIN Menu_Food_Items s ON ms.Schedule_ID = s.Schedule_ID
 LEFT JOIN Food_Items fi ON s.Item_ID = fi.Item_ID;
 
-# Ingredient cost per food item (total cost of all ingredients)
-CREATE VIEW vw_FoodItemCost AS
+CREATE OR REPLACE VIEW vw_FoodItemCost AS
 SELECT
-fi.Item_ID,
-fi.Name,
-SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Estimated_Cost
+    fi.Item_ID,
+    fi.Name,
+    SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Estimated_Cost
 FROM Food_Items fi
 JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
 JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID
 GROUP BY fi.Item_ID, fi.Name;
 
-# Staff details with category info
-CREATE VIEW vw_StaffDetails AS
+CREATE OR REPLACE VIEW vw_StaffDetails AS
 SELECT
-s.UserID,
-u.First_Name,
-u.Last_Name,
-s.Category,
-sc.Working_hours,
-sc.Salary
+    s.UserID,
+    u.First_Name,
+    u.Last_Name,
+    s.Category,
+    sc.Working_hours,
+    sc.Salary
 FROM Staff s
 JOIN Users u ON s.UserID = u.UserID
 JOIN Staff_Category sc ON s.Category = sc.Category;
 
-
-# STORED PROCEDURES
+# --- STORED PROCEDURES ---
 
 DELIMITER $$
 
-# To generate monthly bills for all students
 CREATE PROCEDURE sp_GenerateMonthlyBills(IN p_month DATE)
 BEGIN
-DECLARE v_daily_rate DECIMAL(10,2);
-DECLARE v_month_start DATE;
-DECLARE v_month_end DATE;
-DECLARE v_total_days INT;
-DECLARE v_student_id INT;
-DECLARE v_off_days INT;
-DECLARE v_due_date DATE;
-DECLARE v_amount DECIMAL(10,2);
-DECLARE no_more_rows BOOLEAN DEFAULT FALSE;
-DECLARE cur_students CURSOR FOR SELECT UserID FROM Student;
-DECLARE CONTINUE HANDLER FOR NOT FOUND SET no_more_rows = TRUE;
+    DECLARE v_daily_rate DECIMAL(10,2);
+    DECLARE v_month_start DATE;
+    DECLARE v_month_end DATE;
+    DECLARE v_total_days INT;
+    DECLARE v_student_id INT;
+    DECLARE v_off_days INT;
+    DECLARE v_due_date DATE;
+    DECLARE v_amount DECIMAL(10,2);
+    DECLARE no_more_rows BOOLEAN DEFAULT FALSE;
+    DECLARE cur_students CURSOR FOR SELECT UserID FROM Student;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET no_more_rows = TRUE;
 
-# Fetch daily rate from config
-SELECT CAST(`Value` AS DECIMAL(10,2)) INTO v_daily_rate
-FROM System_Config WHERE Config_Key = 'daily_mess_rate';
+    SELECT CAST(`Value` AS DECIMAL(10,2)) INTO v_daily_rate
+    FROM System_Config WHERE Config_Key = 'daily_mess_rate';
 
-SET v_month_start = DATE_FORMAT(p_month, '%Y-%m-01');
-SET v_month_end   = LAST_DAY(v_month_start);
-SET v_total_days  = DAY(v_month_end);
-SET v_due_date    = DATE_ADD(v_month_start, INTERVAL 7 DAY);  # bill due 7th of next month
+    SET v_month_start = DATE_FORMAT(p_month, '%Y-%m-01');
+    SET v_month_end   = LAST_DAY(v_month_start);
+    SET v_total_days  = DAY(v_month_end);
+    SET v_due_date    = DATE_ADD(v_month_start, INTERVAL 7 DAY);
 
-OPEN cur_students;
-student_loop: LOOP
-    FETCH cur_students INTO v_student_id;
-    IF no_more_rows THEN
-        LEAVE student_loop;
-    END IF;
+    OPEN cur_students;
+    student_loop: LOOP
+        FETCH cur_students INTO v_student_id;
+        IF no_more_rows THEN
+            LEAVE student_loop;
+        END IF;
 
-    # Counting approved mess-off days that overlap with the billing month
-    SELECT IFNULL(SUM(DATEDIFF(
-        LEAST(End_Date, v_month_end),
-        GREATEST(Start_Date, v_month_start)
-    ) + 1), 0) INTO v_off_days
-    FROM Mess_Off
-    WHERE User_ID = v_student_id
-      AND Status = 'Approved'
-      AND Start_Date <= v_month_end
-      AND End_Date >= v_month_start;
+        SELECT IFNULL(SUM(DATEDIFF(
+            LEAST(End_Date, v_month_end),
+            GREATEST(Start_Date, v_month_start)
+        ) + 1), 0) INTO v_off_days
+        FROM Mess_Off
+        WHERE User_ID = v_student_id
+          AND Status = 'Approved'
+          AND Start_Date <= v_month_end
+          AND End_Date >= v_month_start;
 
-    SET v_amount = v_daily_rate * (v_total_days - v_off_days);
+        SET v_amount = v_daily_rate * (v_total_days - v_off_days);
 
-    IF v_amount > 0 THEN
-        INSERT INTO Bills (Issue_Date, Amount, Due_Date, Month, Status, User_ID)
-        VALUES (CURDATE(), v_amount, v_due_date, v_month_start, 'Unpaid', v_student_id);
-    END IF;
-END LOOP student_loop;
-CLOSE cur_students;
+        IF v_amount > 0 THEN
+            INSERT INTO Bills (Issue_Date, Amount, Due_Date, Month, Status, User_ID)
+            VALUES (CURDATE(), v_amount, v_due_date, v_month_start, 'Unpaid', v_student_id);
+        END IF;
+    END LOOP student_loop;
+    CLOSE cur_students;
 END$$
 
-# Record payment and update bill status
 CREATE PROCEDURE sp_RecordPayment(
-IN p_billing_id INT,
-IN p_amount DECIMAL(10,2),
-IN p_method ENUM('Cash','Card','Online')
+    IN p_billing_id INT,
+    IN p_amount DECIMAL(10,2),
+    IN p_method ENUM('Cash','Card','Online')
 )
 BEGIN
-DECLARE v_total_paid DECIMAL(10,2);
-DECLARE v_bill_amount DECIMAL(10,2);
+    DECLARE v_total_paid DECIMAL(10,2);
+    DECLARE v_bill_amount DECIMAL(10,2);
 
-# Insert transaction
-INSERT INTO Transactions (Billing_ID, Amount_Paid, Payment_Method, Transaction_Status)
-VALUES (p_billing_id, p_amount, p_method, 'Success');
+    INSERT INTO Transactions (Billing_ID, Amount_Paid, Payment_Method, Transaction_Status)
+    VALUES (p_billing_id, p_amount, p_method, 'Success');
 
-# Calculate total paid so far
-SELECT SUM(Amount_Paid) INTO v_total_paid
-FROM Transactions
-WHERE Billing_ID = p_billing_id AND Transaction_Status = 'Success';
+    SELECT SUM(Amount_Paid) INTO v_total_paid
+    FROM Transactions
+    WHERE Billing_ID = p_billing_id AND Transaction_Status = 'Success';
 
-SELECT Amount INTO v_bill_amount FROM Bills WHERE Billing_ID = p_billing_id;
+    SELECT Amount INTO v_bill_amount FROM Bills WHERE Billing_ID = p_billing_id;
 
-IF v_total_paid >= v_bill_amount THEN
-    UPDATE Bills SET Status = 'Paid' WHERE Billing_ID = p_billing_id;
-END IF;
+    IF v_total_paid >= v_bill_amount THEN
+        UPDATE Bills SET Status = 'Paid' WHERE Billing_ID = p_billing_id;
+    END IF;
 END$$
 
-# Approve mess-off request (checks max 12 days)
 CREATE PROCEDURE sp_ApproveMessOff(IN p_mess_off_id INT)
 BEGIN
-DECLARE v_user_id INT;
-DECLARE v_start DATE;
-DECLARE v_end DATE;
-DECLARE v_count INT;
+    DECLARE v_user_id INT;
+    DECLARE v_start DATE;
+    DECLARE v_end DATE;
+    DECLARE v_count INT;
 
-SELECT User_ID, Start_Date, End_Date INTO v_user_id, v_start, v_end
-FROM Mess_Off WHERE Mess_Off_ID = p_mess_off_id AND Status = 'Pending';
+    SELECT User_ID, Start_Date, End_Date INTO v_user_id, v_start, v_end
+    FROM Mess_Off WHERE Mess_Off_ID = p_mess_off_id AND Status = 'Pending';
 
-IF v_user_id IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Pending request not found';
-END IF;
+    IF v_user_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Pending request not found';
+    END IF;
 
-# Count total approved days in the month of start_date, including this request
-SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(v_start)),
-                          GREATEST(Start_Date, DATE_FORMAT(v_start, '%Y-%m-01'))) + 1), 0)
-INTO v_count
-FROM Mess_Off
-WHERE User_ID = v_user_id
-  AND Status = 'Approved'
-  AND Mess_Off_ID <> p_mess_off_id
-  AND Start_Date <= LAST_DAY(v_start)
-  AND End_Date >= DATE_FORMAT(v_start, '%Y-%m-01');
+    SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(v_start)),
+                              GREATEST(Start_Date, DATE_FORMAT(v_start, '%Y-%m-01'))) + 1), 0)
+    INTO v_count
+    FROM Mess_Off
+    WHERE User_ID = v_user_id
+      AND Status = 'Approved'
+      AND Mess_Off_ID <> p_mess_off_id
+      AND Start_Date <= LAST_DAY(v_start)
+      AND End_Date >= DATE_FORMAT(v_start, '%Y-%m-01');
 
-SET v_count = v_count + DATEDIFF(v_end, v_start) + 1;
+    SET v_count = v_count + DATEDIFF(v_end, v_start) + 1;
 
-IF v_count > 12 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Exceeds maximum 12 mess-off days per month';
-ELSE
-    UPDATE Mess_Off SET Status = 'Approved' WHERE Mess_Off_ID = p_mess_off_id;
-END IF;
+    IF v_count > 12 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Exceeds maximum 12 mess-off days per month';
+    ELSE
+        UPDATE Mess_Off SET Status = 'Approved' WHERE Mess_Off_ID = p_mess_off_id;
+    END IF;
 END$$
 
-# Add vote (updates vote count)
 CREATE PROCEDURE sp_AddVote(IN p_user_id INT, IN p_food_id INT)
 BEGIN
-INSERT INTO Votes (User_ID, Food_ID) VALUES (p_user_id, p_food_id);
-UPDATE Food_Items SET Vote_Count = Vote_Count + 1 WHERE Item_ID = p_food_id;
+    INSERT INTO Votes (User_ID, Food_ID) VALUES (p_user_id, p_food_id);
+    UPDATE Food_Items SET Vote_Count = Vote_Count + 1 WHERE Item_ID = p_food_id;
+END$$
+
+CREATE PROCEDURE sp_UpdateOverdueBills()
+BEGIN
+    UPDATE Bills
+    SET Status = 'Overdue'
+    WHERE Status = 'Unpaid' AND Due_Date < CURDATE();
 END$$
 
 DELIMITER ;
 
-
-# TRIGGERS
+# --- TRIGGERS ---
 
 DELIMITER $$
 
-# Update average rating in Food_Items after rating changes
 CREATE TRIGGER trg_update_avg_rating_insert AFTER INSERT ON Ratings
 FOR EACH ROW
 BEGIN
-UPDATE Food_Items
-SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = NEW.Item_ID)
-WHERE Item_ID = NEW.Item_ID;
+    UPDATE Food_Items
+    SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = NEW.Item_ID)
+    WHERE Item_ID = NEW.Item_ID;
 END$$
 
 CREATE TRIGGER trg_update_avg_rating_update AFTER UPDATE ON Ratings
 FOR EACH ROW
 BEGIN
-UPDATE Food_Items
-SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = NEW.Item_ID)
-WHERE Item_ID = NEW.Item_ID;
-IF OLD.Item_ID <> NEW.Item_ID THEN
-UPDATE Food_Items
-SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = OLD.Item_ID)
-WHERE Item_ID = OLD.Item_ID;
-END IF;
+    UPDATE Food_Items
+    SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = NEW.Item_ID)
+    WHERE Item_ID = NEW.Item_ID;
+    IF OLD.Item_ID <> NEW.Item_ID THEN
+        UPDATE Food_Items
+        SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = OLD.Item_ID)
+        WHERE Item_ID = OLD.Item_ID;
+    END IF;
 END$$
 
 CREATE TRIGGER trg_update_avg_rating_delete AFTER DELETE ON Ratings
 FOR EACH ROW
 BEGIN
-UPDATE Food_Items
-SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = OLD.Item_ID)
-WHERE Item_ID = OLD.Item_ID;
+    UPDATE Food_Items
+    SET Ratings_Average = (SELECT AVG(Score) FROM Ratings WHERE Item_ID = OLD.Item_ID)
+    WHERE Item_ID = OLD.Item_ID;
 END$$
 
-# Update vote count on vote deletion
 CREATE TRIGGER trg_deduct_vote AFTER DELETE ON Votes
 FOR EACH ROW
 BEGIN
-UPDATE Food_Items SET Vote_Count = GREATEST(Vote_Count - 1, 0)
-WHERE Item_ID = OLD.Food_ID;
+    UPDATE Food_Items SET Vote_Count = GREATEST(Vote_Count - 1, 0)
+    WHERE Item_ID = OLD.Food_ID;
 END$$
 
-# Enforce maximum 12 mess-off days per month (before insert/update)
 CREATE TRIGGER trg_mess_off_check BEFORE INSERT ON Mess_Off
 FOR EACH ROW
 BEGIN
-DECLARE v_count INT;
-IF NEW.Status = 'Approved' THEN
-SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(NEW.Start_Date)),
-GREATEST(Start_Date, DATE_FORMAT(NEW.Start_Date, '%Y-%m-01'))) + 1), 0)
-INTO v_count
-FROM Mess_Off
-WHERE User_ID = NEW.User_ID
-AND Status = 'Approved'
-AND Mess_Off_ID <> IFNULL(NEW.Mess_Off_ID, 0)
-AND Start_Date <= LAST_DAY(NEW.Start_Date)
-AND End_Date >= DATE_FORMAT(NEW.Start_Date, '%Y-%m-01');
+    DECLARE v_count INT;
+    IF NEW.Status = 'Approved' THEN
+        SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(NEW.Start_Date)),
+        GREATEST(Start_Date, DATE_FORMAT(NEW.Start_Date, '%Y-%m-01'))) + 1), 0)
+        INTO v_count
+        FROM Mess_Off
+        WHERE User_ID = NEW.User_ID
+        AND Status = 'Approved'
+        AND Mess_Off_ID <> IFNULL(NEW.Mess_Off_ID, 0)
+        AND Start_Date <= LAST_DAY(NEW.Start_Date)
+        AND End_Date >= DATE_FORMAT(NEW.Start_Date, '%Y-%m-01');
 
-    SET v_count = v_count + DATEDIFF(NEW.End_Date, NEW.Start_Date) + 1;
-    IF v_count > 12 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Mess-off exceeds 12 days per month';
+        SET v_count = v_count + DATEDIFF(NEW.End_Date, NEW.Start_Date) + 1;
+        IF v_count > 12 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Mess-off exceeds 12 days per month';
+        END IF;
     END IF;
-END IF;
 END$$
 
 CREATE TRIGGER trg_mess_off_check_update BEFORE UPDATE ON Mess_Off
 FOR EACH ROW
 BEGIN
-DECLARE v_count INT;
-IF NEW.Status = 'Approved' AND (OLD.Status <> 'Approved' OR OLD.Start_Date <> NEW.Start_Date OR OLD.End_Date <> NEW.End_Date) THEN
-SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(NEW.Start_Date)),
-GREATEST(Start_Date, DATE_FORMAT(NEW.Start_Date, '%Y-%m-01'))) + 1), 0)
-INTO v_count
-FROM Mess_Off
-WHERE User_ID = NEW.User_ID
-AND Status = 'Approved'
-AND Mess_Off_ID <> NEW.Mess_Off_ID
-AND Start_Date <= LAST_DAY(NEW.Start_Date)
-AND End_Date >= DATE_FORMAT(NEW.Start_Date, '%Y-%m-01');
+    DECLARE v_count INT;
+    IF NEW.Status = 'Approved' AND (OLD.Status <> 'Approved' OR OLD.Start_Date <> NEW.Start_Date OR OLD.End_Date <> NEW.End_Date) THEN
+        SELECT IFNULL(SUM(DATEDIFF(LEAST(End_Date, LAST_DAY(NEW.Start_Date)),
+        GREATEST(Start_Date, DATE_FORMAT(NEW.Start_Date, '%Y-%m-01'))) + 1), 0)
+        INTO v_count
+        FROM Mess_Off
+        WHERE User_ID = NEW.User_ID
+        AND Status = 'Approved'
+        AND Mess_Off_ID <> NEW.Mess_Off_ID
+        AND Start_Date <= LAST_DAY(NEW.Start_Date)
+        AND End_Date >= DATE_FORMAT(NEW.Start_Date, '%Y-%m-01');
 
-    SET v_count = v_count + DATEDIFF(NEW.End_Date, NEW.Start_Date) + 1;
-    IF v_count > 12 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Mess-off exceeds 12 days per month';
+        SET v_count = v_count + DATEDIFF(NEW.End_Date, NEW.Start_Date) + 1;
+        IF v_count > 12 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Mess-off exceeds 12 days per month';
+        END IF;
     END IF;
-END IF;
-END$$
-
-# Automatically mark bill as Overdue if past due date and unpaid (daily event can call this)
-CREATE PROCEDURE sp_UpdateOverdueBills()
-BEGIN
-UPDATE Bills
-SET Status = 'Overdue'
-WHERE Status = 'Unpaid' AND Due_Date < CURDATE();
 END$$
 
 DELIMITER ;
 
+# --- EVENTS ---
 
-# Events
-
+DROP EVENT IF EXISTS e_DailyOverdueCheck;
 CREATE EVENT e_DailyOverdueCheck
 ON SCHEDULE EVERY 1 DAY
-STARTS (CURRENT_DATE + INTERVAL 1 DAY) -- Starts tomorrow at midnight
+STARTS (CURRENT_DATE + INTERVAL 1 DAY)
 DO
   CALL sp_UpdateOverdueBills();
 
+DROP EVENT IF EXISTS e_MonthlyBilling;
 CREATE EVENT e_MonthlyBilling
 ON SCHEDULE EVERY 1 MONTH
-STARTS '2026-05-09 00:00:00'
+STARTS '2026-07-01 00:00:00'
 DO
   CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
 
-# --- DUMMY DATA SEEDING ---
 
-# 1. Users (Admin, Student, Staff)
-INSERT INTO Users (First_Name, Last_Name, Email, Account_Type) VALUES
-('Muhammad', 'Azaan', 'zainif63@gmail.com', 'Admin'),
-('Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
-('Muhammad', 'Azaan', 'zainif630@gmail.com', 'Staff'),
-('Jane', 'Smith', 'jane.student@seecs.edu.pk', 'Student'),
-('Bob', 'Jones', 'bob.student@seecs.edu.pk', 'Student'),
-('Alice', 'Staff', 'alice.staff@seecs.edu.pk', 'Staff'),
-('Charlie', 'Chef', 'charlie.chef@seecs.edu.pk', 'Staff');
+# --- DUMMY DATA SEEDING (CORRECTED FOREIGN KEY REFS) ---
+
+# 1. Users
+INSERT INTO Users (UserID, First_Name, Last_Name, Email, Account_Type) VALUES
+(1, 'Muhammad', 'Azaan', 'zainif63@gmail.com', 'Admin'),
+(2, 'Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
+(3, 'Jane', 'Smith', 'jane.student@seecs.edu.pk', 'Student'),
+(4, 'Muhammad', 'Azaan', 'zainif630@gmail.com', 'Staff'),
+(5, 'Bob', 'Jones', 'bob.student@seecs.edu.pk', 'Student'),
+(6, 'Alice', 'Staff', 'alice.staff@seecs.edu.pk', 'Staff'),
+(7, 'Charlie', 'Chef', 'charlie.chef@seecs.edu.pk', 'Staff');
 
 # 2. Student Details
 INSERT INTO Student (UserID, DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number) VALUES
 (2, '2004-05-15', 'CS', '0300-1234567', 'H-12 NUST', 'John Smith', 'Ghazali', '101'),
-(3, '2003-11-20', 'SE', '0300-7654321', 'H-12 NUST', 'Mike Jones', 'Rumi', '202');
+(3, '2003-11-20', 'SE', '0300-7654321', 'H-12 NUST', 'Mike Jones', 'Rumi', '202'),
+(5, '2004-01-10', 'EE', '0321-9876543', 'H-12 NUST', 'David Jones', 'Attar', '303');
 
 # 3. Staff Categories
 INSERT INTO Staff_Category (Category, Working_hours, Salary) VALUES
@@ -487,7 +463,7 @@ INSERT INTO Staff_Category (Category, Working_hours, Salary) VALUES
 # 4. Staff Details
 INSERT INTO Staff (UserID, Category) VALUES
 (4, 'Server'),
-(5, 'Chef');
+(6, 'Chef');
 
 # 5. Ingredients
 INSERT INTO Ingredients (Name, Unit, Unit_cost, Total_Quantity) VALUES
@@ -569,4 +545,3 @@ INSERT INTO Votes (User_ID, Food_ID) VALUES
 (2, 1),
 (3, 5),
 (2, 5);
-
