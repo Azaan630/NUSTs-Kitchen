@@ -31,9 +31,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
 
   flet_app:
     build: ./frontend_main
@@ -44,11 +41,8 @@ services:
       - "8550:8550"
     environment:
       - PYTHONPATH=/app
-    command: python main.py
     depends_on:
       - backend
-    volumes:
-      - ./frontend_main:/app
 
   admin_dashboard:
     build: ./frontend_admin
@@ -57,8 +51,6 @@ services:
       - "8501:8501"
     depends_on:
       - backend
-    volumes:
-    - ./frontend_admin:/app
 
   web_dashboard:
     image: nginx:alpine

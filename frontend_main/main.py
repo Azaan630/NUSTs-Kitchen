@@ -49,7 +49,7 @@ async def main(page: ft.Page):
     provider = ft.auth.GoogleOAuthProvider(
         client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
         client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
-        redirect_url="http://localhost:8550/oauth_callback",
+        redirect_url=os.getenv("OAUTH_REDIRECT_URL", "http://localhost:8550/oauth_callback"),
     )
 
     def get_user_data():

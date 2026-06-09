@@ -1,5 +1,6 @@
 import flet as ft
 import asyncio
+import os
 from pages.api_client import get_my_bills, download_bill_pdf
 
 
@@ -108,7 +109,8 @@ class StudentProfilePage:
             self._snack("Invalid Bill ID", ok=False)
             return
 
-        actual_url = f"http://localhost:8000/student/bills/download/{billing_id}"
+        public_backend_url = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+        actual_url = f"{public_backend_url}/student/bills/download/{billing_id}"
 
         params = f"?email={self.email}"
         full_path = f"{actual_url}{params}"
