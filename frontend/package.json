@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "prepare": "husky"
+    "prepare": "if test -d .git; then husky; fi"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -47,6 +47,9 @@
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.1",
     "zustand": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
