@@ -2,13 +2,15 @@ findUserByEmail = ("""SELECT *
                       FROM Users
                       WHERE Email = %s""")
 
-getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type
+getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type,
+                           (SELECT Score FROM Ratings r WHERE r.User_ID = %s AND r.Item_ID = fi.Item_ID AND r.Schedule_ID = mfi.Schedule_ID LIMIT 1) AS user_rating
                     FROM Food_Items fi
                             JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
                             JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
                     WHERE ms.Date = %s""")
 
-getWeeklyMenu = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type
+getWeeklyMenu = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type,
+                           (SELECT Score FROM Ratings r WHERE r.User_ID = %s AND r.Item_ID = fi.Item_ID AND r.Schedule_ID = mfi.Schedule_ID LIMIT 1) AS user_rating
                     FROM Food_Items fi
                              JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
                              JOIN Menu_Schedule ms ON mfi.Schedule_ID = ms.Schedule_ID
@@ -94,7 +96,7 @@ getCurrentScheduleID = ("""SELECT Schedule_ID
                            FROM Menu_Schedule
                            WHERE Date = %s AND meal_type = %s""")
 
-giveFoodRating = ("""INSERT INTO Ratings
+giveFoodRating = ("""REPLACE INTO Ratings
                      (User_ID, Item_ID, Schedule_ID, Score)
                      VALUES (%s, %s, %s, %s)""")
 

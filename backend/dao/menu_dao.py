@@ -4,8 +4,8 @@ from dao.queries import getMenuByDate, getWeeklyMenu, getCurrentScheduleID, addM
 
 
 class MenuDAO(BaseDAO):
-    def get_todays_menu(self, target_date):
-        return self._fetchall(getMenuByDate, (target_date,))
+    def get_todays_menu(self, target_date, user_id=None):
+        return self._fetchall(getMenuByDate, (user_id, target_date))
 
     def get_ratings_summary(self):
         """Aggregate rating averages for all food items that have been rated."""
@@ -20,10 +20,10 @@ class MenuDAO(BaseDAO):
             ORDER BY avg_rating DESC
         """)
 
-    def get_weekly_menu(self, today=None):
+    def get_weekly_menu(self, today=None, user_id=None):
         if today is None:
             today = date.today()
-        return self._fetchall(getWeeklyMenu, (today, today))
+        return self._fetchall(getWeeklyMenu, (user_id, today, today))
 
     def get_current_schedule_id(self, target_date, meal_type):
         return self._fetchone(getCurrentScheduleID, (target_date, meal_type))

@@ -111,13 +111,10 @@ class StudentHomePage:
     # ── Star rating widget ─────────────────────────────────────────
     def _build_stars(self, item_id, schedule_id, existing_rating, meal_date, meal_type):
         stars = []
-        rating_state = {
-            "current": existing_rating or 0,
-            "submitted": existing_rating is not None and existing_rating > 0,
-        }
+        current = existing_rating or 0
         star_refs = []
 
-        def render_stars(score, locked=False):
+        def render_stars(score):
             for i, s in enumerate(star_refs):
                 filled = i < score
                 s.name  = ft.Icons.STAR_ROUNDED if filled else ft.Icons.STAR_BORDER_ROUNDED
@@ -125,9 +122,8 @@ class StudentHomePage:
             self.page.update()
 
         async def on_star_click(e, score):
-            if rating_state["submitted"]:
-                return
-            rating_state["current"] = score
+            nonlocal current
+            current = score
             render_stars(score)
 
             if self.is_guest:
@@ -143,36 +139,28 @@ class StudentHomePage:
                     email=self.email,
                 )
             if result and "error" not in result:
-                rating_state["submitted"] = True
                 self.page.snack_bar = ft.SnackBar(
                     content=ft.Text("✅ Rating saved!", color="#FFF"),
                     bgcolor="#10B981",
                 )
-                self.page.snack_bar.open = True
-                render_stars(score, locked=True)
             else:
                 err = result.get("error", "Already rated") if result else "Already rated"
                 self.page.snack_bar = ft.SnackBar(
                     content=ft.Text(f"⚠️ {err}", color="#FFF"),
                     bgcolor="#F59E0B",
                 )
-                self.page.snack_bar.open = True
-                rating_state["submitted"] = True
+            self.page.snack_bar.open = True
             self.page.update()
 
         async def on_star_hover(e, score):
-            if rating_state["submitted"]:
-                return
             render_stars(score)
 
         async def on_hover_leave(e):
-            if rating_state["submitted"]:
-                return
-            render_stars(rating_state["current"])
+            render_stars(current)
 
         for i in range(1, 6):
             score = i
-            filled = i <= rating_state["current"]
+            filled = i <= current
             star_icon = ft.Icon(
                 ft.Icons.STAR_ROUNDED if filled else ft.Icons.STAR_BORDER_ROUNDED,
                 size=18,
@@ -191,14 +179,9 @@ class StudentHomePage:
             )
             stars.append(star_btn)
 
-        locked_label = ft.Text(
-            "Rated ✓" if rating_state["submitted"] else "Rate:",
-            size=11,
-            color=self.amber if rating_state["submitted"] else self.sub,
-            font_family="DM Sans",
-        )
+        label = ft.Text("Rate:", size=11, color=self.sub, font_family="DM Sans")
 
-        return ft.Row([locked_label] + stars, spacing=2)
+        return ft.Row([label] + stars, spacing=2)
 
     # ── Food item card ─────────────────────────────────────────────
     def _build_food_card(self, item, meal_date=None, show_date=False):
@@ -456,11 +439,13 @@ class StudentHomePage:
         self.main_container.content = self._loading()
         self.page.update()
 
+        uid = self.user_id if not self.is_guest else None
+
         if self._view["weekly"]:
             if self.is_guest:
                 data = mock_data.get_weekly_menu()
             else:
-                data = await get_weekly_menu()
+                data = await get_weekly_menu(user_id=uid)
             if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:
@@ -470,7 +455,7 @@ class StudentHomePage:
             if self.is_guest:
                 data = mock_data.get_todays_menu()
             else:
-                data = await get_todays_menu(self.email)
+                data = await get_todays_menu(self.email, user_id=uid)
             if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:

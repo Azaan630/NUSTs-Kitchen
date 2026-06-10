@@ -84,14 +84,14 @@ def get_my_profile(email: str, db=Depends(get_db)):
 
 
 @app.get("/menu/today")
-def get_todays_menu(target_date: date = Query(default=date.today()), db=Depends(get_db)):
-    menu_items = MenuDAO(db).get_todays_menu(target_date)
+def get_todays_menu(target_date: date = Query(default=date.today()), user_id: int = None, db=Depends(get_db)):
+    menu_items = MenuDAO(db).get_todays_menu(target_date, user_id)
     return {"date": target_date.isoformat(), "item_count": len(menu_items), "menu": menu_items}
 
 
 @app.get("/menu/weekly")
-def get_weekly_menu(db=Depends(get_db)):
-    return MenuDAO(db).get_weekly_menu()
+def get_weekly_menu(user_id: int = None, db=Depends(get_db)):
+    return MenuDAO(db).get_weekly_menu(user_id=user_id)
 
 
 @app.get("/admin/students/all")

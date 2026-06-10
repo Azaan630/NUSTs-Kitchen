@@ -275,7 +275,6 @@ def rate_food_item(user_id, item_id, meal_date, meal_type, score):
     for m in _db["menu_schedule"]:
         if m.get("Item_ID") == item_id and m.get("meal_type") == meal_type:
             m["user_rating"] = score
-            m["Ratings_Average"] = score
     return {"message": "Rating saved"}
 
 

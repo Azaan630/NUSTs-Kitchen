@@ -46,17 +46,20 @@ async def get_my_profile(email: str) -> Dict[str, Any]:
 
 
 # ── Menu ───────────────────────────────────────────────────────────
-async def get_todays_menu(email: str, target_date: date = None) -> Dict[str, Any]:
+async def get_todays_menu(email: str, target_date: date = None, user_id: int = None) -> Dict[str, Any]:
     if target_date is None:
         target_date = date.today()
-    return await _make_request(
-        "GET", "/menu/today",
-        params={"email": email, "target_date": target_date.isoformat()},
-    )
+    params = {"email": email, "target_date": target_date.isoformat()}
+    if user_id is not None:
+        params["user_id"] = user_id
+    return await _make_request("GET", "/menu/today", params=params)
 
 
-async def get_weekly_menu() -> Any:
-    return await _make_request("GET", "/menu/weekly")
+async def get_weekly_menu(user_id: int = None) -> Any:
+    params = {}
+    if user_id is not None:
+        params["user_id"] = user_id
+    return await _make_request("GET", "/menu/weekly", params=params)
 
 
 # ── Ratings ────────────────────────────────────────────────────────
