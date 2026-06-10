@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
         await run_db_seeder()
     except Exception as e:
         print(f"Startup database routing error: {e}")
-    yield 
+    yield
 app = FastAPI(title="NUST's Kitchen API", lifespan=lifespan)
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
@@ -166,7 +166,8 @@ def get_todays_menu(target_date: date = Query(default=date.today()), db=Depends(
 def get_weekly_menu(db=Depends(get_db)):
     cursor = db.cursor(dictionary=True)
     from dao.queries import getWeeklyMenu
-    cursor.execute(getWeeklyMenu)
+    today = date.today()
+    cursor.execute(getWeeklyMenu, (today, today))
     menu_items = cursor.fetchall()
     cursor.close()
     return menu_items
