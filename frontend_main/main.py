@@ -24,14 +24,20 @@ def build_landing(page, login_click, guest_login, show_register):
 
     return ft.Container(
         content=ft.Column([
-            ft.Container(height=60),
-            ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=72, color=AMBER),
-            ft.Container(height=16),
-            ft.Text("NUST's Kitchen", size=56, weight="bold",
-                    font_family="Playfair", color=WHITE),
-            ft.Text("NUST SEECS Mess Portal", size=16, color=GREY,
-                    font_family="DM Sans"),
-            ft.Container(height=48),
+            ft.Container(height=80),
+            ft.Container(
+                content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=64, color=AMBER),
+                bgcolor=ft.Colors.with_opacity(0.1, AMBER),
+                width=100, height=100, border_radius=50,
+                alignment=ft.Alignment(0, 0),
+            ),
+            ft.Container(height=24),
+            ft.Text("NUST's Kitchen", size=48, weight="bold",
+                    font_family="Playfair", color=WHITE,
+                    letter_spacing=1),
+            ft.Text("Mess Portal \u2022 SEECS", size=14, color=GREY,
+                    font_family="DM Sans", letter_spacing=2),
+            ft.Container(height=56),
             ft.Container(
                 content=ft.FilledButton(
                     content=ft.Row([
@@ -42,39 +48,39 @@ def build_landing(page, login_click, guest_login, show_register):
                     on_click=login_click,
                     style=ft.ButtonStyle(
                         bgcolor=AMBER,
-                        padding=ft.Padding.symmetric(horizontal=32, vertical=18),
-                        shape=ft.RoundedRectangleBorder(radius=16),
+                        padding=ft.Padding.symmetric(horizontal=40, vertical=18),
+                        shape=ft.RoundedRectangleBorder(radius=14),
                         elevation=0,
                     ),
                 ),
             ),
-            ft.Container(height=12),
-            ft.TextButton(
-                content=ft.Text("Register as new Student / Staff",
-                                color=AMBER, size=13, font_family="DM Sans",
-                                weight="bold"),
-                on_click=lambda e: show_register(),
-            ),
-            ft.Container(height=28),
-            ft.Text("— or try a demo —", size=12, color=GREY, font_family="DM Sans"),
-            ft.Container(height=12),
+            ft.Container(height=20),
+            ft.Text("— or —", size=12, color=GREY, font_family="DM Sans",
+                    letter_spacing=1),
+            ft.Container(height=16),
             ft.Row([
-                ft.OutlinedButton("Guest Student", icon=ft.Icons.SCHOOL_ROUNDED,
+                ft.OutlinedButton("Guest Student",
                     on_click=lambda e: guest_login("Student"),
                     style=ft.ButtonStyle(color=WHITE, side=ft.BorderSide(1, AMBER),
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                        padding=ft.Padding.symmetric(horizontal=16, vertical=10))),
-                ft.OutlinedButton("Guest Staff", icon=ft.Icons.BADGE_ROUNDED,
+                        shape=ft.RoundedRectangleBorder(radius=10),
+                        padding=ft.Padding.symmetric(horizontal=14, vertical=10))),
+                ft.OutlinedButton("Guest Staff",
                     on_click=lambda e: guest_login("Staff"),
                     style=ft.ButtonStyle(color=WHITE, side=ft.BorderSide(1, AMBER),
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                        padding=ft.Padding.symmetric(horizontal=16, vertical=10))),
-                ft.OutlinedButton("Guest Admin", icon=ft.Icons.ADMIN_PANEL_SETTINGS_ROUNDED,
+                        shape=ft.RoundedRectangleBorder(radius=10),
+                        padding=ft.Padding.symmetric(horizontal=14, vertical=10))),
+                ft.OutlinedButton("Guest Admin",
                     on_click=lambda e: guest_login("Admin"),
                     style=ft.ButtonStyle(color=WHITE, side=ft.BorderSide(1, AMBER),
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                        padding=ft.Padding.symmetric(horizontal=16, vertical=10))),
+                        shape=ft.RoundedRectangleBorder(radius=10),
+                        padding=ft.Padding.symmetric(horizontal=14, vertical=10))),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
+            ft.Container(height=24),
+            ft.TextButton(
+                content=ft.Text("New here? Register as Student / Staff",
+                                color=AMBER, size=13, font_family="DM Sans"),
+                on_click=lambda e: show_register(),
+            ),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
         alignment=ft.Alignment(0, 0), expand=True,
     )
@@ -87,31 +93,32 @@ def build_register_form(page, on_submit, on_back):
     WHITE = "#FFFFFF"
 
     role_dd = ft.Dropdown(
-        label="I am a",
+        label="Role",
         options=[ft.dropdown.Option("Student"), ft.dropdown.Option("Staff")],
-        value="Student", width=300,
+        value="Student", width=320,
         color=WHITE, label_style=ft.TextStyle(color=GREY, size=13),
-        border_color=AMBER,
+        border_color=AMBER, prefix_icon=ft.Icons.PERSON_ROUNDED,
     )
 
     fields = {}
-    for key, label, hint in [
-        ("first", "First Name", "e.g. Muhammad"),
-        ("last", "Last Name", "e.g. Azaan"),
-        ("email", "Email", "you@seecs.edu.pk"),
-        ("dob", "Date of Birth", "YYYY-MM-DD"),
-        ("dept", "Department", "e.g. CS, SE, EE"),
-        ("phone", "Contact Number", "03XX-XXXXXXX"),
-        ("address", "Address", "e.g. H-12 NUST"),
-        ("father", "Father's Name", ""),
-        ("hostel", "Hostel Name", "e.g. Ghazali"),
-        ("room", "Room Number", "e.g. 101"),
-        ("category", "Staff Category", "Chef / Server (Staff only)"),
+    for key, label, hint, icon in [
+        ("first", "First Name", "Muhammad", ft.Icons.BADGE_ROUNDED),
+        ("last", "Last Name", "Azaan", ft.Icons.BADGE_ROUNDED),
+        ("email", "Email", "you@seecs.edu.pk", ft.Icons.EMAIL_ROUNDED),
+        ("dob", "Date of Birth", "YYYY-MM-DD", ft.Icons.CALENDAR_MONTH_ROUNDED),
+        ("dept", "Department", "CS, SE, EE", ft.Icons.SCHOOL_ROUNDED),
+        ("phone", "Contact", "03XX-XXXXXXX", ft.Icons.PHONE_ROUNDED),
+        ("address", "Address", "H-12 NUST", ft.Icons.HOME_ROUNDED),
+        ("father", "Father's Name", "", ft.Icons.PEOPLE_ROUNDED),
+        ("hostel", "Hostel", "Ghazali", ft.Icons.BED_ROUNDED),
+        ("room", "Room No.", "101", ft.Icons.NUMBERS_ROUNDED),
+        ("category", "Staff Category", "Chef / Server", ft.Icons.WORK_ROUNDED),
     ]:
         fields[key] = ft.TextField(
-            label=label, hint_text=hint, width=300,
+            label=label, hint_text=hint, width=320,
             color=WHITE, label_style=ft.TextStyle(color=GREY, size=13),
-            border_color=AMBER, cursor_color=AMBER,
+            border_color="#3A4A5A", cursor_color=AMBER,
+            prefix_icon=icon, border_radius=10,
         )
 
     msg = ft.Text("", size=13, color=AMBER, font_family="DM Sans")
@@ -164,33 +171,56 @@ def build_register_form(page, on_submit, on_back):
 
     return ft.Container(
         content=ft.Column([
-            ft.Container(height=40),
-            ft.Text("Create Account", size=32, weight="bold",
+            ft.Container(height=48),
+            ft.Container(
+                content=ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, size=40, color=AMBER),
+                bgcolor=ft.Colors.with_opacity(0.1, AMBER),
+                width=72, height=72, border_radius=36,
+                alignment=ft.Alignment(0, 0),
+            ),
+            ft.Container(height=20),
+            ft.Text("Create Account", size=28, weight="bold",
                     font_family="Playfair", color=AMBER),
             ft.Text("Admin will review and approve your request",
                     size=13, color=GREY, font_family="DM Sans"),
-            ft.Container(height=20),
-            role_dd,
+            ft.Container(height=24),
+            role_dd, ft.Container(height=4),
             *[fields[k] for k in ["first", "last", "email"]],
-            ft.Text("Student details (optional for Staff)", size=12,
-                    color=GREY, font_family="DM Sans", italic=True),
+            ft.Container(height=8),
+            ft.Container(
+                content=ft.Text("Student-specific fields", size=12,
+                        color=GREY, font_family="DM Sans"),
+                bgcolor=ft.Colors.with_opacity(0.06, AMBER),
+                border_radius=8, padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+            ),
+            ft.Container(height=4),
             *[fields[k] for k in ["dob", "dept", "phone", "address",
                                    "father", "hostel", "room"]],
             fields["category"],
+            ft.Container(height=12),
             msg,
             ft.Container(height=8),
-            ft.FilledButton("Submit Request",
+            ft.FilledButton(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.SEND_ROUNDED, color=NAVY, size=16),
+                    ft.Text("Submit Request", color=NAVY, weight="bold",
+                            font_family="DM Sans", size=14),
+                ], spacing=8, tight=True),
                 on_click=submit,
                 style=ft.ButtonStyle(
-                    bgcolor=AMBER, color=NAVY, weight="bold",
-                    shape=ft.RoundedRectangleBorder(radius=12),
-                    padding=ft.Padding.symmetric(horizontal=32, vertical=14),
+                    bgcolor=AMBER,
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.Padding.symmetric(horizontal=36, vertical=14),
+                    elevation=0,
                 ),
             ),
             ft.Container(height=8),
-            ft.TextButton("← Back to Login",
+            ft.TextButton(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, color=AMBER, size=16),
+                    ft.Text("Back to Login", color=AMBER, size=13, font_family="DM Sans"),
+                ], spacing=4, tight=True),
                 on_click=lambda e: on_back(),
-                style=ft.ButtonStyle(color=AMBER),
             ),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE),
         alignment=ft.Alignment(0, 0), expand=True,
@@ -287,15 +317,23 @@ async def main(page: ft.Page):
 
         top_bar = ft.Container(
             content=ft.Row([
-                ft.Text("RotiRouter", size=22, weight="bold",
-                        font_family="Playfair", color=AMBER),
-                ft.Row([name_chip, dark_btn, _logout_btn], spacing=4),
+                ft.Row([
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=18, color=AMBER),
+                        bgcolor=ft.Colors.with_opacity(0.12, AMBER),
+                        width=32, height=32, border_radius=8,
+                        alignment=ft.Alignment(0, 0),
+                    ),
+                    ft.Text("RotiRouter", size=20, weight="bold",
+                            font_family="Playfair", color=AMBER),
+                ], spacing=10),
+                ft.Row([name_chip, dark_btn, _logout_btn], spacing=2),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=24, vertical=12),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=8),
             bgcolor=WHITE,
-            shadow=ft.BoxShadow(blur_radius=20,
-                color=ft.Colors.with_opacity(0.08, "#000000"),
-                offset=ft.Offset(0, 2)),
+            shadow=ft.BoxShadow(blur_radius=12,
+                color=ft.Colors.with_opacity(0.06, "#000000"),
+                offset=ft.Offset(0, 1)),
         )
 
         NAV_ITEMS = [
@@ -469,7 +507,6 @@ async def main(page: ft.Page):
     def logout_click(e):
         is_dark["v"] = False
         page.current_user_data = {}
-        page.auth = None
         page.clean()
         page.bgcolor = "#0D1B2A"
         page.theme_mode = ft.ThemeMode.LIGHT
@@ -492,9 +529,10 @@ async def main(page: ft.Page):
         page.add(build_register_form(page, None, show_landing))
         page.update()
 
-    if page.auth and page.auth.user and hasattr(page, "current_user_data"):
+    if page.auth and page.auth.user and page.current_user_data:
         await show_dashboard()
     else:
+        page.current_user_data = {}
         show_landing()
     page.update()
 
