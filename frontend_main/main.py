@@ -111,12 +111,12 @@ def build_landing(page, login_click, guest_login, show_register):
             ], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=16),
             ft.Row([
-                ft.OutlinedButton(text, on_click=lambda e, r=text: guest_login(r),
+                ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
                     style=ft.ButtonStyle(color=t["text"],
                         side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
                         shape=ft.RoundedRectangleBorder(radius=10),
                         padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-                for text in ["Guest Student", "Guest Staff", "Guest Admin"]
+                for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
             ft.Container(height=24),
             ft.TextButton(
