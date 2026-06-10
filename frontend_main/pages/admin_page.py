@@ -138,28 +138,28 @@ class AdminPage:
         self.page.snack_bar.open = True
         self.page.update()
 
-    def _confirm(self, title, msg):
-        fut = asyncio.Future()
-        def ok(e):
-            if not fut.done(): fut.set_result(True)
-            dlg.open = False; self.page.update()
-        def cancel(e):
-            if not fut.done(): fut.set_result(False)
-            dlg.open = False; self.page.update()
+    def _confirm(self, title, msg, on_delete):
         dlg = ft.AlertDialog(
             title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
             content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
             actions=[
-                ft.TextButton("Cancel", on_click=cancel),
-                ft.TextButton("Delete", on_click=ok,
+                ft.TextButton("Cancel", on_click=lambda e: close()),
+                ft.TextButton("Delete", on_click=lambda e: (close(), run()),
                               style=ft.ButtonStyle(color=self._clr("danger"))),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
+        def close():
+            dlg.open = False
+            self.page.update()
+        def run():
+            if asyncio.iscoroutinefunction(on_delete):
+                asyncio.create_task(self._safe_task(on_delete()))
+            else:
+                on_delete()
         self.page.dialog = dlg
         dlg.open = True
         self.page.update()
-        return fut
 
     def _card(self, *controls, pad=14):
         return ft.Container(
@@ -201,9 +201,14 @@ class AdminPage:
             cursor_color=self._clr("accent"),
         )
 
+    def _safe_task(self, coro):
+        task = asyncio.create_task(coro)
+        task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
+        return task
+
     def _wrap(self, cb):
         if asyncio.iscoroutinefunction(cb):
-            return lambda e: asyncio.create_task(cb(e))
+            return lambda e: self._safe_task(cb(e))
         return cb
 
     def _btn(self, label, icon, cb, compact=False):
@@ -374,13 +379,13 @@ class AdminPage:
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
             async def do_del(e, u=uid):
-                if not await self._confirm("Delete Student", f"Remove {name}?"):
-                    return
-                if self.is_guest: mock_data.delete_student(u)
-                else:
-                    r = await _api("students")["delete"](self.email, u)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Deleted"); await refresh()
+                async def _delete():
+                    if self.is_guest: mock_data.delete_student(u)
+                    else:
+                        r = await _api("students")["delete"](self.email, u)
+                        if "error" in (r or {}): self._snack(r["error"], False); return
+                    self._snack("Deleted"); await refresh()
+                self._confirm("Delete Student", f"Remove {name}?", _delete)
             student_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -436,13 +441,13 @@ class AdminPage:
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
             async def do_del(e, u=uid):
-                if not await self._confirm("Delete Staff", f"Remove {name}?"):
-                    return
-                if self.is_guest: mock_data.delete_staff(u)
-                else:
-                    r = await _api("staff")["delete"](self.email, u)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Deleted"); await refresh()
+                async def _delete():
+                    if self.is_guest: mock_data.delete_staff(u)
+                    else:
+                        r = await _api("staff")["delete"](self.email, u)
+                        if "error" in (r or {}): self._snack(r["error"], False); return
+                    self._snack("Deleted"); await refresh()
+                self._confirm("Delete Staff", f"Remove {name}?", _delete)
             staff_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -536,13 +541,13 @@ class AdminPage:
                 self._snack("Updated")
 
             async def do_del(e, i=iid):
-                if not await self._confirm("Delete Food Item", f"Remove {name}?"):
-                    return
-                if self.is_guest: mock_data.delete_food(i)
-                else:
-                    r = await _api("food")["delete"](self.email, i)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Deleted"); await refresh()
+                async def _delete():
+                    if self.is_guest: mock_data.delete_food(i)
+                    else:
+                        r = await _api("food")["delete"](self.email, i)
+                        if "error" in (r or {}): self._snack(r["error"], False); return
+                    self._snack("Deleted"); await refresh()
+                self._confirm("Delete Food Item", f"Remove {name}?", _delete)
 
             food_rows.controls.append(self._row_card([
                 ef_name, ef_price,
@@ -594,13 +599,13 @@ class AdminPage:
                         if "error" in (res or {}): self._snack(res["error"], False); return
                     self._snack("Approved"); await self._render_mess_off(ref)
                 async def do_rej(e, r=rid):
-                    if not await self._confirm("Reject Request", "Reject this mess-off request?"):
-                        return
-                    if self.is_guest: mock_data.reject_mess_off(r)
-                    else:
-                        res = await _api("mess_off")["reject"](self.email, r)
-                        if "error" in (res or {}): self._snack(res["error"], False); return
-                    self._snack("Rejected"); await self._render_mess_off(ref)
+                    async def _reject():
+                        if self.is_guest: mock_data.reject_mess_off(r)
+                        else:
+                            res = await _api("mess_off")["reject"](self.email, r)
+                            if "error" in (res or {}): self._snack(res["error"], False); return
+                        self._snack("Rejected"); await self._render_mess_off(ref)
+                    self._confirm("Reject Request", "Reject this mess-off request?", _reject)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
             rows.append(self._row_card([
@@ -743,13 +748,13 @@ class AdminPage:
             d = item.get("Date", "")
             mc = m_colors.get(mt, self._clr("accent"))
             async def do_del(e, i=iid, s=sid):
-                if not await self._confirm("Remove Menu Item", f"Remove {name}?"):
-                    return
-                if self.is_guest: mock_data.delete_menu_item(i, s)
-                else:
-                    r = await _api("menu")["delete"](self.email, i, s)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Removed"); await self._render_menu(ref)
+                async def _delete():
+                    if self.is_guest: mock_data.delete_menu_item(i, s)
+                    else:
+                        r = await _api("menu")["delete"](self.email, i, s)
+                        if "error" in (r or {}): self._snack(r["error"], False); return
+                    self._snack("Removed"); await self._render_menu(ref)
+                self._confirm("Remove Menu Item", f"Remove {name}?", _delete)
             rows.append(self._row_card([
                 ft.Container(
                     content=ft.Text(mt[:1], size=12, weight="bold", color=mc),
@@ -794,8 +799,9 @@ class AdminPage:
         # ── search food ────────────────────────────────────────
         async def do_search(q):
             search_rows.controls.clear()
-            if len(q) < 1:
+            if not q or len(q.strip()) < 1:
                 self.page.update(); return
+            q = q.strip()
             sdata = (mock_data.search_food(q) if self.is_guest
                      else _ensure_list(await _api("food")["search"](self.email, q)))
             for fi in sdata:
@@ -861,7 +867,7 @@ class AdminPage:
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
             border_radius=10, filled=True, fill_color=self._clr("card2"),
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
-            on_change=lambda e: asyncio.create_task(do_search(e.control.value)),
+            on_change=lambda e: self._safe_task(do_search(e.control.value)),
             expand=True,
         )
 
@@ -879,14 +885,13 @@ class AdminPage:
 
         # ── end poll ───────────────────────────────────────────
         async def do_end(e):
-            if not await self._confirm("End Poll", "End the current poll?"):
-                return
-            if self.is_guest:
-                mock_data.end_poll()
-            else:
-                r = await _api("poll")["end"](self.email)
-                if "error" in (r or {}): self._snack(r["error"], False); return
-            self._snack("Poll ended"); await refresh()
+            async def _end():
+                if self.is_guest: mock_data.end_poll()
+                else:
+                    r = await _api("poll")["end"](self.email)
+                    if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Poll ended"); await refresh()
+            self._confirm("End Poll", "End the current poll?", _end)
 
         # ── build sections ─────────────────────────────────────
         is_active = isinstance(active_poll, dict) and active_poll.get("active", False)
@@ -973,13 +978,13 @@ class AdminPage:
                         if "error" in (rr or {}): self._snack(rr["error"], False); return
                     self._snack("Approved"); await self._render_requests(ref)
                 async def do_rej(e, ri=rid):
-                    if not await self._confirm("Reject Request", f"Reject {name}'s registration?"):
-                        return
-                    if self.is_guest: mock_data.reject_registration(ri)
-                    else:
-                        rr = await _api("registration")["reject"](self.email, ri)
-                        if "error" in (rr or {}): self._snack(rr["error"], False); return
-                    self._snack("Rejected"); await self._render_requests(ref)
+                    async def _reject():
+                        if self.is_guest: mock_data.reject_registration(ri)
+                        else:
+                            rr = await _api("registration")["reject"](self.email, ri)
+                            if "error" in (rr or {}): self._snack(rr["error"], False); return
+                        self._snack("Rejected"); await self._render_requests(ref)
+                    self._confirm("Reject Request", f"Reject {name}'s registration?", _reject)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
             cards.append(self._row_card([
