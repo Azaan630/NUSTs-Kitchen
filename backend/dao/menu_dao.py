@@ -7,6 +7,19 @@ class MenuDAO(BaseDAO):
     def get_todays_menu(self, target_date):
         return self._fetchall(getMenuByDate, (target_date,))
 
+    def get_ratings_summary(self):
+        """Aggregate rating averages for all food items that have been rated."""
+        return self._fetchall("""
+            SELECT fi.Item_ID, fi.Name,
+                   ROUND(AVG(r.Score), 2) AS avg_rating,
+                   COUNT(r.Rating_ID) AS rating_count,
+                   fi.Ratings_Average
+            FROM Food_Items fi
+            LEFT JOIN Ratings r ON fi.Item_ID = r.Item_ID
+            GROUP BY fi.Item_ID, fi.Name, fi.Ratings_Average
+            ORDER BY avg_rating DESC
+        """)
+
     def get_weekly_menu(self, today=None):
         if today is None:
             today = date.today()

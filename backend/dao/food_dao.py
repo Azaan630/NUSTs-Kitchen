@@ -4,6 +4,8 @@ from dao.queries import (
     getFoodByID, getIngredients, getRecipes, addRecipe,
     createIngredient, giveFoodRating, getFoodRating,
 )
+from io import StringIO
+import csv
 
 
 class FoodDAO(BaseDAO):
@@ -60,3 +62,16 @@ class FoodDAO(BaseDAO):
 
     def get_food_rating(self, schedule_id, item_id):
         return self._fetchone(getFoodRating, (schedule_id, item_id))
+
+    def search_food_items(self, query, limit=20):
+        pattern = f"%{query}%"
+        return self._fetchall(
+            "SELECT * FROM Food_Items WHERE Name LIKE %s LIMIT %s",
+            (pattern, limit)
+        )
+
+    def get_low_stock_ingredients(self, threshold=10):
+        return self._fetchall(
+            "SELECT * FROM Ingredients WHERE Total_Quantity < %s ORDER BY Total_Quantity ASC",
+            (threshold,)
+        )

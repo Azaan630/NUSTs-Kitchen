@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 import os
-from io import BytesIO
+from io import BytesIO, StringIO
+import csv
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from fastapi.responses import StreamingResponse
@@ -184,8 +185,7 @@ def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends
 
 @app.delete("/admin/students/delete/{UserID}")
 def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    BaseDAO(db).delete_record("Student", "UserID", UserID)
-    return BaseDAO(db).delete_record("Users", "UserID", UserID)
+    return UserDAO(db).cascade_delete_user(UserID)
 
 
 # ── Staff ──────────────────────────────────────────────────────
@@ -206,8 +206,7 @@ def update_staff_profile(data: models.Staff, UserID: int, user=Depends(permissio
 
 @app.delete("/admin/staff/delete/{UserID}")
 def delete_staff(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    BaseDAO(db).delete_record("Staff", "UserID", UserID)
-    return BaseDAO(db).delete_record("Users", "UserID", UserID)
+    return UserDAO(db).cascade_delete_user(UserID)
 
 
 @app.post("/admin/staff/contact/{UserID}")
@@ -392,7 +391,7 @@ def update_menu(data: models.MenuFoodItem, ItemID: int, ScheduleID: int, user=De
     return BaseDAO(db).update_record("Menu_Food_Items", data, "ScheduleID", ScheduleID)
 
 
-@app.delete("/admin/menu/{ItemID}/{ScheduleID}")
+@app.delete("/admin/menu-schedule/{ItemID}/{ScheduleID}")
 def delete_menu(ItemID: int, ScheduleID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return MenuDAO(db).delete_menu_item(ItemID, ScheduleID)
 
@@ -477,3 +476,75 @@ def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "
 @app.get("/student/mess-off/{MessOffID}")
 def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Admin"])), db=Depends(get_db)):
     return MessOffDAO(db).get_mess_off_status(MessOffID)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  QUALITY-OF-LIFE ENDPOINTS
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/admin/dashboard/stats")
+def get_dashboard_stats(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BillDAO(db).get_dashboard_stats()
+
+
+@app.get("/admin/food/search")
+def search_food_items(q: str = Query(min_length=1), limit: int = Query(default=20, le=100),
+                      user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    return FoodDAO(db).search_food_items(q, limit)
+
+
+@app.get("/admin/users/search")
+def search_users(q: str = Query(min_length=1), limit: int = Query(default=20, le=100),
+                 user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return UserDAO(db).search_users(q, limit)
+
+
+@app.get("/analytics/ingredients/low-stock")
+def get_low_stock_ingredients(threshold: float = Query(default=10, ge=0),
+                              user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    return FoodDAO(db).get_low_stock_ingredients(threshold)
+
+
+@app.get("/admin/bills/export-csv")
+def export_bills_csv(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    csv_data = BillDAO(db).export_bills_csv()
+    return StreamingResponse(
+        iter([csv_data]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bills_export.csv"}
+    )
+
+
+@app.get("/admin/students/export-csv")
+def export_students_csv(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    csv_data = UserDAO(db).export_students_csv()
+    return StreamingResponse(
+        iter([csv_data]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=students_export.csv"}
+    )
+
+
+@app.get("/admin/activity/feed")
+def get_activity_feed(limit: int = Query(default=10, le=50),
+                      user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BillDAO(db).get_recent_activity(limit)
+
+
+@app.post("/admin/bills/generate-monthly")
+def trigger_monthly_bills(amount: float = Query(default=5000),
+                          user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BillDAO(db).generate_monthly_bills(amount)
+
+
+@app.get("/student/dashboard/stats")
+def get_student_dashboard_stats(email: str, db=Depends(get_db),
+                                user=Depends(permission_checker(["Student"]))):
+    user_record = UserDAO(db).find_by_email(email)
+    return UserDAO(db).get_student_dashboard_stats(user_record["UserID"])
+
+
+@app.get("/menu/ratings-summary")
+def get_ratings_summary(user=Depends(permission_checker(["Admin", "Staff", "Student"])),
+                        db=Depends(get_db)):
+    return MenuDAO(db).get_ratings_summary()
