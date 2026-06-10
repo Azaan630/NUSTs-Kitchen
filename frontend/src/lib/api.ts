@@ -40,8 +40,8 @@ export async function getMe(email: string): Promise<User> {
 
 // Menu
 export async function getTodayMenu(email: string): Promise<MenuScheduleItem[]> {
-  const { data } = await api.get<MenuScheduleItem[]>('/menu/today', authParams(email))
-  return data
+  const { data } = await api.get<{ date: string; item_count: number; menu: MenuScheduleItem[] }>('/menu/today', authParams(email))
+  return data.menu
 }
 
 export async function getWeeklyMenu(email: string): Promise<MenuScheduleItem[]> {
@@ -213,8 +213,8 @@ export async function startPoll(email: string): Promise<void> {
 }
 
 export async function getActivePoll(email: string): Promise<MenuFoodItem[]> {
-  const { data } = await api.get<MenuFoodItem[]>('/poll/active', authParams(email))
-  return data
+  const { data } = await api.get<{ active: boolean; items?: MenuFoodItem[] }>('/poll/active', authParams(email))
+  return data.active && data.items ? data.items : []
 }
 
 export async function castVote(email: string, userId: number, itemId: number): Promise<void> {
@@ -222,8 +222,8 @@ export async function castVote(email: string, userId: number, itemId: number): P
 }
 
 export async function getPollResults(email: string): Promise<PollResult[]> {
-  const { data } = await api.get<PollResult[]>('/admin/poll/results', authParams(email))
-  return data
+  const { data } = await api.get<{ results: PollResult[] }>('/admin/poll/results', authParams(email))
+  return data.results
 }
 
 // Bills
