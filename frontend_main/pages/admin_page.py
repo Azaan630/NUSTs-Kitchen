@@ -105,6 +105,7 @@ class AdminPage:
         self.is_guest = theme.get("is_guest", False)
         self.tab_idx = {"v": 0}
         self.content = ft.Container(expand=True)
+        self.content.content = self._loading()
         self.proxy_rows = {}
 
     # ── helpers ─────────────────────────────────────────────────
@@ -742,6 +743,18 @@ class AdminPage:
     #  BUILD
     # ════════════════════════════════════════════════════════════
 
+    async def _safe_render(self, method_name, ref):
+        try:
+            await getattr(self, method_name)(ref)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            ref.content = ft.Column([
+                ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, size=48, color=self._clr("danger")),
+                ft.Text(f"Error: {e}", color=self._clr("danger"), font_family="DM Sans", size=14),
+            ], alignment=ft.MainAxisAlignment.CENTER, expand=True)
+            self.page.update()
+
     RENDERERS = [
         "_render_dashboard", "_render_students", "_render_staff",
         "_render_food", "_render_mess_off", "_render_bills",
@@ -752,7 +765,7 @@ class AdminPage:
         def select_tab(idx):
             self.tab_idx["v"] = idx
             sidebar.controls[0] = self._sidebar(select_tab)
-            asyncio.create_task(getattr(self, self.RENDERERS[idx])(self.content))
+            asyncio.create_task(self._safe_render(self.RENDERERS[idx], self.content))
             self.page.update()
 
         sidebar = ft.Column([self._sidebar(select_tab)])
@@ -762,7 +775,7 @@ class AdminPage:
             ft.Container(content=self.content, expand=True, padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
         ], expand=True, spacing=0)
 
-        asyncio.create_task(self._render_dashboard(self.content))
+        asyncio.create_task(self._safe_render("_render_dashboard", self.content))
 
         return ft.Container(
             content=ft.Column([

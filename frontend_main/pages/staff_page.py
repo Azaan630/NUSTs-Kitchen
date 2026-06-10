@@ -37,6 +37,7 @@ class StaffPage:
         self.is_guest = theme.get("is_guest", False)
         self.section_idx = {"v": 0}
         self.content = ft.Container(expand=True)
+        self.content.content = self._loading()
 
     def _clr(self, key, fallback=None):
         return self.theme.get(key, fallback)
@@ -279,6 +280,20 @@ class StaffPage:
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
+    # ── Safe render wrapper ────────────────────────────────────
+
+    async def _safe_render(self, method_name, ref):
+        try:
+            await getattr(self, method_name)(ref)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            ref.content = ft.Column([
+                ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, size=48, color=self._clr("danger")),
+                ft.Text(f"Error: {e}", color=self._clr("danger"), font_family="DM Sans", size=14),
+            ], alignment=ft.MainAxisAlignment.CENTER, expand=True)
+            self.page.update()
+
     # ── BUILD ──────────────────────────────────────────────────
 
     RENDERERS = ["_render_menu", "_render_food", "_render_ingredients", "_render_recipes"]
@@ -287,7 +302,7 @@ class StaffPage:
         def select_section(idx):
             self.section_idx["v"] = idx
             sidebar.controls[0] = self._sidebar(select_section)
-            asyncio.create_task(getattr(self, self.RENDERERS[idx])(self.content))
+            asyncio.create_task(self._safe_render(self.RENDERERS[idx], self.content))
             self.page.update()
 
         sidebar = ft.Column([self._sidebar(select_section)])
@@ -297,7 +312,7 @@ class StaffPage:
             ft.Container(content=self.content, expand=True, padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
         ], expand=True, spacing=0)
 
-        asyncio.create_task(self._render_menu(self.content))
+        asyncio.create_task(self._safe_render("_render_menu", self.content))
 
         return ft.Container(
             content=ft.Column([
