@@ -68,6 +68,15 @@ async def api_add_menu_item(email, item_id, menu_date, meal_type):
 async def api_delete_menu_item(email, item_id, schedule_id):
     return await _req("DELETE", f"/admin/menu_schedule/{item_id}/{schedule_id}", {"email": email})
 
+async def api_get_registration_requests(email, status="Pending"):
+    return await _req("GET", "/admin/registration-requests", {"email": email, "status": status})
+
+async def api_approve_registration(email, rid, data=None):
+    return await _req("POST", f"/admin/registration-requests/{rid}/approve", {"email": email}, data)
+
+async def api_reject_registration(email, rid):
+    return await _req("POST", f"/admin/registration-requests/{rid}/reject", {"email": email})
+
 async def api_start_poll(email, data):
     # Pass email in params, and the actual poll data in the JSON body
     return await _req("POST", "/admin/poll/start", params={"email": email}, json_data=data)
@@ -86,7 +95,8 @@ class AdminPage:
         ("Mess Off",  ft.Icons.EVENT_BUSY_ROUNDED),
         ("Bills",     ft.Icons.RECEIPT_LONG_ROUNDED),
         ("Menu",      ft.Icons.RESTAURANT_MENU_ROUNDED),
-        ("Polls", ft.Icons.POLL_ROUNDED),
+        ("Polls",     ft.Icons.POLL_ROUNDED),
+        ("Requests",  ft.Icons.PERSON_ADD_ALT_1_ROUNDED),
     ]
 
     def __init__(self, page: ft.Page, user_data: dict, theme: dict):
@@ -838,7 +848,7 @@ class AdminPage:
 
                 if ok:  # Refresh to show the new (empty) results list
                     await self._render_polls(content_ref)
-            except:
+            except (ValueError, TypeError):
                 self._snack("IDs must be numbers separated by commas", False)
 
         # 4. Final Assembly
@@ -863,6 +873,89 @@ class AdminPage:
 
         self.page.update()
 
+    async def _render_requests(self, content_ref):
+        content_ref.content = self._loading("Fetching requests…")
+        self.page.update()
+
+        if self.is_guest:
+            requests = mock_data.get_registration_requests()
+        else:
+            data = await api_get_registration_requests(self.email)
+            requests = data if isinstance(data, list) else []
+
+        cards = []
+        for r in requests:
+            rid = r.get("RequestID")
+            name = f"{r.get('First_Name','')} {r.get('Last_Name','')}"
+            role = r.get("Account_Type", "")
+            email = r.get("Email", "")
+
+            info_text = f"{role} \u2022 {email}"
+            if role == "Student":
+                info_text += f" \u2022 {r.get('Department','')} \u2022 {r.get('Hostel_Name','')}"
+            else:
+                info_text += f" \u2022 {r.get('Category','')}"
+
+            status = r.get("Status", "Pending")
+            status_colors = {
+                "Pending":  ("#F59E0B", "#FEF3C7"),
+                "Approved": ("#10B981", "#D1FAE5"),
+                "Rejected": ("#EF4444", "#FEE2E2"),
+            }
+            sc = status_colors.get(status, (self.sub, self.card2))
+
+            async def do_approve(e, req=r):
+                if self.is_guest:
+                    mock_data.approve_registration(rid)
+                    ok = True
+                else:
+                    res = await api_approve_registration(self.email, rid)
+                    ok = "error" not in (res or {})
+                self._snack("Request approved!" if ok else "Error", ok)
+                if ok:
+                    await self._render_requests(content_ref)
+
+            async def do_reject(e, req=r):
+                if self.is_guest:
+                    mock_data.reject_registration(rid)
+                    ok = True
+                else:
+                    res = await api_reject_registration(self.email, rid)
+                    ok = "error" not in (res or {})
+                self._snack("Request rejected." if ok else "Error", ok)
+                if ok:
+                    await self._render_requests(content_ref)
+
+            actions = []
+            if status == "Pending":
+                actions = [
+                    self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, "#10B981", "Approve", do_approve),
+                    self._icon_btn(ft.Icons.CANCEL_ROUNDED, "#EF4444", "Reject", do_reject),
+                ]
+
+            cards.append(self._row_card([
+                ft.Column([
+                    ft.Text(name, size=13, weight="bold", color=self.txt, font_family="DM Sans"),
+                    ft.Text(info_text, size=11, color=self.sub, font_family="DM Sans"),
+                ], expand=True, spacing=2),
+                self._chip(status, *sc),
+            ], actions=actions))
+
+        list_section = ft.Column([
+            ft.Row([
+                self._section_title(f"Registration Requests ({len(requests)})"),
+                self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
+                               lambda e: asyncio.create_task(self._render_requests(content_ref))),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=6),
+            ft.Column(cards, scroll=ft.ScrollMode.ADAPTIVE) if cards else
+            ft.Text("No pending requests.", color=self.sub, font_family="DM Sans"),
+        ])
+
+        content_ref.content = ft.Column([self._guest_banner(), list_section],
+                                        scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        self.page.update()
+
     # Tab dispatcher
 
     RENDERERS = [
@@ -872,7 +965,8 @@ class AdminPage:
         "_render_mess_off",
         "_render_bills",
         "_render_menu",
-        "_render_polls"
+        "_render_polls",
+        "_render_requests",
     ]
 
     # Build

@@ -1,6 +1,5 @@
 from datetime import date, datetime, timedelta
 import copy
-import calendar
 
 _db = {}
 
@@ -68,6 +67,13 @@ def init_session():
         "poll_meal_type": "",
         "poll_items": [],
         "poll_votes": {},
+        "registration_requests": [
+            {"RequestID": 1, "First_Name": "New", "Last_Name": "Student", "Email": "new.student@seecs.edu.pk",
+             "Account_Type": "Student", "Department": "CS", "Contact_Number": "03001112233",
+             "DoB": "2004-01-15", "Address": "H-12 NUST", "Father_Name": "Mr. Student",
+             "Hostel_Name": "Ghazali", "Room_Number": "105", "Status": "Pending",
+             "Created_At": date.today().isoformat()},
+        ],
     }
 
 
@@ -288,3 +294,46 @@ def get_todays_menu():
     today = date.today().isoformat()
     menu = [m for m in _db["menu_schedule"] if m.get("Date") == today]
     return {"menu": copy.deepcopy(menu), "date": today}
+
+
+def get_registration_requests(status="Pending"):
+    return copy.deepcopy(_db.get("registration_requests", []))
+
+
+def submit_registration_request(data):
+    rid = len(_db.get("registration_requests", [])) + 1
+    entry = {"RequestID": rid, **data, "Status": "Pending", "Created_At": date.today().isoformat()}
+    _db.setdefault("registration_requests", []).append(entry)
+    return {"message": "Request submitted"}
+
+
+def approve_registration(rid, data=None):
+    for r in _db.get("registration_requests", []):
+        if r.get("RequestID") == rid:
+            r["Status"] = "Approved"
+            if data:
+                r.update(data)
+            role = r.get("Account_Type", "Student")
+            if role == "Student":
+                sid = len(_db["students"]) + 101
+                _db["students"].append({
+                    "UserID": sid, "First_Name": r["First_Name"], "Last_Name": r["Last_Name"],
+                    "Email": r["Email"], "Account_Type": "Student",
+                    "Department": r.get("Department", ""), "Contact_Number": r.get("Contact_Number", ""),
+                    "Hostel_Name": r.get("Hostel_Name", ""), "Room_Number": r.get("Room_Number", ""),
+                })
+            elif role == "Staff":
+                sid = len(_db["staff"]) + 201
+                _db["staff"].append({
+                    "UserID": sid, "First_Name": r["First_Name"], "Last_Name": r["Last_Name"],
+                    "Email": r["Email"], "Account_Type": "Staff",
+                    "Category": r.get("Category", ""),
+                })
+    return {"message": "Approved"}
+
+
+def reject_registration(rid):
+    for r in _db.get("registration_requests", []):
+        if r.get("RequestID") == rid:
+            r["Status"] = "Rejected"
+    return {"message": "Rejected"}

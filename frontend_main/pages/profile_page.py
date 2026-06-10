@@ -1,7 +1,7 @@
 import flet as ft
 import asyncio
 import os
-from pages.api_client import get_my_bills, download_bill_pdf
+from pages.api_client import get_my_bills
 import mock_data
 
 

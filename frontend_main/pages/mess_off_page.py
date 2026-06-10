@@ -72,7 +72,7 @@ class StudentMessOffPage:
                 d   = (oe_ - os_).days + 1
                 if d > 0:
                     total += d
-            except:
+            except (ValueError, TypeError):
                 continue
         return max(12 - total, 0)
 
@@ -242,7 +242,7 @@ class StudentMessOffPage:
             try:
                 start = date.fromisoformat(start_field.value.strip())
                 end   = date.fromisoformat(end_field.value.strip())
-            except:
+            except ValueError:
                 self.page.snack_bar = ft.SnackBar(
                     content=ft.Text("Invalid date format — use YYYY-MM-DD", color="#FFF"),
                     bgcolor="#EF4444",

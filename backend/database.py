@@ -2,7 +2,6 @@ import time
 from mysql.connector import pooling, Error
 from dotenv import load_dotenv
 import os
-from mysql.connector.aio import MySQLConnectionPool
 
 load_dotenv()
 
@@ -22,22 +21,20 @@ def create_pool():
             print(f"Database not ready: {err}. Retrying in 5 seconds...")
             time.sleep(5)
 
-db_pool: MySQLConnectionPool = create_pool()
+db_pool = create_pool()
 
 
-async def run_db_seeder():
-    # Looks for seed.sql in the same directory as this file
+def run_db_seeder():
     seed_file_path = os.path.join(os.path.dirname(__file__), "seed.sql")
 
     if not os.path.exists(seed_file_path):
         print("Seeder skipped: seed.sql file not found.")
         return
 
-    print("Executing raw SQL seed scripts on Aiven cluster via Async connection pool...")
+    print("Executing SQL seed scripts...")
 
-    # Grab and await connection resources out of your custom aio pool
-    conn = await db_pool.get_connection()
-    cursor = await conn.cursor()
+    conn = db_pool.get_connection()
+    cursor = conn.cursor()
 
     try:
         with open(seed_file_path, "r") as f:
@@ -46,22 +43,19 @@ async def run_db_seeder():
         if not sql_content:
             return
 
-        # cursor.execute(..., multi=True) returns a regular iterable generator tracking operation tasks
-        iterator = await cursor.execute(sql_content, multi=True)
+        for statement in sql_content.split(";"):
+            stmt = statement.strip()
+            if stmt:
+                cursor.execute(stmt, multi=False)
 
-        # Use a standard loop, but await individual structural tasks inside it if needed
-        for statement_result in iterator:
-            # Explicitly consuming ensures the driver handles back-to-back commands
-            pass
-
-        await conn.commit()
-        print("Aiven Database initialized and seeded successfully!")
+        conn.commit()
+        print("Database seeded successfully!")
     except Exception as e:
-        await conn.rollback()
+        conn.rollback()
         print(f"Database seeding failed: {e}")
     finally:
-        await cursor.close()
-        await conn.close()
+        cursor.close()
+        conn.close()
 
 
 def get_db():
@@ -78,7 +72,7 @@ if __name__ == "__main__":
     try:
         print("Testing database connection...")
         connection = db_pool.get_connection()
-        print(f"Connected to {os.getenv('DB_NAME')} at {os.getenv('DB_HOST')}")
+        print(f"Connected successfully")
         connection.close()
     except Exception as e:
         print(f"Error: {e}")

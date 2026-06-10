@@ -31,7 +31,7 @@ async def _make_request(
         except httpx.HTTPStatusError as e:
             try:
                 error_detail = e.response.json().get("detail", e.response.text)
-            except:
+            except Exception:
                 error_detail = e.response.text
             return {"error": f"Backend Error ({e.response.status_code}): {error_detail}"}
 
