@@ -513,18 +513,27 @@ async def main(page: ft.Page):
                     ft.Container(height=80),
 
                     ft.Row([
-                        ft.Column([
-                            ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=28, color=P.PRIMARY_LT),
-                            ft.Text("Today's Menu", size=12, color=P.MUTED, font_family="DM Sans"),
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
-                        ft.Column([
-                            ft.Icon(ft.Icons.HOW_TO_VOTE_ROUNDED, size=28, color=P.ACCENT),
-                            ft.Text("Vote", size=12, color=P.MUTED, font_family="DM Sans"),
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
-                        ft.Column([
-                            ft.Icon(ft.Icons.RECEIPT_LONG_ROUNDED, size=28, color=P.ACCENT2),
-                            ft.Text("Bills", size=12, color=P.MUTED, font_family="DM Sans"),
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=28, color=P.PRIMARY_LT),
+                                ft.Text("Today's Menu", size=12, color=P.MUTED, font_family="DM Sans"),
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.HOW_TO_VOTE_ROUNDED, size=28, color=P.ACCENT),
+                                ft.Text("Vote", size=12, color=P.MUTED, font_family="DM Sans"),
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.RECEIPT_LONG_ROUNDED, size=28, color=P.ACCENT2),
+                                ft.Text("Bills", size=12, color=P.MUTED, font_family="DM Sans"),
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
                     ], spacing=40, alignment=ft.MainAxisAlignment.CENTER),
 
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
