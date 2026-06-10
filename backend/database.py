@@ -58,6 +58,17 @@ async def run_db_seeder():
         await cursor.close()
         await conn.close()
 
+
+def get_db():
+    if db_pool is not None:
+        conn = db_pool.get_connection()
+        try:
+            yield conn
+        finally:
+            conn.close()
+    else:
+        raise RuntimeError("Database pool was not initialized.")
+
 if __name__ == "__main__":
     try:
         print("Testing database connection...")
