@@ -95,7 +95,7 @@ def build_register_form(page, on_submit, on_back):
         options=[ft.dropdown.Option("Student"), ft.dropdown.Option("Staff")],
         value="Student", width=320,
         color=WHITE, label_style=ft.TextStyle(color=GREY, size=13),
-        border_color=AMBER, prefix_icon=ft.Icons.PERSON_ROUNDED,
+        border_color=AMBER,
     )
 
     fields = {}
