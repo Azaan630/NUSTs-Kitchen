@@ -61,6 +61,8 @@ def _api(table):
             "create":   lambda e,d: _req("POST", "/admin/bills/create", {"email": e}, d),
             "export":   lambda e: _req("GET", "/admin/bills/export-csv", {"email": e}),
             "generate": lambda e,a: _req("POST", "/admin/bills/generate-monthly", {"email": e, "amount": a}),
+            "update":   lambda e,i,d: _req("PATCH", f"/admin/bills/update/{i}", {"email": e}, d),
+            "pay":      lambda e,i,a,m: _req("POST", f"/admin/bills/pay/{i}", {"email": e, "amount": a, "method": m}),
         },
         "menu": {
             "weekly": lambda e: _req("GET", "/menu/weekly", {"email": e}),
@@ -174,6 +176,11 @@ class AdminPage:
             cursor_color=self._clr("accent"),
         )
 
+    def _wrap(self, cb):
+        if asyncio.iscoroutinefunction(cb):
+            return lambda e: asyncio.create_task(cb(e))
+        return cb
+
     def _btn(self, label, icon, cb, compact=False):
         return ft.FilledButton(
             content=ft.Row([
@@ -181,7 +188,7 @@ class AdminPage:
                 ft.Text(label, size=12, weight="bold", color=self._clr("text"),
                         font_family="DM Sans"),
             ], spacing=6, tight=True),
-            on_click=cb,
+            on_click=self._wrap(cb),
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.with_opacity(0.1, self._clr("accent")),
                 elevation=0,
@@ -192,7 +199,7 @@ class AdminPage:
 
     def _icon_btn(self, icon, color, tip, cb):
         return ft.IconButton(icon=icon, icon_color=color, tooltip=tip,
-                             icon_size=18, on_click=cb,
+                             icon_size=18, on_click=self._wrap(cb),
                              style=ft.ButtonStyle(padding=ft.Padding.all(4)))
 
     def _chip(self, label, fg, bg):
@@ -589,7 +596,12 @@ class AdminPage:
                     "Unpaid": (self._clr("warn"), ft.Colors.with_opacity(0.12, self._clr("warn"))),
                     "Overdue": (self._clr("danger"), ft.Colors.with_opacity(0.12, self._clr("danger")))}
         rows = []
+
+        async def refresh():
+            await self._render_bills(ref)
+
         for b in (bills if isinstance(bills, list) else []):
+            bid = b.get("Billing_ID")
             uid = b.get("User_ID")
             month = b.get("Billing_Month", "?")
             total = b.get("Total_Amount", 0)
@@ -597,14 +609,49 @@ class AdminPage:
             outstanding = b.get("Outstanding", 0)
             status = "Paid" if outstanding <= 0 else "Unpaid"
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
+
+            ef_total = ft.TextField(value=str(total), dense=True, width=100,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                filled=True, fill_color=self._clr("card"))
+
+            async def do_save(e, b=bid, tf=ef_total):
+                try:
+                    amt = float(tf.value or 0)
+                except ValueError:
+                    self._snack("Invalid amount", False); return
+                if self.is_guest:
+                    mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
+                else:
+                    r = await _api("bills")["update"](self.email, b, {"Amount": amt})
+                    if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Updated"); await refresh()
+
+            async def do_pay(e, b=bid, tf=ef_total, p=paid):
+                try:
+                    amt = float(tf.value or 0) - p
+                    if amt <= 0: self._snack("Already paid", False); return
+                except ValueError:
+                    self._snack("Invalid amount", False); return
+                if self.is_guest:
+                    mock_data.pay_bill(b, amt)
+                else:
+                    r = await _api("bills")["pay"](self.email, b, amt, "Cash")
+                    if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Paid"); await refresh()
+
             rows.append(self._row_card([
                 ft.Column([
                     ft.Text(f"User #{uid} \u2022 {month}", size=13, weight="bold",
                             color=self._clr("text"), font_family="DM Sans"),
-                    ft.Text(f"Total: PKR {total:.0f} \u2022 Paid: PKR {paid:.0f} \u2022 Due: PKR {outstanding:.0f}",
+                    ft.Row([ft.Text("Amount:", size=11, color=self._clr("sub"), font_family="DM Sans"), ef_total], spacing=6),
+                    ft.Text(f"Paid: PKR {paid:.0f} \u2022 Due: PKR {outstanding:.0f}",
                             size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 self._chip(status, fg, bg),
+            ], actions=[
+                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
+                self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay),
             ]))
 
         ref.content = ft.Column([

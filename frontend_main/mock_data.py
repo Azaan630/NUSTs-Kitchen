@@ -179,11 +179,22 @@ def update_bill(bid, data):
     for b in _db["bills"]:
         if b.get("Billing_ID") == bid:
             b.update(data)
+            b["Outstanding"] = b.get("Total_Amount", 0) - b.get("Total_Collected", 0)
     return {}
 
 
 def delete_bill(bid):
     _db["bills"] = [b for b in _db["bills"] if b.get("Billing_ID") != bid]
+    return {}
+
+
+def pay_bill(bid, amount):
+    for b in _db["bills"]:
+        if b.get("Billing_ID") == bid:
+            b["Total_Collected"] = b.get("Total_Collected", 0) + amount
+            b["Outstanding"] = b.get("Total_Amount", 0) - b["Total_Collected"]
+            if b["Outstanding"] <= 0:
+                b["Status"] = "Paid"
     return {}
 
 
