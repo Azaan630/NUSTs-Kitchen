@@ -39,7 +39,7 @@ def _api(table):
             "delete": lambda e,i: _req("DELETE", f"/admin/students/delete/{i}", {"email": e}),
         },
         "staff": {
-            "all":   lambda e: _req("GET", "/admin/students/all", {"email": e}),
+            "all":   lambda e: _req("GET", "/admin/staff/all", {"email": e}),
             "register": lambda e,d: _req("POST", "/admin/staff/register", {"email": e}, d),
             "update": lambda e,i,d: _req("PATCH", f"/admin/staff/update/{i}", {"email": e}, d),
             "delete": lambda e,i: _req("DELETE", f"/admin/staff/delete/{i}", {"email": e}),
@@ -197,7 +197,7 @@ class AdminPage:
             padding=ft.Padding.symmetric(horizontal=8, vertical=3),
         )
 
-    def _row_card(self, controls, actions=None):
+    def _row_card(self, controls, actions=None, data=None):
         row = list(controls)
         if actions:
             row.append(ft.Row(actions, spacing=2))
@@ -206,6 +206,7 @@ class AdminPage:
             bgcolor=self._clr("card"), border_radius=12,
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=6),
+            data=data,
         )
 
     def _guest_banner(self):
@@ -298,7 +299,7 @@ class AdminPage:
             stat_cards,
             ft.Container(height=20),
             self._card(activity_col),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -358,7 +359,7 @@ class AdminPage:
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             ft.Container(height=4),
             student_rows if student_rows.controls else ft.Text("No students found", color=self._clr("sub"), font_family="DM Sans"),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -416,7 +417,7 @@ class AdminPage:
             ft.Row([search_bar], spacing=8),
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             staff_rows if staff_rows.controls else ft.Text("No staff found", color=self._clr("sub"), font_family="DM Sans"),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -493,7 +494,7 @@ class AdminPage:
             ft.Row([search_bar], spacing=8),
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             food_rows if food_rows.controls else ft.Text("No food items", color=self._clr("sub"), font_family="DM Sans"),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -549,7 +550,7 @@ class AdminPage:
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No requests", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -561,11 +562,15 @@ class AdminPage:
         bills = (await _api("bills")["summary"](self.email)) if not self.is_guest else mock_data.get_monthly_bills()
 
         async def do_export(e):
-            csv_r = await _api("bills")["export"](self.email)
-            if "error" not in (csv_r or {}):
+            if self.is_guest:
+                self._snack("Export not available in guest mode", ok=False)
+                return
+            url = f"{BASE_URL}/admin/bills/export-csv?email={self.email}"
+            try:
+                await self.page.launch_url(url)
                 self._snack("CSV download started")
-            else:
-                self._snack(csv_r.get("error", "Export failed"), False)
+            except Exception as ex:
+                self._snack(f"Export failed: {ex}", ok=False)
 
         async def do_generate(e):
             r = await _api("bills")["generate"](self.email, 5000)
@@ -608,7 +613,7 @@ class AdminPage:
             ], spacing=8),
             ft.Container(height=8),
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No billing data", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -653,7 +658,7 @@ class AdminPage:
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No menu items", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -677,7 +682,7 @@ class AdminPage:
             ft.Container(height=8),
             ft.Text("Live Results", size=14, weight="bold", color=self._clr("text"), font_family="DM Sans"),
             ft.Column(result_cards) if result_cards else ft.Text("No active poll", color=self._clr("sub"), font_family="DM Sans"),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -730,7 +735,7 @@ class AdminPage:
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
             ft.Column(cards, scroll=ft.ScrollMode.ADAPTIVE) if cards else ft.Text("No pending requests", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════

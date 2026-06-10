@@ -64,7 +64,7 @@ class StaffPage:
             bgcolor=self._clr("card"), border_radius=14, padding=14,
         )
 
-    def _row_card(self, controls, actions=None):
+    def _row_card(self, controls, actions=None, data=None):
         row = list(controls)
         if actions: row.append(ft.Row(actions, spacing=2))
         return ft.Container(
@@ -72,6 +72,7 @@ class StaffPage:
             bgcolor=self._clr("card"), border_radius=12,
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=6),
+            data=data,
         )
 
     def _chip(self, label, fg, bg):
@@ -157,7 +158,7 @@ class StaffPage:
             ft.Text("Weekly Menu", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
             ft.Container(height=8),
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No menu items", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ── SECTION: Food Items ────────────────────────────────────
@@ -199,7 +200,7 @@ class StaffPage:
             ft.Row([search], spacing=8),
             ft.Container(height=4),
             food_rows if food_rows.controls else ft.Text("No food items", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ── SECTION: Ingredients + Low Stock ───────────────────────
@@ -241,7 +242,7 @@ class StaffPage:
             alert,
             ft.Container(height=8) if low_stock else ft.Container(),
             rows if rows.controls else ft.Text("No ingredients", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ── SECTION: Recipes ───────────────────────────────────────
@@ -275,7 +276,7 @@ class StaffPage:
             ft.Text("Recipes", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
             ft.Container(height=8),
             rows if rows.controls else ft.Text("No recipes", color=self._clr("sub")),
-        ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ── BUILD ──────────────────────────────────────────────────
