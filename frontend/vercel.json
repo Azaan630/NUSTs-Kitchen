@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm cache clean --force && npm install && tsc -b && vite build"
+}
