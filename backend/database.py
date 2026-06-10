@@ -46,7 +46,7 @@ async def run_db_seeder():
 
         results = await cursor.execute(sql_content, multi=True)
 
-        for result in results:
+        async for result in results:
             pass
 
         await conn.commit()
