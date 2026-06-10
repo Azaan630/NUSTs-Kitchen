@@ -111,10 +111,11 @@ class StudentHomePage:
     # ── Star rating widget ─────────────────────────────────────────
     def _build_stars(self, item_id, schedule_id, existing_rating, meal_date, meal_type):
         stars = []
-        current = existing_rating or 0
+        submitted = existing_rating is not None and existing_rating > 0
+        rating_state = {"current": existing_rating or 0, "submitted": submitted}
         star_refs = []
 
-        def render_stars(score):
+        def render_stars(score, locked=False):
             for i, s in enumerate(star_refs):
                 filled = i < score
                 s.name  = ft.Icons.STAR_ROUNDED if filled else ft.Icons.STAR_BORDER_ROUNDED
@@ -122,8 +123,9 @@ class StudentHomePage:
             self.page.update()
 
         async def on_star_click(e, score):
-            nonlocal current
-            current = score
+            if rating_state["submitted"]:
+                return
+            rating_state["current"] = score
             render_stars(score)
 
             if self.is_guest:
@@ -139,10 +141,12 @@ class StudentHomePage:
                     email=self.email,
                 )
             if result and "error" not in result:
+                rating_state["submitted"] = True
                 self.page.snack_bar = ft.SnackBar(
                     content=ft.Text("✅ Rating saved!", color="#FFF"),
                     bgcolor="#10B981",
                 )
+                render_stars(score, locked=True)
             else:
                 err = result.get("error", "Already rated") if result else "Already rated"
                 self.page.snack_bar = ft.SnackBar(
@@ -153,14 +157,18 @@ class StudentHomePage:
             self.page.update()
 
         async def on_star_hover(e, score):
+            if rating_state["submitted"]:
+                return
             render_stars(score)
 
         async def on_hover_leave(e):
-            render_stars(current)
+            if rating_state["submitted"]:
+                return
+            render_stars(rating_state["current"])
 
         for i in range(1, 6):
             score = i
-            filled = i <= current
+            filled = i <= rating_state["current"]
             star_icon = ft.Icon(
                 ft.Icons.STAR_ROUNDED if filled else ft.Icons.STAR_BORDER_ROUNDED,
                 size=18,
@@ -179,7 +187,12 @@ class StudentHomePage:
             )
             stars.append(star_btn)
 
-        label = ft.Text("Rate:", size=11, color=self.sub, font_family="DM Sans")
+        label = ft.Text(
+            "Rated ✓" if rating_state["submitted"] else "Rate:",
+            size=11,
+            color=self.amber if rating_state["submitted"] else self.sub,
+            font_family="DM Sans",
+        )
 
         return ft.Row([label] + stars, spacing=2)
 
