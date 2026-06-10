@@ -507,7 +507,7 @@ async def main(page: ft.Page):
                         ),
                         border_radius=14,
                         animate=ft.Animation(200, "easeOut"),
-                        on_hover=lambda e: setattr(e.control, "scale", ft.transform.Scale(1.03) if e.data == "true" else ft.transform.Scale(1.0)),
+                        on_hover=lambda e: setattr(e.control, "scale", 1.03 if e.data == "true" else 1.0),
                     ),
 
                     ft.Container(height=80),
