@@ -44,29 +44,29 @@ async def api_delete_student(email, uid): return await _req("DELETE", f"/admin/s
 
 async def api_get_all_users(email): return await _req("GET", "/admin/students/all", {"email": email})
 async def api_register_staff(email, data): return await _req("POST", "/admin/staff/register", {"email": email}, data)
-async def api_update_staff(email, uid, data): return await _req("POST", f"/admin/staff/update", {"email": email, "UserID": uid}, data)
+async def api_update_staff(email, uid, data): return await _req("PATCH", f"/admin/staff/update/{uid}", {"email": email}, data)
 async def api_delete_staff(email, uid): return await _req("DELETE", f"/admin/staff/delete/{uid}", {"email": email})
 
 async def api_get_food_costs(email): return await _req("GET", "/admin/food/costs", {"email": email})
-async def api_create_food(email, data): return await _req("POST", "/admin/food_items/create", {"email": email}, data)
-async def api_update_food(email, iid, data): return await _req("PATCH", f"/admin/food_items/update/{iid}", {"email": email}, data)
-async def api_delete_food(email, iid): return await _req("DELETE", f"/admin/food_items/delete/{iid}", {"email": email})
+async def api_create_food(email, data): return await _req("POST", "/admin/food-items/create", {"email": email}, data)
+async def api_update_food(email, iid, data): return await _req("PATCH", f"/admin/food-items/update/{iid}", {"email": email}, data)
+async def api_delete_food(email, iid): return await _req("DELETE", f"/admin/food-items/delete/{iid}", {"email": email})
 
 async def api_get_mess_off_history(email): return await _req("GET", "/student/mess-off/history", {"email": email})
 async def api_approve_mess_off(email, rid): return await _req("POST", f"/admin/mess-off/approve/{rid}", {"email": email})
 async def api_reject_mess_off(email, rid):
-    return await _req("DELETE", f"/student/mess_off/cancel/{rid}", {"email": email})
+    return await _req("DELETE", f"/student/mess-off/cancel/{rid}", {"email": email})
 
-async def api_get_monthly_bills(email): return await _req("GET", "/admin/monthly_billing_summary", {"email": email})
+async def api_get_monthly_bills(email): return await _req("GET", "/admin/monthly-billing-summary", {"email": email})
 async def api_create_bill(email, data): return await _req("POST", "/admin/bills/create", {"email": email}, data)
 async def api_update_bill(email, bid, data): return await _req("PATCH", f"/admin/bills/update/{bid}", {"email": email}, data)
 async def api_delete_bill(email, bid): return await _req("DELETE", f"/admin/bills/delete/{bid}", {"email": email})
 
 async def api_get_weekly_menu(email): return await _req("GET", "/menu/weekly", {"email": email})
 async def api_add_menu_item(email, item_id, menu_date, meal_type):
-    return await _req("POST", f"/admin/menu_schedule/{item_id}/{menu_date}/{meal_type}", {"email": email})
+    return await _req("POST", f"/admin/menu-schedule/{item_id}/{menu_date}/{meal_type}", {"email": email})
 async def api_delete_menu_item(email, item_id, schedule_id):
-    return await _req("DELETE", f"/admin/menu_schedule/{item_id}/{schedule_id}", {"email": email})
+    return await _req("DELETE", f"/admin/menu-schedule/{item_id}/{schedule_id}", {"email": email})
 
 async def api_get_registration_requests(email, status="Pending"):
     return await _req("GET", "/admin/registration-requests", {"email": email, "status": status})

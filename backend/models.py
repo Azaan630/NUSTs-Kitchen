@@ -58,20 +58,12 @@ class BillStatus(str, Enum):
     OVERDUE = "Overdue"
 
 
-def get_two_weeks_later():
-    return date.today() + timedelta(weeks=2)
-
-
-def get_current_month():
-    return date.today().strftime("%Y-%m-01")
-
-
 class BillCreate(BaseModel):
     UserID: int
     Issue_Date: date = Field(default_factory=date.today)
     Amount: float = Field(gt=0)
-    Due_Date: date = Field(default_factory=get_two_weeks_later)
-    Month: date = Field(default_factory=get_current_month)
+    Due_Date: date = Field(default_factory=lambda: date.today() + timedelta(weeks=2))
+    Month: str = Field(default_factory=lambda: date.today().strftime("%Y-%m-01"))
     Status: BillStatus = BillStatus.UNPAID
 
 
@@ -79,7 +71,7 @@ class BillUpdate(BaseModel):
     Issue_Date: Optional[date] = None
     Amount: Optional[float] = None
     Due_Date: Optional[date] = None
-    Month: Optional[date] = None
+    Month: Optional[str] = None
     Status: Optional[BillStatus] = None
 
 

@@ -79,7 +79,7 @@ async def rate_food_item(
 
 # ── Bills ──────────────────────────────────────────────────────────
 async def get_my_bills(email: str) -> Any:
-    return await _make_request("GET", "/users/my_bills", params={"email": email})
+    return await _make_request("GET", "/users/my-bills", params={"email": email})
 
 
 async def download_bill_pdf(billing_id: int, email: str) -> Optional[bytes]:
@@ -107,12 +107,12 @@ async def cast_vote(item_id: int, user_id: int, email: str) -> Dict[str, Any]:
 
 # ── Mess Off ───────────────────────────────────────────────────────
 async def request_mess_off(user_id: int, start_date: date, end_date: date, email: str) -> Dict[str, Any]:
-    endpoint = f"/student/mess_off/request/{user_id}/{start_date.isoformat()}/{end_date.isoformat()}"
+    endpoint = f"/student/mess-off/request/{user_id}/{start_date.isoformat()}/{end_date.isoformat()}"
     return await _make_request("POST", endpoint, params={"email": email})
 
 
 async def cancel_mess_off(mess_off_id: int, email: str) -> Dict[str, Any]:
-    return await _make_request("POST", f"/student/mess_off/cancel/{mess_off_id}", params={"email": email})
+    return await _make_request("POST", f"/student/mess-off/cancel/{mess_off_id}", params={"email": email})
 
 
 async def get_mess_off_status(mess_off_id: int, email: str) -> Dict[str, Any]:

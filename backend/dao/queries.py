@@ -24,7 +24,7 @@ getMyBills = ("""SELECT *
                  WHERE Email = %s
                  ORDER BY Issue_Date""")
 
-getStudentBillDetails = ("""SELECT Users.First_Name, Users.First_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Status
+getStudentBillDetails = ("""SELECT Users.First_Name, Users.Last_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Status
                             FROM Bills JOIN Users ON Users.UserID = Bills.User_ID
                             WHERE Bills.User_ID = %s""")
 
@@ -118,8 +118,10 @@ getMessOffStatus = ("""SELECT *
                        FROM Mess_Off WHERE Mess_Off_ID = %s""")
 
 getMessOffThisMonth = ("""SELECT *
-                          FROM Mess_Off
-                          ;""")
+                           FROM Mess_Off
+                           WHERE DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                              OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                           ORDER BY Start_Date DESC;""")
 
 getMessOffAdmin = ("""SELECT *
                           FROM Mess_Off 
