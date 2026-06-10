@@ -377,6 +377,12 @@ class AdminPage:
                     mock_data.delete_student(u)
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
+                else:
+                    asyncio.create_task(_del_student(u))
+            async def _del_student(u=uid):
+                r = await _api("students")["delete"](self.email, u)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Deleted"); await refresh()
             student_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -436,6 +442,12 @@ class AdminPage:
                     mock_data.delete_staff(u)
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
+                else:
+                    asyncio.create_task(_del_staff(u))
+            async def _del_staff(u=uid):
+                r = await _api("staff")["delete"](self.email, u)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Deleted"); await refresh()
             staff_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -525,6 +537,12 @@ class AdminPage:
                 if self.is_guest:
                     mock_data.update_food(i, p)
                     self._snack("Updated")
+                else:
+                    asyncio.create_task(_upd_food(i, p))
+            async def _upd_food(i=iid, p=None):
+                r = await _api("food")["update"](self.email, i, p)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Updated")
 
             def do_del(e, i=iid):
                 if self.is_guest:
@@ -586,6 +604,12 @@ class AdminPage:
                         mock_data.approve_mess_off(r)
                         self._snack("Approved")
                         asyncio.create_task(self._render_mess_off(ref))
+                    else:
+                        asyncio.create_task(_app_off(r))
+                async def _app_off(r=rid):
+                    res = await _api("mess_off")["approve"](self.email, r)
+                    if "error" in (res or {}): self._snack(res["error"], False); return
+                    self._snack("Approved"); await self._render_mess_off(ref)
                 def do_rej(e, r=rid):
                     if self.is_guest:
                         mock_data.reject_mess_off(r)
@@ -626,10 +650,12 @@ class AdminPage:
         ref.content = self._loading(); self.page.update()
         bills = (await _api("bills")["summary"](self.email)) if not self.is_guest else mock_data.get_monthly_bills()
 
-        async def do_export(e):
+        def do_export(e):
             if self.is_guest:
-                self._snack("Export not available in guest mode", ok=False)
-                return
+                self._snack("Export not available in guest mode", ok=False); return
+            asyncio.create_task(_export())
+
+        async def _export():
             url = f"{BASE_URL}/admin/bills/export-csv?email={self.email}"
             try:
                 await self.page.launch_url(url)
@@ -637,7 +663,10 @@ class AdminPage:
             except Exception as ex:
                 self._snack(f"Export failed: {ex}", ok=False)
 
-        async def do_generate(e):
+        def do_generate(e):
+            asyncio.create_task(_generate())
+
+        async def _generate():
             r = await _api("bills")["generate"](self.email, 5000)
             if "error" not in (r or {}):
                 self._snack(r.get("message", "Bills generated"))
@@ -676,6 +705,12 @@ class AdminPage:
                 if self.is_guest:
                     mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
                     self._snack("Updated")
+                else:
+                    asyncio.create_task(_save_bill(b, amt))
+            async def _save_bill(b=bid, amt=0):
+                r = await _api("bills")["update"](self.email, b, {"Amount": amt})
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Updated"); await refresh()
 
             def do_pay(e, b=bid, tf=ef_total, p=paid):
                 try:
@@ -686,6 +721,12 @@ class AdminPage:
                 if self.is_guest:
                     mock_data.pay_bill(b, amt)
                     self._snack("Paid")
+                else:
+                    asyncio.create_task(_pay_bill(b, amt))
+            async def _pay_bill(b=bid, amt=0):
+                r = await _api("bills")["pay"](self.email, b, amt, "Cash")
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Paid"); await refresh()
 
             rows.append(self._row_card([
                 ft.Column([
@@ -737,6 +778,12 @@ class AdminPage:
                     mock_data.delete_menu_item(i, s)
                     self._snack("Removed")
                     asyncio.create_task(self._render_menu(ref))
+                else:
+                    self._confirm("Remove Menu Item", f"Remove {name}?", lambda: asyncio.create_task(_del_menu(i, s)))
+            async def _del_menu(i=iid, s=sid):
+                r = await _api("menu")["delete"](self.email, i, s)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Removed"); await self._render_menu(ref)
             rows.append(self._row_card([
                 ft.Container(
                     content=ft.Text(mt[:1], size=12, weight="bold", color=mc),
@@ -965,6 +1012,12 @@ class AdminPage:
                         mock_data.approve_registration(ri)
                         self._snack("Approved")
                         asyncio.create_task(self._render_requests(ref))
+                    else:
+                        asyncio.create_task(_app_reg(ri))
+                async def _app_reg(ri=rid):
+                    rr = await _api("registration")["approve"](self.email, ri, None)
+                    if "error" in (rr or {}): self._snack(rr["error"], False); return
+                    self._snack("Approved"); await self._render_requests(ref)
                 def do_rej(e, ri=rid):
                     if self.is_guest:
                         mock_data.reject_registration(ri)
