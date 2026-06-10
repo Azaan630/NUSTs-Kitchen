@@ -88,6 +88,15 @@ async def main(page: ft.Page):
             load_page(current_index["v"])
             page.update()
 
+        # ── Logout button
+        _logout_btn = ft.IconButton(
+            icon=ft.Icons.LOGOUT_ROUNDED,
+            icon_color=GREY,
+            icon_size=22,
+            tooltip="Logout",
+            on_click=logout_click,
+        )
+
         # ── User avatar chip ──────────────────────────────────────
         first = get_val("First_Name", "U")
         last  = get_val("Last_Name",  "")
@@ -126,7 +135,7 @@ async def main(page: ft.Page):
                     font_family="Playfair",
                     color=AMBER,
                 ),
-                ft.Row([name_chip, dark_btn], spacing=4),
+                ft.Row([name_chip, dark_btn, _logout_btn], spacing=4),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             padding=ft.Padding.symmetric(horizontal=24, vertical=12),
             bgcolor=WHITE,
@@ -343,6 +352,97 @@ async def main(page: ft.Page):
         page.theme_mode = ft.ThemeMode.LIGHT
         page.update()
         asyncio.create_task(show_dashboard())
+
+    # ── LOGOUT ──────────────────────────────────────────────────────────────
+    def logout_click(e):
+        is_dark["v"] = False
+        page.current_user_data = {}
+        page.auth = None
+        page.clean()
+        page.bgcolor = "#0D1B2A"
+        page.theme_mode = ft.ThemeMode.LIGHT
+        page.add(
+            ft.Container(
+                content=ft.Column([
+                    ft.Container(height=60),
+                    ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=72, color=AMBER),
+                    ft.Container(height=16),
+                    ft.Text(
+                        "NUST's Kitchen",
+                        size=56,
+                        weight="bold",
+                        font_family="Playfair",
+                        color=WHITE,
+                    ),
+                    ft.Text(
+                        "NUST SEECS Mess Portal",
+                        size=16,
+                        color=GREY,
+                        font_family="DM Sans",
+                    ),
+                    ft.Container(height=48),
+                    ft.Container(
+                        content=ft.FilledButton(
+                            content=ft.Row([
+                                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=NAVY, size=18),
+                                ft.Text(
+                                    "Continue with Google",
+                                    color=NAVY,
+                                    weight="bold",
+                                    font_family="DM Sans",
+                                    size=15,
+                                ),
+                            ], spacing=10, tight=True),
+                            on_click=login_click,
+                            style=ft.ButtonStyle(
+                                bgcolor=AMBER,
+                                padding=ft.Padding.symmetric(horizontal=32, vertical=18),
+                                shape=ft.RoundedRectangleBorder(radius=16),
+                                elevation=0,
+                            ),
+                        ),
+                    ),
+                    ft.Container(height=28),
+                    ft.Text("— or try a demo —", size=12, color=GREY, font_family="DM Sans"),
+                    ft.Container(height=12),
+                    ft.Row([
+                        ft.OutlinedButton(
+                            "Guest Student",
+                            icon=ft.Icons.SCHOOL_ROUNDED,
+                            on_click=lambda e: guest_login("Student"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                        ft.OutlinedButton(
+                            "Guest Staff",
+                            icon=ft.Icons.BADGE_ROUNDED,
+                            on_click=lambda e: guest_login("Staff"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                        ft.OutlinedButton(
+                            "Guest Admin",
+                            icon=ft.Icons.ADMIN_PANEL_SETTINGS_ROUNDED,
+                            on_click=lambda e: guest_login("Admin"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.Alignment(0, 0),
+                expand=True,
+            )
+        )
+        page.update()
 
     # ── LANDING
     if page.auth and page.auth.user and hasattr(page, "current_user_data"):
