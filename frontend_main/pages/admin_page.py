@@ -764,7 +764,7 @@ class AdminPage:
         for item in items:
             iid  = item.get("Item_ID")
             sid  = item.get("Schedule_ID")
-            name = item.get("Food_Item_Name","?")
+            name = item.get("Name") or item.get("Food_Item_Name", "?")
             mt   = item.get("meal_type","")
             d    = item.get("Date","")
             mc   = MEAL_COLORS.get(mt, self.amber)

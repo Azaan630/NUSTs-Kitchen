@@ -220,7 +220,7 @@ class StaffPage:
             for mt, fit in meals.items():
                 mc   = MEAL_COLORS.get(mt, self.amber)
                 mico = MEAL_ICONS.get(mt, ft.Icons.RESTAURANT_ROUNDED)
-                names = ", ".join(i.get("Food_Item_Name") or "?" for i in fit)
+                names = ", ".join((i.get("Name") or i.get("Food_Item_Name") or "?") for i in fit)
                 avg  = fit[0].get("Ratings_Average") or fit[0].get("Avg_Rating") or 0
 
                 sections.append(self._card([
