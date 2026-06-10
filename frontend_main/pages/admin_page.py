@@ -138,6 +138,29 @@ class AdminPage:
         self.page.snack_bar.open = True
         self.page.update()
 
+    def _confirm(self, title, msg):
+        fut = asyncio.Future()
+        def ok(e):
+            if not fut.done(): fut.set_result(True)
+            dlg.open = False; self.page.update()
+        def cancel(e):
+            if not fut.done(): fut.set_result(False)
+            dlg.open = False; self.page.update()
+        dlg = ft.AlertDialog(
+            title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
+            content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
+            actions=[
+                ft.TextButton("Cancel", on_click=cancel),
+                ft.TextButton("Delete", on_click=ok,
+                              style=ft.ButtonStyle(color=self._clr("danger"))),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
+        return fut
+
     def _card(self, *controls, pad=14):
         return ft.Container(
             content=ft.Column(list(controls), spacing=10),
@@ -351,6 +374,8 @@ class AdminPage:
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
             async def do_del(e, u=uid):
+                if not await self._confirm("Delete Student", f"Remove {name}?"):
+                    return
                 if self.is_guest: mock_data.delete_student(u)
                 else:
                     r = await _api("students")["delete"](self.email, u)
@@ -411,6 +436,8 @@ class AdminPage:
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
             async def do_del(e, u=uid):
+                if not await self._confirm("Delete Staff", f"Remove {name}?"):
+                    return
                 if self.is_guest: mock_data.delete_staff(u)
                 else:
                     r = await _api("staff")["delete"](self.email, u)
@@ -493,7 +520,8 @@ class AdminPage:
                 filled=True, fill_color=self._clr("card"),)
             ef_qty   = ft.TextField(value=str(qty), width=60, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
-                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans", text_align=ft.TextAlign.CENTER),
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                text_align=ft.TextAlign.CENTER,
                 filled=True, fill_color=self._clr("card"),)
 
             async def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
@@ -508,6 +536,8 @@ class AdminPage:
                 self._snack("Updated")
 
             async def do_del(e, i=iid):
+                if not await self._confirm("Delete Food Item", f"Remove {name}?"):
+                    return
                 if self.is_guest: mock_data.delete_food(i)
                 else:
                     r = await _api("food")["delete"](self.email, i)
@@ -564,6 +594,8 @@ class AdminPage:
                         if "error" in (res or {}): self._snack(res["error"], False); return
                     self._snack("Approved"); await self._render_mess_off(ref)
                 async def do_rej(e, r=rid):
+                    if not await self._confirm("Reject Request", "Reject this mess-off request?"):
+                        return
                     if self.is_guest: mock_data.reject_mess_off(r)
                     else:
                         res = await _api("mess_off")["reject"](self.email, r)
@@ -711,6 +743,8 @@ class AdminPage:
             d = item.get("Date", "")
             mc = m_colors.get(mt, self._clr("accent"))
             async def do_del(e, i=iid, s=sid):
+                if not await self._confirm("Remove Menu Item", f"Remove {name}?"):
+                    return
                 if self.is_guest: mock_data.delete_menu_item(i, s)
                 else:
                     r = await _api("menu")["delete"](self.email, i, s)
@@ -778,11 +812,12 @@ class AdminPage:
                         ft.Icons.ADD_CIRCLE_ROUNDED if not already else ft.Icons.CHECK_CIRCLE_ROUNDED,
                         self._clr("success") if not already else self._clr("sub"),
                         "Add" if not already else "Added",
-                        lambda e, fi=fi: do_add(fi) if not already else None,
+                        lambda e, fi=fi: do_add(fi),
                     ),
                 ]))
             if not sdata:
                 search_rows.controls.append(ft.Text("No results", color=self._clr("sub"), font_family="DM Sans"))
+            search_rows.update()
             self.page.update()
 
         # ── add to selected ────────────────────────────────────
@@ -826,7 +861,7 @@ class AdminPage:
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
             border_radius=10, filled=True, fill_color=self._clr("card2"),
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
-            on_change=lambda e: asyncio.create_task(do_search(e.data)),
+            on_change=lambda e: asyncio.create_task(do_search(e.control.value)),
             expand=True,
         )
 
@@ -844,6 +879,8 @@ class AdminPage:
 
         # ── end poll ───────────────────────────────────────────
         async def do_end(e):
+            if not await self._confirm("End Poll", "End the current poll?"):
+                return
             if self.is_guest:
                 mock_data.end_poll()
             else:
@@ -936,6 +973,8 @@ class AdminPage:
                         if "error" in (rr or {}): self._snack(rr["error"], False); return
                     self._snack("Approved"); await self._render_requests(ref)
                 async def do_rej(e, ri=rid):
+                    if not await self._confirm("Reject Request", f"Reject {name}'s registration?"):
+                        return
                     if self.is_guest: mock_data.reject_registration(ri)
                     else:
                         rr = await _api("registration")["reject"](self.email, ri)

@@ -114,25 +114,35 @@ class StudentHomePage:
         submitted = existing_rating is not None and existing_rating > 0
         rating_state = {"current": existing_rating or 0, "submitted": submitted}
         star_refs = []
+        page_ref = self.page
 
         def render_stars(score, locked=False):
             for i, s in enumerate(star_refs):
                 filled = i < score
                 s.name  = ft.Icons.STAR_ROUNDED if filled else ft.Icons.STAR_BORDER_ROUNDED
                 s.color = self.amber if filled else self.sub
-            self.page.update()
+
+        label = ft.Text(
+            "Rated ✓" if rating_state["submitted"] else "Rate:",
+            size=11,
+            color=self.amber if rating_state["submitted"] else self.sub,
+            font_family="DM Sans",
+        )
 
         async def on_star_click(e, score):
             if rating_state["submitted"]:
                 return
+            rating_state["submitted"] = True
             rating_state["current"] = score
             render_stars(score)
+            label.value = "Rated ✓"
+            label.color = self.amber
+            page_ref.update()
 
             if self.is_guest:
                 mock_data.rate_food_item(self.user_id, item_id, meal_date, meal_type, score)
-                result = {"message": "Rating saved"}
             else:
-                result = await rate_food_item(
+                await rate_food_item(
                     user_id=self.user_id,
                     item_id=item_id,
                     meal_date=meal_date,
@@ -140,31 +150,24 @@ class StudentHomePage:
                     score=score,
                     email=self.email,
                 )
-            if result and "error" not in result:
-                rating_state["submitted"] = True
-                self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("✅ Rating saved!", color="#FFF"),
-                    bgcolor="#10B981",
-                )
-                render_stars(score, locked=True)
-            else:
-                err = result.get("error", "Already rated") if result else "Already rated"
-                self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text(f"⚠️ {err}", color="#FFF"),
-                    bgcolor="#F59E0B",
-                )
-            self.page.snack_bar.open = True
-            self.page.update()
+            page_ref.snack_bar = ft.SnackBar(
+                content=ft.Text("✅ Rating saved!", color="#FFF"),
+                bgcolor="#10B981",
+            )
+            page_ref.snack_bar.open = True
+            page_ref.update()
 
         async def on_star_hover(e, score):
             if rating_state["submitted"]:
                 return
             render_stars(score)
+            page_ref.update()
 
         async def on_hover_leave(e):
             if rating_state["submitted"]:
                 return
             render_stars(rating_state["current"])
+            page_ref.update()
 
         for i in range(1, 6):
             score = i
@@ -186,13 +189,6 @@ class StudentHomePage:
                 tooltip=f"{score} star{'s' if score > 1 else ''}",
             )
             stars.append(star_btn)
-
-        label = ft.Text(
-            "Rated ✓" if rating_state["submitted"] else "Rate:",
-            size=11,
-            color=self.amber if rating_state["submitted"] else self.sub,
-            font_family="DM Sans",
-        )
 
         return ft.Row([label] + stars, spacing=2)
 
