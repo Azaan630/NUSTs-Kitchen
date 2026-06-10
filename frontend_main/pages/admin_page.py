@@ -3,6 +3,7 @@ import asyncio
 import httpx
 import os
 from datetime import date
+import mock_data
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
@@ -93,6 +94,7 @@ class AdminPage:
         self.user_data = user_data
         self.theme = theme
         self.email = user_data.get("Email", "")
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg     = t["DARK_BG"]   if t["is_dark"] else t["CREAM"]
@@ -127,6 +129,23 @@ class AdminPage:
 
     def _section_title(self, txt):
         return ft.Text(txt, size=16, weight="bold", color=self.txt, font_family="DM Sans")
+
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
 
     def _field(self, label, hint="", password=False):
         return ft.TextField(
@@ -216,9 +235,13 @@ class AdminPage:
         content_ref.content = self._loading("Fetching students…")
         self.page.update()
 
-        data = await api_get_all_students(self.email)
-        students = [u for u in (data if isinstance(data, list) else [])
-                    if u.get("Account_Type") == "Student"]
+        if self.is_guest:
+            students = mock_data.get_students()
+            data = students
+        else:
+            data = await api_get_all_students(self.email)
+            students = [u for u in (data if isinstance(data, list) else [])
+                        if u.get("Account_Type") == "Student"]
 
         # ── Add-student form
         f_fn   = self._field("First Name")
@@ -240,9 +263,13 @@ class AdminPage:
                 "Address": f_addr.value, "Father_Name": f_fath.value,
                 "Hostel_Name": f_host.value, "Room_Number": f_room.value,
             }
-            res = await api_register_student(self.email, payload)
-            ok = "error" not in (res or {})
-            self._snack("Student registered!" if ok else res.get("error", "Error"), ok)
+            if self.is_guest:
+                mock_data.register_student(payload)
+                ok = True
+            else:
+                res = await api_register_student(self.email, payload)
+                ok = "error" not in (res or {})
+            self._snack("Student registered!" if ok else (res or {}).get("error", "Error"), ok)
             if ok:
                 await self._render_students(content_ref)
 
@@ -267,9 +294,13 @@ class AdminPage:
             uid = s.get("UserID")
 
             async def do_del(e, u=uid):
-                res = await api_delete_student(self.email, u)
-                ok = "error" not in (res or {})
-                self._snack("Deleted." if ok else res.get("error","Error"), ok)
+                if self.is_guest:
+                    mock_data.delete_student(u)
+                    ok = True
+                else:
+                    res = await api_delete_student(self.email, u)
+                    ok = "error" not in (res or {})
+                self._snack("Deleted." if ok else "Error", ok)
                 if ok: await self._render_students(content_ref)
 
             rows.append(self._row_card([
@@ -294,7 +325,7 @@ class AdminPage:
             ft.Text("No students found.", color=self.sub, font_family="DM Sans"),
         ])
 
-        content_ref.content = ft.Column([form, list_section],
+        content_ref.content = ft.Column([self._guest_banner(), form, list_section],
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
@@ -304,9 +335,12 @@ class AdminPage:
         content_ref.content = self._loading("Fetching staff…")
         self.page.update()
 
-        data = await api_get_all_users(self.email)
-        staff_list = [u for u in (data if isinstance(data, list) else [])
-                      if u.get("Account_Type") == "Staff"]
+        if self.is_guest:
+            staff_list = mock_data.get_staff()
+        else:
+            data = await api_get_all_users(self.email)
+            staff_list = [u for u in (data if isinstance(data, list) else [])
+                          if u.get("Account_Type") == "Staff"]
 
         f_fn  = self._field("First Name")
         f_ln  = self._field("Last Name")
@@ -318,9 +352,13 @@ class AdminPage:
                 "First_Name": f_fn.value, "Last_Name": f_ln.value,
                 "Email": f_em.value, "Category": f_cat.value,
             }
-            res = await api_register_staff(self.email, payload)
-            ok = "error" not in (res or {})
-            self._snack("Staff registered!" if ok else res.get("error","Error"), ok)
+            if self.is_guest:
+                mock_data.register_staff(payload)
+                ok = True
+            else:
+                res = await api_register_staff(self.email, payload)
+                ok = "error" not in (res or {})
+            self._snack("Staff registered!" if ok else "Error", ok)
             if ok: await self._render_staff(content_ref)
 
         form = ft.Container(
@@ -340,9 +378,13 @@ class AdminPage:
             uid = s.get("UserID")
 
             async def do_del(e, u=uid):
-                res = await api_delete_staff(self.email, u)
-                ok = "error" not in (res or {})
-                self._snack("Deleted." if ok else res.get("error","Error"), ok)
+                if self.is_guest:
+                    mock_data.delete_staff(u)
+                    ok = True
+                else:
+                    res = await api_delete_staff(self.email, u)
+                    ok = "error" not in (res or {})
+                self._snack("Deleted." if ok else "Error", ok)
                 if ok: await self._render_staff(content_ref)
 
             rows.append(self._row_card([
@@ -367,7 +409,7 @@ class AdminPage:
             ft.Text("No staff found.", color=self.sub, font_family="DM Sans"),
         ])
 
-        content_ref.content = ft.Column([form, list_section],
+        content_ref.content = ft.Column([self._guest_banner(), form, list_section],
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
@@ -378,8 +420,11 @@ class AdminPage:
         content_ref.content = self._loading("Fetching food items…")
         self.page.update()
 
-        data = await api_get_food_costs(self.email)
-        items = data if isinstance(data, list) else []
+        if self.is_guest:
+            items = mock_data.get_food_costs()
+        else:
+            data = await api_get_food_costs(self.email)
+            items = data if isinstance(data, list) else []
 
         f_name = self._field("Name")
         f_qty  = self._field("Quantity", "1.0")
@@ -391,9 +436,13 @@ class AdminPage:
                 "Quantity": float(f_qty.value or 0),
                 "Price": float(f_price.value or 0),
             }
-            res = await api_create_food(self.email, payload)
-            ok = "error" not in (res or {})
-            self._snack("Food item created!" if ok else res.get("error","Error"), ok)
+            if self.is_guest:
+                mock_data.create_food(payload)
+                ok = True
+            else:
+                res = await api_create_food(self.email, payload)
+                ok = "error" not in (res or {})
+            self._snack("Food item created!" if ok else "Error", ok)
             if ok: await self._render_food(content_ref)
 
         form = ft.Container(
@@ -425,14 +474,22 @@ class AdminPage:
 
             async def do_update(e, i=iid, nf=ef_name, pf=ef_price):
                 payload = {"Name": nf.value, "Price": float(pf.value or 0)}
-                res = await api_update_food(self.email, i, payload)
-                ok = "error" not in (res or {})
-                self._snack("Updated." if ok else res.get("error","Error"), ok)
+                if self.is_guest:
+                    mock_data.update_food(i, payload)
+                    ok = True
+                else:
+                    res = await api_update_food(self.email, i, payload)
+                    ok = "error" not in (res or {})
+                self._snack("Updated." if ok else "Error", ok)
 
             async def do_del(e, i=iid):
-                res = await api_delete_food(self.email, i)
-                ok = "error" not in (res or {})
-                self._snack("Deleted." if ok else res.get("error","Error"), ok)
+                if self.is_guest:
+                    mock_data.delete_food(i)
+                    ok = True
+                else:
+                    res = await api_delete_food(self.email, i)
+                    ok = "error" not in (res or {})
+                self._snack("Deleted." if ok else "Error", ok)
                 if ok: await self._render_food(content_ref)
 
             rows.append(self._row_card([
@@ -455,7 +512,7 @@ class AdminPage:
             ft.Text("No food items.", color=self.sub, font_family="DM Sans"),
         ])
 
-        content_ref.content = ft.Column([form, list_section],
+        content_ref.content = ft.Column([self._guest_banner(), form, list_section],
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
@@ -468,12 +525,16 @@ class AdminPage:
         self.page.update()
 
 
-        result = await _req("GET", "/student/mess-off/history", {"email": self.email})
-        requests = []
-        if isinstance(result, dict) and "status" in result:
-            requests = result["status"] if isinstance(result["status"], list) else []
-        elif isinstance(result, list):
-            requests = result
+        if self.is_guest:
+            result = mock_data.get_mess_off_history()
+            requests = result.get("status", [])
+        else:
+            result = await _req("GET", "/student/mess-off/history", {"email": self.email})
+            requests = []
+            if isinstance(result, dict) and "status" in result:
+                requests = result["status"] if isinstance(result["status"], list) else []
+            elif isinstance(result, list):
+                requests = result
 
         STATUS_COLORS = {
             "Approved": ("#10B981", "#D1FAE5"),
@@ -491,15 +552,23 @@ class AdminPage:
             actions = []
             if status == "Pending":
                 async def do_approve(e, r=rid):
-                    res = await api_approve_mess_off(self.email, r)
-                    ok = "error" not in (res or {})
-                    self._snack("Approved!" if ok else res.get("error","Error"), ok)
+                    if self.is_guest:
+                        mock_data.approve_mess_off(r)
+                        ok = True
+                    else:
+                        res = await api_approve_mess_off(self.email, r)
+                        ok = "error" not in (res or {})
+                    self._snack("Approved!" if ok else "Error", ok)
                     if ok: await self._render_mess_off(content_ref)
 
                 async def do_reject(e, r=rid):
-                    res = await api_reject_mess_off(self.email, r)
-                    ok = "error" not in (res or {})
-                    self._snack("Rejected." if ok else res.get("error","Error"), ok)
+                    if self.is_guest:
+                        mock_data.reject_mess_off(r)
+                        ok = True
+                    else:
+                        res = await api_reject_mess_off(self.email, r)
+                        ok = "error" not in (res or {})
+                    self._snack("Rejected." if ok else "Error", ok)
                     if ok: await self._render_mess_off(content_ref)
 
                 actions = [
@@ -520,6 +589,7 @@ class AdminPage:
             ], actions=actions))
 
         content_ref.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 self._section_title(f"Mess-Off Requests ({len(requests)})"),
                 self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
@@ -539,8 +609,11 @@ class AdminPage:
         content_ref.content = self._loading("Fetching billing data…")
         self.page.update()
 
-        data = await api_get_monthly_bills(self.email)
-        bills = data if isinstance(data, list) else []
+        if self.is_guest:
+            bills = mock_data.get_monthly_bills()
+        else:
+            data = await api_get_monthly_bills(self.email)
+            bills = data if isinstance(data, list) else []
 
         # ── Create bill form ────────────────────────────────────────────────
         f_uid    = self._field("Student UserID")
@@ -557,9 +630,13 @@ class AdminPage:
                 "Month": f_month.value,
                 "Status": "Unpaid",
             }
-            res = await api_create_bill(self.email, payload)
-            ok = "error" not in (res or {})
-            self._snack("Bill created!" if ok else res.get("error","Error"), ok)
+            if self.is_guest:
+                mock_data.create_bill(payload)
+                ok = True
+            else:
+                res = await api_create_bill(self.email, payload)
+                ok = "error" not in (res or {})
+            self._snack("Bill created!" if ok else "Error", ok)
             if ok: await self._render_bills(content_ref)
 
         form = ft.Container(
@@ -613,7 +690,7 @@ class AdminPage:
             ft.Text("No billing data.", color=self.sub, font_family="DM Sans"),
         ])
 
-        content_ref.content = ft.Column([form, list_section],
+        content_ref.content = ft.Column([self._guest_banner(), form, list_section],
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
@@ -625,8 +702,11 @@ class AdminPage:
         content_ref.content = self._loading("Fetching menu…")
         self.page.update()
 
-        data = await api_get_weekly_menu(self.email)
-        items = data if isinstance(data, list) else []
+        if self.is_guest:
+            items = mock_data.get_weekly_menu()
+        else:
+            data = await api_get_weekly_menu(self.email)
+            items = data if isinstance(data, list) else []
 
         # Add-to-menu form
         f_item_id   = self._field("Food Item ID")
@@ -634,14 +714,22 @@ class AdminPage:
         f_meal_type = self._field("Meal Type", "Breakfast / Lunch / Dinner")
 
         async def add_to_menu(e):
-            res = await api_add_menu_item(
-                self.email,
-                f_item_id.value.strip(),
-                f_date.value.strip(),
-                f_meal_type.value.strip(),
-            )
-            ok = "error" not in (res or {})
-            self._snack("Added to menu!" if ok else res.get("error","Error"), ok)
+            if self.is_guest:
+                mock_data.add_menu_item(
+                    f_item_id.value.strip(),
+                    f_date.value.strip(),
+                    f_meal_type.value.strip(),
+                )
+                ok = True
+            else:
+                res = await api_add_menu_item(
+                    self.email,
+                    f_item_id.value.strip(),
+                    f_date.value.strip(),
+                    f_meal_type.value.strip(),
+                )
+                ok = "error" not in (res or {})
+            self._snack("Added to menu!" if ok else "Error", ok)
             if ok: await self._render_menu(content_ref)
 
         form = ft.Container(
@@ -672,9 +760,13 @@ class AdminPage:
             mc   = MEAL_COLORS.get(mt, self.amber)
 
             async def do_del(e, i=iid, s=sid):
-                res = await api_delete_menu_item(self.email, i, s)
-                ok = "error" not in (res or {})
-                self._snack("Removed from menu." if ok else res.get("error","Error"), ok)
+                if self.is_guest:
+                    mock_data.delete_menu_item(i, s)
+                    ok = True
+                else:
+                    res = await api_delete_menu_item(self.email, i, s)
+                    ok = "error" not in (res or {})
+                self._snack("Removed from menu." if ok else "Error", ok)
                 if ok: await self._render_menu(content_ref)
 
             rows.append(self._row_card([
@@ -704,7 +796,7 @@ class AdminPage:
             ft.Text("No menu items.", color=self.sub, font_family="DM Sans"),
         ])
 
-        content_ref.content = ft.Column([form, list_section],
+        content_ref.content = ft.Column([self._guest_banner(), form, list_section],
                                         scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
@@ -713,7 +805,10 @@ class AdminPage:
         self.page.update()
 
         # 1. Fetch live results from backend
-        res = await api_get_poll_results(self.email)
+        if self.is_guest:
+            res = mock_data.get_poll_results()
+        else:
+            res = await api_get_poll_results(self.email)
         poll_results = res.get("results", []) if isinstance(res, dict) else []
 
         # 2. Results Section UI
@@ -733,9 +828,13 @@ class AdminPage:
                 id_list = [int(i.strip()) for i in f_ids.value.split(",") if i.strip()]
                 payload = {"meal_type": f_meal.value, "item_ids": id_list}
 
-                resp = await api_start_poll(self.email, payload)
-                ok = "error" not in (resp or {})
-                self._snack("Poll launched!" if ok else resp.get("error", "Error"), ok)
+                if self.is_guest:
+                    mock_data.start_poll(payload)
+                    ok = True
+                else:
+                    resp = await api_start_poll(self.email, payload)
+                    ok = "error" not in (resp or {})
+                self._snack("Poll launched!" if ok else "Error", ok)
 
                 if ok:  # Refresh to show the new (empty) results list
                     await self._render_polls(content_ref)
@@ -744,6 +843,7 @@ class AdminPage:
 
         # 4. Final Assembly
         content_ref.content = ft.Column([
+            self._guest_banner(),
             self._section_title("Live Poll Standings"),
             ft.Column(result_cards) if result_cards else ft.Text("No active poll results found.", color=self.sub),
 

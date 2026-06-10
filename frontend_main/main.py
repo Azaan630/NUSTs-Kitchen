@@ -9,6 +9,7 @@ from pages.voting_page import StudentVotingPage
 from pages.mess_off_page import StudentMessOffPage
 from pages.admin_page import AdminPage
 from pages.staff_page import StaffPage
+import mock_data
 
 load_dotenv()
 
@@ -233,6 +234,7 @@ async def main(page: ft.Page):
 
             theme = {
                 "is_dark":    is_dark["v"],
+                "is_guest":   ud.get("is_guest", False),
                 "NAVY":       NAVY,
                 "AMBER":      AMBER,
                 "CREAM":      CREAM,
@@ -328,6 +330,20 @@ async def main(page: ft.Page):
     async def login_click(e):
         await page.login(provider, scope=["email", "profile"])
 
+    # ── GUEST LOGIN ─────────────────────────────────────────────────────────
+    def guest_login(role):
+        mock_data.init_session()
+        name_map = {"Student": ("Guest", "Student"), "Staff": ("Guest", "Staff"), "Admin": ("Guest", "Admin")}
+        first, last = name_map[role]
+        page.current_user_data = {
+            "UserID": 999, "First_Name": first, "Last_Name": last,
+            "Email": f"guest.{role.lower()}@demo.app", "Account_Type": role,
+            "is_guest": True,
+        }
+        page.theme_mode = ft.ThemeMode.LIGHT
+        page.update()
+        asyncio.create_task(show_dashboard())
+
     # ── LANDING
     if page.auth and page.auth.user and hasattr(page, "current_user_data"):
         await show_dashboard()
@@ -374,6 +390,41 @@ async def main(page: ft.Page):
                             ),
                         ),
                     ),
+                    ft.Container(height=28),
+                    ft.Text("— or try a demo —", size=12, color=GREY, font_family="DM Sans"),
+                    ft.Container(height=12),
+                    ft.Row([
+                        ft.OutlinedButton(
+                            "Guest Student",
+                            icon=ft.Icons.SCHOOL_ROUNDED,
+                            on_click=lambda e: guest_login("Student"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                        ft.OutlinedButton(
+                            "Guest Staff",
+                            icon=ft.Icons.BADGE_ROUNDED,
+                            on_click=lambda e: guest_login("Staff"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                        ft.OutlinedButton(
+                            "Guest Admin",
+                            icon=ft.Icons.ADMIN_PANEL_SETTINGS_ROUNDED,
+                            on_click=lambda e: guest_login("Admin"),
+                            style=ft.ButtonStyle(
+                                color=WHITE, side=ft.BorderSide(1, AMBER),
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+                            ),
+                        ),
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 alignment=ft.Alignment(0, 0),
                 expand=True,

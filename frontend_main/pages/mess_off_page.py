@@ -3,6 +3,7 @@ import asyncio
 import calendar
 from datetime import date, datetime
 from pages.api_client import request_mess_off, cancel_mess_off, get_mess_off_history
+import mock_data
 
 
 class StudentMessOffPage:
@@ -12,6 +13,7 @@ class StudentMessOffPage:
         self.theme = theme
         self.user_id = int(user_data.get("UserID", 0))
         self.email   = user_data.get("Email", "")
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
@@ -20,8 +22,26 @@ class StudentMessOffPage:
         self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
         self.sub   = t["GREY"]
         self.amber = t["AMBER"]
+        self.navy  = t["NAVY"]
 
         self.main_container = ft.Container(expand=True)
+
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
 
     def _loading(self):
         return ft.Container(
@@ -131,7 +151,10 @@ class StudentMessOffPage:
         self.main_container.content = self._loading()
         self.page.update()
 
-        result = await get_mess_off_history(self.email)
+        if self.is_guest:
+            result = mock_data.get_mess_off_history()
+        else:
+            result = await get_mess_off_history(self.email)
         requests = []
         if isinstance(result, dict) and "status" in result:
             requests = result["status"] if isinstance(result["status"], list) else []
@@ -237,7 +260,11 @@ class StudentMessOffPage:
                 self.page.update()
                 return
 
-            result = await request_mess_off(self.user_id, start, end, self.email)
+            if self.is_guest:
+                mock_data.request_mess_off(self.user_id, start, end)
+                result = {"message": "Request submitted!"}
+            else:
+                result = await request_mess_off(self.user_id, start, end, self.email)
 
             if isinstance(result, dict) and "error" in result:
                 msg = result["error"]
@@ -302,7 +329,11 @@ class StudentMessOffPage:
 
         # ── Cancel handler ───────────────────────────────────────
         async def handle_cancel(mid):
-            result = await cancel_mess_off(mid, self.email)
+            if self.is_guest:
+                mock_data.cancel_mess_off(mid)
+                result = {"message": "Cancelled"}
+            else:
+                result = await cancel_mess_off(mid, self.email)
             if isinstance(result, dict) and "error" in result:
                 msg, colour = result["error"], "#EF4444"
             else:
@@ -331,6 +362,7 @@ class StudentMessOffPage:
             )
 
         self.main_container.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 ft.Column([
                     ft.Text("Mess Off", size=28, weight="bold", color=self.txt, font_family="DM Sans"),

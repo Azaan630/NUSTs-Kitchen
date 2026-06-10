@@ -2,6 +2,7 @@ import flet as ft
 import asyncio
 import os
 from pages.api_client import get_my_bills, download_bill_pdf
+import mock_data
 
 
 class StudentProfilePage:
@@ -10,6 +11,7 @@ class StudentProfilePage:
         self.user_data = user_data
         self.theme = theme
         self.email = user_data.get("Email", "")
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
@@ -18,9 +20,27 @@ class StudentProfilePage:
         self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
         self.sub   = t["GREY"]
         self.amber = t["AMBER"]
+        self.navy  = t["NAVY"]
 
         self.main_container = ft.Container(expand=True)
         self.bills_data = []
+
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
 
     def _loading(self):
         return ft.Container(
@@ -104,6 +124,9 @@ class StudentProfilePage:
         )
 
     async def _download(self, bill):
+        if self.is_guest:
+            self._snack("PDF download not available in guest mode", ok=False)
+            return
         billing_id = bill.get("Billing_ID")
         if not billing_id:
             self._snack("Invalid Bill ID", ok=False)
@@ -135,11 +158,14 @@ class StudentProfilePage:
         self.main_container.content = self._loading()
         self.page.update()
 
-        data = await get_my_bills(self.email)
+        if self.is_guest:
+            data = mock_data.get_my_bills()
+        else:
+            data = await get_my_bills(self.email)
         self.bills_data = data if isinstance(data, list) else []
 
         error = None
-        if isinstance(data, dict) and "error" in data:
+        if not self.is_guest and isinstance(data, dict) and "error" in data:
             error = data["error"]
 
         # ── Profile card ─────────────────────────────────────────
@@ -242,6 +268,7 @@ class StudentProfilePage:
             bills_section = ft.Column([summary] + bill_cards, spacing=0)
 
         self.main_container.content = ft.Column([
+            self._guest_banner(),
             ft.Text("Profile", size=28, weight="bold", font_family="DM Sans", color=self.txt),
             ft.Container(height=12),
             profile_card,

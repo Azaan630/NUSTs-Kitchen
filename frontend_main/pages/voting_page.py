@@ -1,6 +1,7 @@
 import flet as ft
 import asyncio
 from pages.api_client import get_active_poll, cast_vote
+import mock_data
 
 
 class StudentVotingPage:
@@ -10,6 +11,7 @@ class StudentVotingPage:
         self.theme = theme
         self.email   = user_data.get("Email", "")
         self.user_id = int(user_data.get("UserID", 0))
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
@@ -18,9 +20,27 @@ class StudentVotingPage:
         self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
         self.sub   = t["GREY"]
         self.amber = t["AMBER"]
+        self.navy  = t["NAVY"]
 
         self.main_container = ft.Container(expand=True)
         self._voted = set()
+
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
 
     def _loading(self):
         return ft.Container(
@@ -45,7 +65,11 @@ class StudentVotingPage:
             btn_refs["btn"].content.controls[0].name = ft.Icons.HOURGLASS_TOP_ROUNDED
             self.page.update()
 
-            result = await cast_vote(item_id, self.user_id, self.email)
+            if self.is_guest:
+                mock_data.cast_vote(item_id, self.user_id)
+                result = {"message": "Vote cast"}
+            else:
+                result = await cast_vote(item_id, self.user_id, self.email)
 
             if result and "error" not in result:
                 self._voted.add(item_id)
@@ -145,9 +169,12 @@ class StudentVotingPage:
         self.main_container.content = self._loading()
         self.page.update()
 
-        poll_data = await get_active_poll(self.email)
+        if self.is_guest:
+            poll_data = mock_data.get_active_poll()
+        else:
+            poll_data = await get_active_poll(self.email)
 
-        if isinstance(poll_data, dict) and "error" in poll_data:
+        if not self.is_guest and isinstance(poll_data, dict) and "error" in poll_data:
             body = ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="#EF4444", size=40),
@@ -199,6 +226,7 @@ class StudentVotingPage:
             body = ft.Column([info_strip] + cards, spacing=0)
 
         self.main_container.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 ft.Column([
                     ft.Text("Vote", size=28, weight="bold", color=self.txt, font_family="DM Sans"),

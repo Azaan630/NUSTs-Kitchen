@@ -2,6 +2,7 @@ import flet as ft
 import asyncio
 from datetime import date, timedelta
 from pages.api_client import get_todays_menu, get_weekly_menu, rate_food_item
+import mock_data
 
 
 class StudentHomePage:
@@ -11,6 +12,7 @@ class StudentHomePage:
         self.theme = theme
         self.email = user_data.get("Email", "")
         self.user_id = int(user_data.get("UserID", 0))
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg      = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
@@ -128,14 +130,18 @@ class StudentHomePage:
             rating_state["current"] = score
             render_stars(score)
 
-            result = await rate_food_item(
-                user_id=self.user_id,
-                item_id=item_id,
-                meal_date=meal_date,
-                meal_type=meal_type,
-                score=score,
-                email=self.email,
-            )
+            if self.is_guest:
+                mock_data.rate_food_item(self.user_id, item_id, meal_date, meal_type, score)
+                result = {"message": "Rating saved"}
+            else:
+                result = await rate_food_item(
+                    user_id=self.user_id,
+                    item_id=item_id,
+                    meal_date=meal_date,
+                    meal_type=meal_type,
+                    score=score,
+                    email=self.email,
+                )
             if result and "error" not in result:
                 rating_state["submitted"] = True
                 self.page.snack_bar = ft.SnackBar(
@@ -428,21 +434,44 @@ class StudentHomePage:
             padding=ft.Padding.all(4),
         )
 
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
+
     # ── Load & render ──────────────────────────────────────────────
     async def _render(self):
         self.main_container.content = self._loading()
         self.page.update()
 
         if self._view["weekly"]:
-            data = await get_weekly_menu()
-            if isinstance(data, dict) and "error" in data:
+            if self.is_guest:
+                data = mock_data.get_weekly_menu()
+            else:
+                data = await get_weekly_menu()
+            if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:
                 items = data if isinstance(data, list) else []
                 body  = self._build_weekly(items)
         else:
-            data = await get_todays_menu(self.email)
-            if isinstance(data, dict) and "error" in data:
+            if self.is_guest:
+                data = mock_data.get_todays_menu()
+            else:
+                data = await get_todays_menu(self.email)
+            if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:
                 body = self._build_today(data)
@@ -458,6 +487,7 @@ class StudentHomePage:
         pill = self._toggle_pill(switch_today, switch_weekly)
 
         self.main_container.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 ft.Text(
                     "Menu",

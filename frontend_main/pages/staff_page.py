@@ -2,6 +2,7 @@ import flet as ft
 import asyncio
 import httpx
 import os
+import mock_data
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
@@ -47,6 +48,7 @@ class StaffPage:
         self.user_data = user_data
         self.theme = theme
         self.email = user_data.get("Email", "")
+        self.is_guest = theme.get("is_guest", False)
 
         t = theme
         self.bg    = t["DARK_BG"]   if t["is_dark"] else t["CREAM"]
@@ -59,6 +61,23 @@ class StaffPage:
 
         self._tab  = {"v": 0}
         self.main  = ft.Container(expand=True)
+
+    def _guest_banner(self):
+        if not self.is_guest:
+            return ft.Container()
+        return ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=18, color=self.navy),
+                ft.Text(
+                    "Guest Mode \u2014 Changes are temporary and reset on logout. "
+                    "This is a demo sandbox, not real data.",
+                    size=12, color=self.navy, font_family="DM Sans", expand=True,
+                ),
+            ], spacing=10),
+            bgcolor="#FEF3C7", border_radius=10,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            margin=ft.Margin.only(bottom=12),
+        )
 
     # ── Generic UI helpers ──────────────────────────────────────────────────
 
@@ -154,8 +173,11 @@ class StaffPage:
         content_ref.content = self._loading("Fetching weekly menu…")
         self.page.update()
 
-        data = await api_get_weekly_menu(self.email)
-        if isinstance(data, dict) and "error" in data:
+        if self.is_guest:
+            data = mock_data.get_weekly_menu()
+        else:
+            data = await api_get_weekly_menu(self.email)
+        if not self.is_guest and isinstance(data, dict) and "error" in data:
             content_ref.content = self._error(data["error"])
             self.page.update()
             return
@@ -224,6 +246,7 @@ class StaffPage:
                 ], accent=mc))
 
         content_ref.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 self._section_title("Weekly Menu"),
                 self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
@@ -243,8 +266,11 @@ class StaffPage:
         content_ref.content = self._loading("Fetching food items…")
         self.page.update()
 
-        data = await api_get_food_costs(self.email)
-        if isinstance(data, dict) and "error" in data:
+        if self.is_guest:
+            data = mock_data.get_food_costs()
+        else:
+            data = await api_get_food_costs(self.email)
+        if not self.is_guest and isinstance(data, dict) and "error" in data:
             content_ref.content = self._error(data["error"])
             self.page.update()
             return
@@ -274,6 +300,7 @@ class StaffPage:
             ]))
 
         content_ref.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 self._section_title(f"Food Items ({len(items)})"),
                 self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
@@ -293,8 +320,11 @@ class StaffPage:
         content_ref.content = self._loading("Fetching ingredients…")
         self.page.update()
 
-        data = await api_get_ingredients(self.email)
-        if isinstance(data, dict) and "error" in data:
+        if self.is_guest:
+            data = mock_data.get_ingredients()
+        else:
+            data = await api_get_ingredients(self.email)
+        if not self.is_guest and isinstance(data, dict) and "error" in data:
             content_ref.content = self._error(data["error"])
             self.page.update()
             return
@@ -332,6 +362,7 @@ class StaffPage:
             ], accent="#10B981"))
 
         content_ref.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 self._section_title(f"Ingredients ({len(items)})"),
                 self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
@@ -351,8 +382,11 @@ class StaffPage:
         content_ref.content = self._loading("Fetching recipes…")
         self.page.update()
 
-        data = await api_get_recipes(self.email)
-        if isinstance(data, dict) and "error" in data:
+        if self.is_guest:
+            data = mock_data.get_recipes()
+        else:
+            data = await api_get_recipes(self.email)
+        if not self.is_guest and isinstance(data, dict) and "error" in data:
             content_ref.content = self._error(data["error"])
             self.page.update()
             return
@@ -394,6 +428,7 @@ class StaffPage:
             ], accent="#6366F1"))
 
         content_ref.content = ft.Column([
+            self._guest_banner(),
             ft.Row([
                 self._section_title(f"Recipes ({len(grouped)} items)"),
                 self._icon_btn(ft.Icons.REFRESH_ROUNDED, self.sub, "Refresh",
