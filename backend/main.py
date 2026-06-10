@@ -99,6 +99,11 @@ def get_all_students(user=Depends(permission_checker(["Admin"])), db=Depends(get
     return UserDAO(db).get_all_users()
 
 
+@app.get("/admin/staff/all")
+def get_all_staff(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return UserDAO(db).get_all_users()
+
+
 @app.get("/admin/staff/details/{UserID}")
 def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return UserDAO(db).get_staff_details(UserID)
