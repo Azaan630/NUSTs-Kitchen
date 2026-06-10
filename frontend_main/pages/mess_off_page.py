@@ -12,23 +12,26 @@ class StudentMessOffPage:
         self.theme = theme
         self.user_id = int(user_data.get("UserID", 0))
         self.email   = user_data.get("Email", "")
-        self.P = theme["P"]
-        is_dark = theme["is_dark"]
-        self.bg      = self.P.BG_DARK if is_dark else self.P.BG_LIGHT
-        self.card_bg = self.P.SURFACE if is_dark else self.P.WHITE
-        self.card2_bg = ft.Colors.with_opacity(0.05, self.P.WHITE)
-        self.txt_c   = self.P.TEXT_LIGHT if is_dark else self.P.TEXT_DARK
-        self.sub_c   = self.P.MUTED if is_dark else self.P.MUTED_LIGHT
+
+        t = theme
+        self.bg    = t["DARK_BG"]    if t["is_dark"] else t["CREAM"]
+        self.card  = t["DARK_CARD"]  if t["is_dark"] else t["WHITE"]
+        self.card2 = t["DARK_CARD2"] if t["is_dark"] else t["CREAM2"]
+        self.txt   = t["WHITE"]      if t["is_dark"] else t["NAVY"]
+        self.sub   = t["GREY"]
+        self.amber = t["AMBER"]
 
         self.main_container = ft.Container(expand=True)
 
     def _loading(self):
         return ft.Container(
             content=ft.Column([
-                ft.ProgressRing(color=self.P.PRIMARY, width=40, height=40, stroke_width=3),
-                ft.Text("Loading mess off data...", color=self.sub_c, font_family="DM Sans", size=14),
+                ft.ProgressRing(color=self.amber, width=40, height=40, stroke_width=3),
+                ft.Text("Loading mess off data…", color=self.sub, font_family="DM Sans", size=14),
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=16),
-            alignment=ft.Alignment(0, 0), expand=True, padding=60,
+            alignment=ft.Alignment(0, 0),
+            expand=True,
+            padding=60,
         )
 
     def _calc_remaining(self, requests):
@@ -55,15 +58,16 @@ class StudentMessOffPage:
 
     def _status_chip(self, status):
         colours = {
-            "Approved":  (self.P.SUCCESS, ft.Colors.with_opacity(0.12, self.P.SUCCESS)),
-            "Pending":   (self.P.WARNING, ft.Colors.with_opacity(0.12, self.P.WARNING)),
-            "Rejected":  (self.P.ERROR, ft.Colors.with_opacity(0.12, self.P.ERROR)),
-            "Cancelled": (self.sub_c, ft.Colors.with_opacity(0.05, self.P.WHITE)),
+            "Approved":  ("#10B981", "#D1FAE5"),
+            "Pending":   ("#F59E0B", "#FEF3C7"),
+            "Rejected":  ("#EF4444", "#FEE2E2"),
+            "Cancelled": (self.sub, self.card2),
         }
-        fg, bg = colours.get(status, (self.sub_c, ft.Colors.with_opacity(0.05, self.P.WHITE)))
+        fg, bg = colours.get(status, (self.sub, self.card2))
         return ft.Container(
             content=ft.Text(status, size=11, color=fg, weight="bold", font_family="DM Sans"),
-            bgcolor=bg, border_radius=8,
+            bgcolor=bg,
+            border_radius=8,
             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
         )
 
@@ -75,8 +79,8 @@ class StudentMessOffPage:
         if status == "Pending":
             cancel_btn = ft.TextButton(
                 content=ft.Row([
-                    ft.Icon(ft.Icons.CANCEL_ROUNDED, size=14, color=self.P.ERROR),
-                    ft.Text("Cancel", size=12, color=self.P.ERROR, font_family="DM Sans"),
+                    ft.Icon(ft.Icons.CANCEL_ROUNDED, size=14, color="#EF4444"),
+                    ft.Text("Cancel", size=12, color="#EF4444", font_family="DM Sans"),
                 ], spacing=4, tight=True),
                 on_click=lambda e, mid=mess_off_id: asyncio.create_task(on_cancel(mid)),
                 style=ft.ButtonStyle(padding=ft.Padding.all(4)),
@@ -85,29 +89,42 @@ class StudentMessOffPage:
         return ft.Container(
             content=ft.Row([
                 ft.Container(
-                    content=ft.Icon(ft.Icons.CALENDAR_MONTH_ROUNDED, size=20, color=self.P.PRIMARY_LT),
+                    content=ft.Icon(ft.Icons.CALENDAR_MONTH_ROUNDED, size=20, color=self.amber),
                     width=44, height=44,
-                    bgcolor=ft.Colors.with_opacity(0.12, self.P.PRIMARY),
-                    border_radius=12, alignment=ft.Alignment(0, 0),
+                    bgcolor=ft.Colors.with_opacity(0.12, self.amber),
+                    border_radius=12,
+                    alignment=ft.Alignment(0, 0),
                 ),
                 ft.Column([
                     ft.Row([
-                        ft.Text(f"{req.get('Start_Date','?')} \u2192 {req.get('End_Date','?')}",
-                                size=14, weight="bold", color=self.txt_c, font_family="DM Sans"),
+                        ft.Text(
+                            f"{req.get('Start_Date','?')} → {req.get('End_Date','?')}",
+                            size=14,
+                            weight="bold",
+                            color=self.txt,
+                            font_family="DM Sans",
+                        ),
                         self._status_chip(status),
                     ], spacing=8),
                     ft.Text(
-                        f"Requested: {req.get('Request_Date', req.get('Start_Date','?'))}  \u2022  ID #{mess_off_id}",
-                        size=11, color=self.sub_c, font_family="DM Sans",
+                        f"Requested: {req.get('Request_Date', req.get('Start_Date','?'))}  •  ID #{mess_off_id}",
+                        size=11,
+                        color=self.sub,
+                        font_family="DM Sans",
                     ),
                 ], expand=True, spacing=4),
                 cancel_btn,
             ], spacing=12),
-            bgcolor=self.card_bg, border_radius=16,
+            bgcolor=self.card,
+            border_radius=16,
             padding=ft.Padding.symmetric(horizontal=16, vertical=14),
             margin=ft.Margin.only(bottom=10),
-            shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(0.06, "#000"), offset=ft.Offset(0, 2)),
-            border=ft.Border.all(0.5, ft.Colors.with_opacity(0.1, self.P.WHITE)),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.06, "#000")),
         )
 
     async def _render(self):
@@ -123,6 +140,7 @@ class StudentMessOffPage:
 
         remaining = self._calc_remaining(requests)
 
+        # ── Quota ring ───────────────────────────────────────────
         used     = 12 - remaining
         fraction = used / 12
         quota_card = ft.Container(
@@ -130,42 +148,71 @@ class StudentMessOffPage:
                 ft.Stack([
                     ft.Container(
                         content=ft.ProgressRing(
-                            value=fraction, color=self.P.PRIMARY,
-                            bgcolor=ft.Colors.with_opacity(0.15, self.P.PRIMARY),
-                            width=64, height=64, stroke_width=6,
+                            value=fraction,
+                            color=self.amber,
+                            bgcolor=ft.Colors.with_opacity(0.15, self.amber),
+                            width=64, height=64,
+                            stroke_width=6,
                         ),
                     ),
                     ft.Container(
-                        content=ft.Text(str(remaining), size=18, weight="bold",
-                                        color=self.P.PRIMARY_LT, font_family="DM Sans"),
-                        width=64, height=64, alignment=ft.Alignment(0, 0),
+                        content=ft.Text(
+                            str(remaining),
+                            size=18,
+                            weight="bold",
+                            color=self.amber,
+                            font_family="DM Sans",
+                        ),
+                        width=64, height=64,
+                        alignment=ft.Alignment(0, 0),
                     ),
                 ]),
                 ft.Column([
-                    ft.Text("Days remaining this month", size=14, weight="bold",
-                            color=self.txt_c, font_family="DM Sans"),
-                    ft.Text(f"{used} used of 12 allowed", size=12,
-                            color=self.sub_c, font_family="DM Sans"),
+                    ft.Text(
+                        "Days remaining this month",
+                        size=14,
+                        weight="bold",
+                        color=self.txt,
+                        font_family="DM Sans",
+                    ),
+                    ft.Text(
+                        f"{used} used of 12 allowed",
+                        size=12,
+                        color=self.sub,
+                        font_family="DM Sans",
+                    ),
                 ], spacing=4, expand=True),
             ], spacing=16),
-            bgcolor=ft.Colors.with_opacity(0.05, self.P.WHITE),
-            border_radius=18, padding=ft.Padding.symmetric(horizontal=20, vertical=16),
+            bgcolor=self.card2,
+            border_radius=18,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=16),
             margin=ft.Margin.only(bottom=20),
         )
 
+        # ── Request form ─────────────────────────────────────────
         start_field = ft.TextField(
-            label="Start Date", hint_text="YYYY-MM-DD", expand=True,
-            border_color=self.P.PRIMARY, focused_border_color=self.P.PRIMARY_LT,
-            label_style=ft.TextStyle(color=self.sub_c, font_family="DM Sans"),
-            text_style=ft.TextStyle(color=self.txt_c, font_family="DM Sans"),
-            border_radius=12, filled=True, fill_color=self.card_bg,
+            label="Start Date",
+            hint_text="YYYY-MM-DD",
+            expand=True,
+            border_color=self.amber,
+            focused_border_color=self.amber,
+            label_style=ft.TextStyle(color=self.sub, font_family="DM Sans"),
+            text_style=ft.TextStyle(color=self.txt, font_family="DM Sans"),
+            border_radius=12,
+            filled=True,
+            fill_color=self.card,
         )
         end_field = ft.TextField(
-            label="End Date", hint_text="YYYY-MM-DD", expand=True,
-            border_color=self.P.PRIMARY, focused_border_color=self.P.PRIMARY_LT,
-            label_style=ft.TextStyle(color=self.sub_c, font_family="DM Sans"),
-            text_style=ft.TextStyle(color=self.txt_c, font_family="DM Sans"),
-            border_radius=12, filled=True, fill_color=self.card_bg,
+            label="End Date",
+            hint_text="YYYY-MM-DD",
+            expand=True,
+            border_color=self.amber,
+            focused_border_color=self.amber,
+            label_style=ft.TextStyle(color=self.sub, font_family="DM Sans"),
+            text_style=ft.TextStyle(color=self.txt, font_family="DM Sans"),
+            border_radius=12,
+            filled=True,
+            fill_color=self.card,
         )
 
         async def submit(e):
@@ -174,8 +221,8 @@ class StudentMessOffPage:
                 end   = date.fromisoformat(end_field.value.strip())
             except:
                 self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Invalid date format - use YYYY-MM-DD", color="#FFF"),
-                    bgcolor=self.P.ERROR,
+                    content=ft.Text("Invalid date format — use YYYY-MM-DD", color="#FFF"),
+                    bgcolor="#EF4444",
                 )
                 self.page.snack_bar.open = True
                 self.page.update()
@@ -184,7 +231,7 @@ class StudentMessOffPage:
             if start > end:
                 self.page.snack_bar = ft.SnackBar(
                     content=ft.Text("Start date must be before end date", color="#FFF"),
-                    bgcolor=self.P.ERROR,
+                    bgcolor="#EF4444",
                 )
                 self.page.snack_bar.open = True
                 self.page.update()
@@ -193,80 +240,90 @@ class StudentMessOffPage:
             result = await request_mess_off(self.user_id, start, end, self.email)
 
             if isinstance(result, dict) and "error" in result:
-                msg, colour = result["error"], self.P.ERROR
+                msg = result["error"]
+                colour = "#EF4444"
             else:
-                msg = result.get("message", "Request submitted!") if isinstance(result, dict) else "Submitted!"
-                colour = self.P.SUCCESS
+                msg    = result.get("message", "Request submitted!") if isinstance(result, dict) else "Submitted!"
+                colour = "#10B981"
                 start_field.value = ""
                 end_field.value   = ""
                 asyncio.create_task(self._render())
 
             self.page.snack_bar = ft.SnackBar(
-                content=ft.Text(msg, color="#FFF"), bgcolor=colour,
+                content=ft.Text(msg, color="#FFF"), bgcolor=colour
             )
             self.page.snack_bar.open = True
             self.page.update()
 
-        submit_btn = ft.Container(
-            content=ft.FilledButton(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.SEND_ROUNDED, size=16, color=self.P.WHITE),
-                    ft.Text("Submit", size=13, weight="bold", color=self.P.WHITE, font_family="DM Sans"),
-                ], spacing=8, tight=True),
-                on_click=submit,
-                style=ft.ButtonStyle(
-                    bgcolor=ft.Colors.TRANSPARENT, elevation=0,
-                    shape=ft.RoundedRectangleBorder(radius=12),
-                    padding=ft.Padding.symmetric(horizontal=20, vertical=14),
-                ),
+        submit_btn = ft.FilledButton(
+            content=ft.Row([
+                ft.Icon(ft.Icons.SEND_ROUNDED, size=16, color=self.card),
+                ft.Text("Submit", size=13, weight="bold", color=self.card, font_family="DM Sans"),
+            ], spacing=8, tight=True),
+            on_click=submit,
+            style=ft.ButtonStyle(
+                bgcolor=self.amber,
+                elevation=0,
+                shape=ft.RoundedRectangleBorder(radius=12),
+                padding=ft.Padding.symmetric(horizontal=20, vertical=14),
             ),
-            gradient=ft.LinearGradient(
-                begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                colors=[self.P.PRIMARY, self.P.SECONDARY],
-            ),
-            border_radius=12,
         )
 
         form_card = ft.Container(
             content=ft.Column([
-                ft.Text("New Request", size=15, weight="bold",
-                        color=self.txt_c, font_family="DM Sans"),
+                ft.Text(
+                    "New Request",
+                    size=15,
+                    weight="bold",
+                    color=self.txt,
+                    font_family="DM Sans",
+                ),
                 ft.Container(height=8),
                 ft.Row([start_field, end_field], spacing=10),
                 ft.Container(height=10),
                 ft.Row([submit_btn], alignment=ft.MainAxisAlignment.END),
                 ft.Text(
                     "Max 12 days per month. Approved requests will deduct from your quota.",
-                    size=11, color=self.sub_c, font_family="DM Sans",
+                    size=11,
+                    color=self.sub,
+                    font_family="DM Sans",
                 ),
             ], spacing=0),
-            bgcolor=self.card_bg, border_radius=18,
+            bgcolor=self.card,
+            border_radius=18,
             padding=ft.Padding.symmetric(horizontal=20, vertical=16),
             margin=ft.Margin.only(bottom=20),
-            shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(0.06, "#000"), offset=ft.Offset(0, 2)),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.06, "#000"),
+                offset=ft.Offset(0, 2),
+            ),
         )
 
+        # ── Cancel handler ───────────────────────────────────────
         async def handle_cancel(mid):
             result = await cancel_mess_off(mid, self.email)
             if isinstance(result, dict) and "error" in result:
-                msg, colour = result["error"], self.P.ERROR
+                msg, colour = result["error"], "#EF4444"
             else:
-                msg = result.get("message", "Cancelled") if isinstance(result, dict) else "Cancelled"
-                colour = self.P.SUCCESS
+                msg    = result.get("message", "Cancelled") if isinstance(result, dict) else "Cancelled"
+                colour = "#10B981"
                 asyncio.create_task(self._render())
             self.page.snack_bar = ft.SnackBar(
-                content=ft.Text(msg, color="#FFF"), bgcolor=colour,
+                content=ft.Text(msg, color="#FFF"), bgcolor=colour
             )
             self.page.snack_bar.open = True
             self.page.update()
 
+        # ── History list ─────────────────────────────────────────
         if not requests:
             history_body = ft.Container(
                 content=ft.Column([
-                    ft.Icon(ft.Icons.INBOX_ROUNDED, size=40, color=self.sub_c),
-                    ft.Text("No requests this month", color=self.sub_c, font_family="DM Sans"),
+                    ft.Icon(ft.Icons.INBOX_ROUNDED, size=40, color=self.sub),
+                    ft.Text("No requests this month", color=self.sub, font_family="DM Sans"),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                alignment=ft.Alignment(0, 0), padding=40,
+                alignment=ft.Alignment(0, 0),
+                padding=40,
             )
         else:
             history_body = ft.Column(
@@ -276,11 +333,12 @@ class StudentMessOffPage:
         self.main_container.content = ft.Column([
             ft.Row([
                 ft.Column([
-                    ft.Text("Mess Off", size=28, weight="bold", color=self.txt_c, font_family="DM Sans"),
-                    ft.Text("Manage your meal absences", size=13, color=self.sub_c, font_family="DM Sans"),
+                    ft.Text("Mess Off", size=28, weight="bold", color=self.txt, font_family="DM Sans"),
+                    ft.Text("Manage your meal absences", size=13, color=self.sub, font_family="DM Sans"),
                 ]),
                 ft.IconButton(
-                    icon=ft.Icons.REFRESH_ROUNDED, icon_color=self.sub_c,
+                    icon=ft.Icons.REFRESH_ROUNDED,
+                    icon_color=self.sub,
                     tooltip="Refresh",
                     on_click=lambda e: asyncio.create_task(self._render()),
                 ),
@@ -288,8 +346,13 @@ class StudentMessOffPage:
             ft.Container(height=12),
             quota_card,
             form_card,
-            ft.Text("Your Requests", size=16, weight="bold",
-                    color=self.txt_c, font_family="DM Sans"),
+            ft.Text(
+                "Your Requests",
+                size=16,
+                weight="bold",
+                color=self.txt,
+                font_family="DM Sans",
+            ),
             ft.Container(height=8),
             history_body,
         ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
@@ -299,6 +362,8 @@ class StudentMessOffPage:
     def build(self):
         asyncio.create_task(self._render())
         return ft.Container(
-            content=self.main_container, bgcolor=self.bg, expand=True,
+            content=self.main_container,
+            bgcolor=self.bg,
+            expand=True,
             padding=ft.Padding.symmetric(horizontal=24, vertical=20),
         )

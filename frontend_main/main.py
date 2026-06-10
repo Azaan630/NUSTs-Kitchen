@@ -15,48 +15,36 @@ load_dotenv()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 
-# ─── Colour palette (cool modern) ─────────────────────────────────────────────
-
-class Palette:
-    SURFACE     = "#1C1D32"  # Glass card (dark)
-    BG_DARK     = "#0B0C1A"  # Deep space
-    BG_LIGHT    = "#F0F2F5"  # Clean off-white
-    WHITE       = "#FFFFFF"
-    TEXT_DARK   = "#0F172A"  # Slate-900
-    TEXT_LIGHT  = "#E2E8F0"  # Slate-200
-    MUTED       = "#64748B"  # Slate-500
-    MUTED_LIGHT = "#94A3B8"
-
-    PRIMARY     = "#7C3AED"  # Violet-600
-    PRIMARY_LT  = "#A78BFA"  # Violet-400
-    SECONDARY   = "#6366F1"  # Indigo-500
-    ACCENT      = "#06B6D4"  # Cyan-500
-    ACCENT2     = "#EC4899"  # Pink-500
-
-    SUCCESS     = "#10B981"
-    WARNING     = "#F59E0B"
-    ERROR       = "#EF4444"
-
-
-P = Palette
-
-
 async def main(page: ft.Page):
     page.title = "RotiRouter | NUST SEECS"
-    page.theme_mode = ft.ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
     page.spacing = 0
     page.fonts = {
         "Playfair": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgA.woff2",
-        "DM Sans":  "https://fonts.gstatic.com/s/dmsans/v14/rP2Hp2ywxg089UriCZa4ET-DNl0.woff2",
+        "DM Sans": "https://fonts.gstatic.com/s/dmsans/v14/rP2Hp2ywxg089UriCZa4ET-DNl0.woff2",
     }
 
-    is_dark = {"v": True}
+    # ── Theme colours
+    NAVY       = "#0D1B2A"
+    NAVY_LIGHT = "#1A2D42"
+    AMBER      = "#F4A228"
+    AMBER_DIM  = "#C4821E"
+    CREAM      = "#FDF6EC"
+    CREAM2     = "#F5ECD8"
+    DARK_BG    = "#0A1520"
+    DARK_CARD  = "#111E2E"
+    DARK_CARD2 = "#172338"
+    WHITE      = "#FFFFFF"
+    GREY       = "#8A97A8"
 
-    def bg():    return P.BG_DARK  if is_dark["v"] else P.BG_LIGHT
-    def card():  return P.SURFACE  if is_dark["v"] else P.WHITE
-    def txt():   return P.TEXT_LIGHT if is_dark["v"] else P.TEXT_DARK
-    def muted(): return P.MUTED    if is_dark["v"] else P.MUTED_LIGHT
+    # ── Dark-mode state
+    is_dark = {"v": False}
+
+    def bg():    return DARK_BG   if is_dark["v"] else CREAM
+    def card():  return DARK_CARD if is_dark["v"] else WHITE
+    def text():  return WHITE     if is_dark["v"] else NAVY
+    def sub():   return GREY      if is_dark["v"] else "#5A6A7A"
 
     provider = ft.auth.GoogleOAuthProvider(
         client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
@@ -64,335 +52,245 @@ async def main(page: ft.Page):
         redirect_url=os.getenv("OAUTH_REDIRECT_URL", "http://localhost:8550/oauth_callback"),
     )
 
-    # ─── Theme helpers ──────────────────────────────────────────────────────
+    def get_user_data():
+        return getattr(page, "current_user_data", {})
 
-    def theme_dict():
-        return {
-            "is_dark": is_dark["v"],
-            "bg": bg, "card": card, "txt": txt, "muted": muted,
-            "P": P,
-        }
+    def get_val(key, default="N/A"):
+        return get_user_data().get(key, default)
 
-    def glass(bgcolor=None, border_color=None):
-        return ft.Container(
-            bgcolor=bgcolor or ft.Colors.with_opacity(0.08, P.WHITE),
-            border_radius=16,
-            border=ft.Border.all(
-                0.5,
-                border_color or ft.Colors.with_opacity(0.12, P.WHITE),
-            ),
-        )
-
-    # ─── Top bar ───────────────────────────────────────────────────────────
-
-    def build_top_bar(role, on_logout, on_dark_toggle):
-        first = page.current_user_data.get("First_Name", "U")
-        last  = page.current_user_data.get("Last_Name", "")
-        initials = (first[0] + (last[0] if last else "")).upper()
-
-        avatar = ft.Container(
-            content=ft.Text(initials, size=14, weight="bold", color=P.WHITE),
-            width=38, height=38,
-            gradient=ft.LinearGradient(
-                begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                colors=[P.PRIMARY, P.ACCENT2],
-            ),
-            border_radius=19,
-            alignment=ft.Alignment(0, 0),
-            animate=ft.Animation(300, "easeOut"),
-        )
-
-        name_text = ft.Text(
-            f"{first} {last}".strip(),
-            size=13, weight="bold", color=txt(), font_family="DM Sans",
-        )
-
-        role_chip = ft.Container(
-            content=ft.Text(role, size=9, weight="bold", color=P.WHITE),
-            bgcolor=ft.Colors.with_opacity(0.2, P.ACCENT),
-            border_radius=6,
-            padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-        )
-
-        popup_menu = ft.PopupMenuButton(
-            items=[
-                ft.PopupMenuItem(
-                    content=ft.Row([
-                        ft.Icon(ft.Icons.DARK_MODE_ROUNDED, size=18, color=muted()),
-                        ft.Text("Dark Mode", size=13, color=txt(), font_family="DM Sans"),
-                    ], spacing=10),
-                    on_click=on_dark_toggle,
-                ),
-                ft.PopupMenuItem(),
-                ft.PopupMenuItem(
-                    content=ft.Row([
-                        ft.Icon(ft.Icons.LOGOUT_ROUNDED, size=18, color=P.ERROR),
-                        ft.Text("Logout", size=13, color=P.ERROR, font_family="DM Sans"),
-                    ], spacing=10),
-                    on_click=on_logout,
-                ),
-            ],
-            menu_position=ft.PopupMenuPosition.UNDER,
-        )
-
-        popup_menu.content = ft.Container(
-            content=ft.Row([
-                avatar,
-                ft.Column([name_text, role_chip], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.END),
-            ], spacing=10),
-            padding=ft.Padding.symmetric(horizontal=4, vertical=4),
-        )
-
-        return ft.Container(
-            content=ft.Row([
-                ft.Row([
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.ROUTER_ROUNDED, size=24, color=P.PRIMARY_LT),
-                        width=40, height=40,
-                        bgcolor=ft.Colors.with_opacity(0.15, P.PRIMARY),
-                        border_radius=12,
-                        alignment=ft.Alignment(0, 0),
-                    ),
-                    ft.Column([
-                        ft.Text("RotiRouter", size=20, weight="bold",
-                                font_family="Playfair", color=P.WHITE if is_dark["v"] else P.TEXT_DARK),
-                        ft.Text("NUST SEECS", size=10, color=muted(), font_family="DM Sans"),
-                    ], spacing=0),
-                ], spacing=12),
-                ft.Row([
-                    ft.IconButton(
-                        icon=ft.Icons.DARK_MODE_OUTLINED if is_dark["v"] else ft.Icons.LIGHT_MODE_OUTLINED,
-                        icon_color=P.WHITE if is_dark["v"] else P.TEXT_DARK,
-                        icon_size=20,
-                        tooltip="Toggle theme",
-                        on_click=on_dark_toggle,
-                        style=ft.ButtonStyle(
-                            bgcolor=ft.Colors.with_opacity(0.08, P.WHITE),
-                            shape=ft.RoundedRectangleBorder(radius=10),
-                            padding=ft.Padding.all(8),
-                        ),
-                    ),
-                    popup_menu,
-                ], spacing=8),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=24, vertical=10),
-            bgcolor=ft.Colors.with_opacity(0.6, P.SURFACE) if is_dark["v"] else P.WHITE,
-            border_radius=0,
-        )
-
-    # ─── Tab bar for admin / staff ──────────────────────────────────────────
-
-    def build_tab_bar(tabs, active_idx, on_select):
-        items = []
-        for i, (label, icon) in enumerate(tabs):
-            selected = active_idx == i
-            items.append(
-                ft.Container(
-                    content=ft.Row([
-                        ft.Icon(icon, size=16,
-                                color=P.WHITE if selected else muted()),
-                        ft.Text(label, size=12, font_family="DM Sans",
-                                weight="bold" if selected else "normal",
-                                color=P.WHITE if selected else muted()),
-                    ], spacing=6),
-                    padding=ft.Padding.symmetric(horizontal=16, vertical=10),
-                    bgcolor=(
-                        ft.LinearGradient(
-                            begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                            colors=[P.PRIMARY, P.SECONDARY],
-                        ) if selected else ft.Colors.TRANSPARENT
-                    ),
-                    border_radius=12,
-                    on_click=lambda e, idx=i: on_select(idx),
-                    animate=ft.Animation(200, "easeOut"),
-                    ink=True,
-                )
-            )
-        return ft.Container(
-            content=ft.Row(items, spacing=4, scroll=ft.ScrollMode.AUTO),
-            padding=ft.Padding.symmetric(horizontal=24, vertical=8),
-            bgcolor=None,
-        )
-
-    # ─── Student bottom dock ────────────────────────────────────────────────
-
-    NAV_ITEMS = [
-        {"icon": ft.Icons.RESTAURANT_MENU_ROUNDED, "label": "Menu",    "index": 0},
-        {"icon": ft.Icons.HOW_TO_VOTE_ROUNDED,     "label": "Vote",    "index": 1},
-        {"icon": ft.Icons.PERSON_ROUNDED,          "label": "Profile", "index": 2},
-        {"icon": ft.Icons.CALENDAR_TODAY_ROUNDED,  "label": "Mess Off","index": 3},
-    ]
-
-    def build_student_dock(current_idx, on_select):
-        items = []
-        for item in NAV_ITEMS:
-            sel = current_idx == item["index"]
-            items.append(
-                ft.Container(
-                    content=ft.Column([
-                        ft.Container(
-                            content=ft.Icon(
-                                item["icon"],
-                                size=22,
-                                color=P.WHITE if sel else muted(),
-                            ),
-                            width=44, height=44,
-                            bgcolor=(
-                                ft.LinearGradient(
-                                    begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                                    colors=[P.PRIMARY, P.ACCENT],
-                                ) if sel else ft.Colors.TRANSPARENT
-                            ),
-                            border_radius=14,
-                            alignment=ft.Alignment(0, 0),
-                            animate=ft.Animation(250, "easeOut"),
-                        ),
-                        ft.Text(
-                            item["label"],
-                            size=9, font_family="DM Sans",
-                            weight="bold" if sel else "normal",
-                            color=P.PRIMARY_LT if sel else muted(),
-                        ),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3),
-                    padding=ft.Padding.symmetric(horizontal=6, vertical=6),
-                    on_click=lambda e, i=item["index"]: on_select(i),
-                    animate=ft.Animation(200, "easeOut"),
-                )
-            )
-        return ft.Container(
-            content=ft.Row(items, alignment=ft.MainAxisAlignment.CENTER, spacing=2),
-            padding=ft.Padding.symmetric(horizontal=16, vertical=6),
-            margin=ft.Margin.only(bottom=16, left=40, right=40),
-            bgcolor=ft.Colors.with_opacity(0.75, P.SURFACE) if is_dark["v"] else P.WHITE,
-            border_radius=24,
-            border=ft.Border.all(0.5, ft.Colors.with_opacity(0.15, P.WHITE)),
-            shadow=ft.BoxShadow(
-                blur_radius=40, spread_radius=0,
-                color=ft.Colors.with_opacity(0.3, "#000000"),
-                offset=ft.Offset(0, 8),
-            ),
-        )
-
-    # ─── Dashboard ─────────────────────────────────────────────────────────
-
+    # ── DASHBOARD
     async def show_dashboard():
         page.clean()
         page.bgcolor = bg()
         page.update()
 
-        ud = page.current_user_data
-        role = ud.get("Account_Type", "Student")
+        current_index = {"v": 0}
+        page_content = ft.Container(expand=True, padding=0)
 
-        current_tab = {"v": 0}
-        content_area = ft.Container(expand=True, padding=0)
+        # ── Dark mode toggle
+        dark_btn = ft.IconButton(
+            icon=ft.Icons.DARK_MODE_OUTLINED,
+            icon_color=AMBER,
+            icon_size=22,
+            tooltip="Toggle dark mode",
+            on_click=lambda e: toggle_dark(e),
+        )
 
-        def handle_logout(e):
-            page.client_storage.remove("auth_email")
-            page.clean()
-            page.add(ft.Text("Logged out.", color=P.MUTED))
-            page.update()
-            import sys
-            sys.exit(0)
-
-        def toggle_theme(e):
+        def toggle_dark(e):
             is_dark["v"] = not is_dark["v"]
-            page.theme_mode = ft.ThemeMode.DARK if is_dark["v"] else ft.ThemeMode.LIGHT
-            page.bgcolor = bg()
-            rebuild()
-            page.update()
-
-        def rebuild():
-            page.clean()
-            page.bgcolor = bg()
-
-            top = build_top_bar(role, handle_logout, toggle_theme)
-
-            if role == "Admin":
-                tabs = AdminPage.TABS
-                bar = build_tab_bar(tabs, current_tab["v"], lambda idx: switch_admin(idx))
-
-                def switch_admin(idx):
-                    current_tab["v"] = idx
-                    bar.content.controls = build_tab_bar(tabs, idx, lambda i: switch_admin(i)).content.controls
-                    load_admin_content(idx)
-                    page.update()
-
-                def load_admin_content(idx):
-                    ap = AdminPage(page, ud, theme_dict())
-                    renderer = getattr(ap, ap.RENDERERS[idx])
-                    asyncio.create_task(renderer(content_area))
-
-                page.add(
-                    ft.Column([
-                        top,
-                        bar,
-                        ft.Container(content=content_area, expand=True, padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
-                    ], spacing=0, expand=True)
-                )
-                load_admin_content(0)
-                page.update()
-                return
-
-            if role == "Staff":
-                tabs = StaffPage.TABS
-                bar = build_tab_bar(tabs, current_tab["v"], lambda idx: switch_staff(idx))
-
-                def switch_staff(idx):
-                    current_tab["v"] = idx
-                    bar.content.controls = build_tab_bar(tabs, idx, lambda i: switch_staff(i)).content.controls
-                    load_staff_content(idx)
-                    page.update()
-
-                def load_staff_content(idx):
-                    sp = StaffPage(page, ud, theme_dict())
-                    renderer = getattr(sp, sp.RENDERERS[idx])
-                    asyncio.create_task(renderer(content_area))
-
-                page.add(
-                    ft.Column([
-                        top,
-                        bar,
-                        ft.Container(content=content_area, expand=True, padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
-                    ], spacing=0, expand=True)
-                )
-                load_staff_content(0)
-                page.update()
-                return
-
-            # ── Student ─────────────────────────────────────────────
-            dock = build_student_dock(current_tab["v"], lambda idx: switch_student(idx))
-            page_content = ft.Container(expand=True)
-
-            def switch_student(idx):
-                current_tab["v"] = idx
-                new_dock = build_student_dock(idx, lambda i: switch_student(i))
-                dock.content = new_dock.content
-                load_student_content(idx)
-
-            def load_student_content(idx):
-                pages = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
-                cls = pages[idx]
-                instance = cls(page, ud, theme_dict())
-                page_content.content = instance.build()
-                page.update()
-
-            page.add(
-                ft.Column([
-                    top,
-                    ft.Container(content=page_content, expand=True),
-                    dock,
-                ], spacing=0, expand=True)
+            dark_btn.icon = (
+                ft.Icons.LIGHT_MODE_OUTLINED if is_dark["v"] else ft.Icons.DARK_MODE_OUTLINED
             )
-            load_student_content(0)
+            page.bgcolor = bg()
+            dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
+            top_bar.bgcolor = DARK_CARD if is_dark["v"] else WHITE
+            load_page(current_index["v"])
             page.update()
 
-        rebuild()
+        # ── User avatar chip ──────────────────────────────────────
+        first = get_val("First_Name", "U")
+        last  = get_val("Last_Name",  "")
+        initials = (first[0] + (last[0] if last else "")).upper()
 
-    # ─── Auth flow ─────────────────────────────────────────────────────────
+        avatar = ft.Container(
+            content=ft.Text(initials, size=13, weight="bold", color=WHITE),
+            width=36, height=36,
+            bgcolor=AMBER,
+            border_radius=18,
+            alignment=ft.Alignment(0, 0),
+        )
 
+        name_chip = ft.Container(
+            content=ft.Row([
+                avatar,
+                ft.Text(
+                    f"{first} {last}".strip(),
+                    size=13,
+                    weight="bold",
+                    color=text(),
+                    font_family="DM Sans",
+                ),
+            ], spacing=8),
+            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.with_opacity(0.08, AMBER),
+            border_radius=20,
+        )
+
+        top_bar = ft.Container(
+            content=ft.Row([
+                ft.Text(
+                    "RotiRouter",
+                    size=22,
+                    weight="bold",
+                    font_family="Playfair",
+                    color=AMBER,
+                ),
+                ft.Row([name_chip, dark_btn], spacing=4),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            padding=ft.Padding.symmetric(horizontal=24, vertical=12),
+            bgcolor=WHITE,
+            shadow=ft.BoxShadow(
+                blur_radius=20,
+                color=ft.Colors.with_opacity(0.08, "#000000"),
+                offset=ft.Offset(0, 2),
+            ),
+        )
+
+        # ── Floating Dock
+        NAV_ITEMS = [
+            {"icon": ft.Icons.RESTAURANT_MENU_ROUNDED, "label": "Menu",     "index": 0},
+            {"icon": ft.Icons.HOW_TO_VOTE_ROUNDED,      "label": "Vote",     "index": 1},
+            {"icon": ft.Icons.PERSON_ROUNDED,            "label": "Profile",  "index": 2},
+            {"icon": ft.Icons.CALENDAR_TODAY_ROUNDED,    "label": "Mess Off", "index": 3},
+        ]
+
+        dock_items = []
+
+        def make_dock_btn(item):
+            idx = item["index"]
+            is_sel = current_index["v"] == idx
+
+            btn = ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        content=ft.Icon(
+                            item["icon"],
+                            size=24,
+                            color=AMBER if is_sel else GREY,
+                        ),
+                        width=48, height=48,
+                        bgcolor=ft.Colors.with_opacity(0.15, AMBER) if is_sel else ft.Colors.TRANSPARENT,
+                        border_radius=16,
+                        alignment=ft.Alignment(0, 0),
+                        animate=ft.Animation(200, "easeOut"),
+                    ),
+                    ft.Text(
+                        item["label"],
+                        size=10,
+                        color=AMBER if is_sel else GREY,
+                        font_family="DM Sans",
+                        weight="bold" if is_sel else "normal",
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4),
+                padding=ft.Padding.symmetric(horizontal=8, vertical=8),
+                on_click=lambda e, i=idx: load_page(i),
+                border_radius=16,
+                animate=ft.Animation(200, "easeOut"),
+                tooltip=item["label"],
+            )
+            dock_items.append(btn)
+            return btn
+
+        dock_row = ft.Row(
+            [make_dock_btn(item) for item in NAV_ITEMS],
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=4,
+        )
+
+        dock_container = ft.Container(
+            content=dock_row,
+            bgcolor=WHITE,
+            border_radius=32,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=8),
+            shadow=ft.BoxShadow(
+                blur_radius=32,
+                spread_radius=0,
+                color=ft.Colors.with_opacity(0.18, "#000000"),
+                offset=ft.Offset(0, 8),
+            ),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.08, "#000000")),
+        )
+
+        dock_wrapper = ft.Container(
+            content=dock_container,
+            alignment=ft.Alignment(0, 0),
+            padding=ft.Padding.only(bottom=20),
+        )
+
+        def refresh_dock():
+            for i, item in enumerate(NAV_ITEMS):
+                is_sel = current_index["v"] == item["index"]
+                inner = dock_items[i].content
+                icon_box = inner.controls[0]
+                label    = inner.controls[1]
+                icon_box.content.color = AMBER if is_sel else GREY
+                icon_box.bgcolor = (
+                    ft.Colors.with_opacity(0.15, AMBER) if is_sel else ft.Colors.TRANSPARENT
+                )
+                label.color  = AMBER if is_sel else GREY
+                label.weight = "bold" if is_sel else "normal"
+            dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
+            page.update()
+
+        # ── Page loader (role-based)
+        def load_page(index):
+            current_index["v"] = index
+            page_content.content = None
+            page.update()
+
+            ud = page.current_user_data
+            role = ud.get("Account_Type", "Student")   # "Student" | "Staff" | "Admin"
+
+            theme = {
+                "is_dark":    is_dark["v"],
+                "NAVY":       NAVY,
+                "AMBER":      AMBER,
+                "CREAM":      CREAM,
+                "DARK_BG":    DARK_BG,
+                "DARK_CARD":  DARK_CARD,
+                "GREY":       GREY,
+                "WHITE":      WHITE,
+                "AMBER_DIM":  AMBER_DIM,
+                "NAVY_LIGHT": NAVY_LIGHT,
+                "CREAM2":     CREAM2,
+                "DARK_CARD2": DARK_CARD2,
+            }
+
+            # ── Admin: single full-screen dashboard
+            if role == "Admin":
+                page_content.content = AdminPage(page, ud, theme).build()
+                refresh_dock()
+                page.update()
+                dock_wrapper.visible = False
+                return
+
+            # ── Staff: single full-screen portal
+            if role == "Staff":
+                page_content.content = StaffPage(page, ud, theme).build()
+                refresh_dock()
+                page.update()
+                dock_wrapper.visible = False
+                return
+
+            # ── Student: four-tab navigation
+            dock_wrapper.visible = True
+            if index == 0:
+                page_content.content = StudentHomePage(page, ud, theme).build()
+            elif index == 1:
+                page_content.content = StudentVotingPage(page, ud, theme).build()
+            elif index == 2:
+                page_content.content = StudentProfilePage(page, ud, theme).build()
+            elif index == 3:
+                page_content.content = StudentMessOffPage(page, ud, theme).build()
+
+            refresh_dock()
+            page.update()
+
+        # ── Layout
+        body = ft.Column([
+            top_bar,
+            ft.Container(content=page_content, expand=True),
+            dock_wrapper,
+        ], spacing=0, expand=True)
+
+        page.add(body)
+        load_page(0)
+        page.update()
+
+    # ── AUTH
     async def on_login(e: ft.LoginEvent):
         if e.error:
-            page.add(ft.Text(f"Auth Error: {e.error}", color=P.ERROR))
+            page.add(ft.Text(f"Auth Error: {e.error}", color="red"))
             page.update()
             return
 
@@ -417,17 +315,11 @@ async def main(page: ft.Page):
             else:
                 page.clean()
                 page.add(
-                    ft.Container(
-                        content=ft.Column([
-                            ft.Icon(ft.Icons.GPP_BAD, color=P.ERROR, size=60),
-                            ft.Text("Unauthorized NUST Entity", color=P.ERROR, font_family="DM Sans"),
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                        alignment=ft.Alignment(0, 0), expand=True,
-                        bgcolor=P.BG_DARK,
-                    )
+                    ft.Icon(ft.Icons.GPP_BAD, color="red", size=50),
+                    ft.Text("Unauthorized NUST Entity"),
                 )
         except Exception as ex:
-            page.add(ft.Text(f"System Crash: {str(ex)}", color=P.ERROR))
+            page.add(ft.Text(f"System Crash: {str(ex)}", color="red"))
 
         page.update()
 
@@ -436,111 +328,57 @@ async def main(page: ft.Page):
     async def login_click(e):
         await page.login(provider, scope=["email", "profile"])
 
-    # ── Landing page ───────────────────────────────────────────────────────
-
+    # ── LANDING
     if page.auth and page.auth.user and hasattr(page, "current_user_data"):
         await show_dashboard()
     else:
-        page.bgcolor = P.BG_DARK
+        page.bgcolor = "#0D1B2A"
         page.add(
             ft.Container(
                 content=ft.Column([
-                    ft.Container(height=40),
-
-                    # Logo glow
-                    ft.Container(
-                        content=ft.Container(
-                            content=ft.Icon(ft.Icons.ROUTER_ROUNDED, size=56, color=P.WHITE),
-                            width=100, height=100,
-                            gradient=ft.LinearGradient(
-                                begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                                colors=[P.PRIMARY, P.ACCENT2],
-                            ),
-                            border_radius=30,
-                            alignment=ft.Alignment(0, 0),
-                            shadow=ft.BoxShadow(
-                                blur_radius=60, spread_radius=10,
-                                color=ft.Colors.with_opacity(0.35, P.PRIMARY),
-                            ),
-                        ),
-                        padding=10,
-                    ),
-
-                    ft.Container(height=24),
-
+                    ft.Container(height=60),
+                    ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=72, color=AMBER),
+                    ft.Container(height=16),
                     ft.Text(
-                        "RotiRouter",
-                        size=48, weight="bold",
+                        "NUST's Kitchen",
+                        size=56,
+                        weight="bold",
                         font_family="Playfair",
-                        color=P.WHITE,
+                        color=WHITE,
                     ),
                     ft.Text(
                         "NUST SEECS Mess Portal",
-                        size=16, color=P.MUTED, font_family="DM Sans",
+                        size=16,
+                        color=GREY,
+                        font_family="DM Sans",
                     ),
-
                     ft.Container(height=48),
-
                     ft.Container(
                         content=ft.FilledButton(
                             content=ft.Row([
-                                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=P.WHITE, size=18),
+                                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=NAVY, size=18),
                                 ft.Text(
                                     "Continue with Google",
-                                    color=P.WHITE, weight="bold",
-                                    font_family="DM Sans", size=15,
+                                    color=NAVY,
+                                    weight="bold",
+                                    font_family="DM Sans",
+                                    size=15,
                                 ),
                             ], spacing=10, tight=True),
                             on_click=login_click,
                             style=ft.ButtonStyle(
-                                color=P.WHITE,
-                                bgcolor=ft.Colors.TRANSPARENT,
-                                padding=ft.Padding.symmetric(horizontal=32, vertical=16),
-                                shape=ft.RoundedRectangleBorder(radius=14),
+                                bgcolor=AMBER,
+                                padding=ft.Padding.symmetric(horizontal=32, vertical=18),
+                                shape=ft.RoundedRectangleBorder(radius=16),
                                 elevation=0,
-                                overlay_color=ft.Colors.with_opacity(0.1, P.WHITE),
                             ),
                         ),
-                        gradient=ft.LinearGradient(
-                            begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-                            colors=[P.PRIMARY, P.SECONDARY, P.ACCENT2],
-                        ),
-                        border_radius=14,
-                        animate=ft.Animation(200, "easeOut"),
-                        on_hover=lambda e: setattr(e.control, "scale", ft.transform.Scale(1.03) if e.data == "true" else ft.transform.Scale(1.0)),
                     ),
-
-                    ft.Container(height=80),
-
-                    ft.Row([
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=28, color=P.PRIMARY_LT),
-                                ft.Text("Today's Menu", size=12, color=P.MUTED, font_family="DM Sans"),
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        ),
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Icon(ft.Icons.HOW_TO_VOTE_ROUNDED, size=28, color=P.ACCENT),
-                                ft.Text("Vote", size=12, color=P.MUTED, font_family="DM Sans"),
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        ),
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Icon(ft.Icons.RECEIPT_LONG_ROUNDED, size=28, color=P.ACCENT2),
-                                ft.Text("Bills", size=12, color=P.MUTED, font_family="DM Sans"),
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=6),
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        ),
-                    ], spacing=40, alignment=ft.MainAxisAlignment.CENTER),
-
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                alignment=ft.Alignment(0, 0), expand=True,
+                alignment=ft.Alignment(0, 0),
+                expand=True,
             )
         )
-
     page.update()
 
 
