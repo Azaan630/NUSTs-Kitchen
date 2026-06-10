@@ -75,8 +75,10 @@ def _api(table):
             "reject":  lambda e,i: _req("POST", f"/admin/registration-requests/{i}/reject", {"email": e}),
         },
         "poll": {
-            "start":   lambda e,d: _req("POST", "/admin/poll/start", {}, d, params={"email": e}),
+            "start":   lambda e,d: _req("POST", "/admin/poll/start", {"email": e}, d),
             "results": lambda e: _req("GET", "/admin/poll/results", {"email": e}),
+            "end":     lambda e: _req("POST", "/admin/poll/end", {"email": e}),
+            "active":  lambda e: _req("GET", "/poll/active", {"email": e}),
         },
         "stats": {
             "dashboard": lambda e: _req("GET", "/admin/dashboard/stats", {"email": e}),
@@ -460,11 +462,25 @@ class AdminPage:
         async def refresh():
             await self._render_food(ref)
 
+        header = ft.Container(
+            ft.Row([
+                ft.Text("Name", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
+                ft.Text("Price", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=90, text_align=ft.TextAlign.CENTER),
+                ft.Text("Cost", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
+                ft.Text("Qty", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
+                ft.Container(width=72),
+            ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor=self._clr("card"), border_radius=12,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+            margin=ft.Margin.only(bottom=4),
+        )
+
         for item in items:
             iid = item.get("Item_ID")
             name = item.get("Name", "")
             cost = item.get("Estimated_Cost", 0)
             price = item.get("Price", 0)
+            qty = item.get("Quantity", 0)
             label = f"{name} | {iid}"
 
             ef_name  = ft.TextField(value=name, expand=True, dense=True,
@@ -475,9 +491,16 @@ class AdminPage:
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),)
+            ef_qty   = ft.TextField(value=str(qty), width=60, dense=True,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans", text_align=ft.TextAlign.CENTER),
+                filled=True, fill_color=self._clr("card"),)
 
-            async def do_upd(e, i=iid, nf=ef_name, pf=ef_price):
-                p = {"Name": nf.value, "Price": float(pf.value or 0)}
+            async def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
+                try:
+                    p = {"Name": nf.value, "Price": float(pf.value or 0), "Quantity": float(qf.value or 0)}
+                except ValueError:
+                    self._snack("Invalid number", False); return
                 if self.is_guest: mock_data.update_food(i, p)
                 else:
                     r = await _api("food")["update"](self.email, i, p)
@@ -493,7 +516,8 @@ class AdminPage:
 
             food_rows.controls.append(self._row_card([
                 ef_name, ef_price,
-                ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                ft.Text(f"PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
+                ef_qty,
             ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -505,6 +529,7 @@ class AdminPage:
             ft.Container(height=8),
             ft.Row([search_bar], spacing=8),
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
+            header,
             food_rows if food_rows.controls else ft.Text("No food items", color=self._clr("sub"), font_family="DM Sans"),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
@@ -719,12 +744,153 @@ class AdminPage:
 
     async def _render_polls(self, ref):
         ref.content = self._loading(); self.page.update()
-        res = mock_data.get_poll_results() if self.is_guest else await _api("poll")["results"](self.email)
-        poll_results = res.get("results", []) if isinstance(res, dict) else []
+
+        active_poll = (mock_data.get_active_poll() if self.is_guest
+                       else await _api("poll")["active"](self.email))
+        results = (mock_data.get_poll_results() if self.is_guest
+                   else await _api("poll")["results"](self.email))
+        poll_results = results.get("results", []) if isinstance(results, dict) else []
+
+        selected_items = []
+        search_rows = ft.Column(spacing=4)
+
+        async def refresh():
+            await self._render_polls(ref)
+
+        # ── search food ────────────────────────────────────────
+        async def do_search(q):
+            search_rows.controls.clear()
+            if len(q) < 1:
+                self.page.update(); return
+            sdata = (mock_data.search_food(q) if self.is_guest
+                     else _ensure_list(await _api("food")["search"](self.email, q)))
+            for fi in sdata:
+                fid = fi.get("Item_ID")
+                fname = fi.get("Name", "")
+                fprice = fi.get("Price", 0)
+                already = any(s.get("Item_ID") == fid for s in selected_items)
+                search_rows.controls.append(self._row_card([
+                    ft.Text(fname, expand=True, size=13, weight="bold",
+                            color=self._clr("text"), font_family="DM Sans"),
+                    ft.Text(f"PKR {fprice:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                ], actions=[
+                    self._icon_btn(
+                        ft.Icons.ADD_CIRCLE_ROUNDED if not already else ft.Icons.CHECK_CIRCLE_ROUNDED,
+                        self._clr("success") if not already else self._clr("sub"),
+                        "Add" if not already else "Added",
+                        lambda e, fi=fi: do_add(fi) if not already else None,
+                    ),
+                ]))
+            if not sdata:
+                search_rows.controls.append(ft.Text("No results", color=self._clr("sub"), font_family="DM Sans"))
+            self.page.update()
+
+        # ── add to selected ────────────────────────────────────
+        selected_view = ft.Column(spacing=4)
+
+        def rebuild_selected():
+            selected_view.controls.clear()
+            for si in selected_items:
+                sid = si.get("Item_ID")
+                sname = si.get("Name", "")
+                selected_view.controls.append(self._row_card([
+                    ft.Text(sname, expand=True, size=13, weight="bold",
+                            color=self._clr("text"), font_family="DM Sans"),
+                    self._icon_btn(ft.Icons.REMOVE_CIRCLE_ROUNDED, self._clr("danger"), "Remove",
+                                   lambda e, i=sid: do_remove(i)),
+                ]))
+            self.page.update()
+
+        def do_add(fi):
+            if not any(s.get("Item_ID") == fi.get("Item_ID") for s in selected_items):
+                selected_items.append(fi)
+                rebuild_selected()
+
+        def do_remove(iid):
+            nonlocal selected_items
+            selected_items = [s for s in selected_items if s.get("Item_ID") != iid]
+            rebuild_selected()
+
+        # ── start poll ─────────────────────────────────────────
+        meal_dropdown = ft.Dropdown(
+            options=[ft.dropdown.Option("Breakfast"), ft.dropdown.Option("Lunch"),
+                     ft.dropdown.Option("Dinner")],
+            value="Lunch", width=160,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
+            border_radius=10, filled=True, fill_color=self._clr("card2"),
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+        )
+
+        search_field = ft.TextField(
+            hint_text="Search food to add\u2026", prefix_icon=ft.Icons.SEARCH_ROUNDED,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
+            border_radius=10, filled=True, fill_color=self._clr("card2"),
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            on_change=lambda e: asyncio.create_task(do_search(e.data)),
+            expand=True,
+        )
+
+        async def do_start(e):
+            if not selected_items:
+                self._snack("Select at least one food item", False); return
+            ids = [s.get("Item_ID") for s in selected_items]
+            mt = meal_dropdown.value or "Lunch"
+            if self.is_guest:
+                mock_data.start_poll({"item_ids": ids, "meal_type": mt})
+            else:
+                r = await _api("poll")["start"](self.email, {"item_ids": ids, "meal_type": mt})
+                if "error" in (r or {}): self._snack(r["error"], False); return
+            self._snack("Poll started!"); await refresh()
+
+        # ── end poll ───────────────────────────────────────────
+        async def do_end(e):
+            if self.is_guest:
+                mock_data.end_poll()
+            else:
+                r = await _api("poll")["end"](self.email)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+            self._snack("Poll ended"); await refresh()
+
+        # ── build sections ─────────────────────────────────────
+        is_active = isinstance(active_poll, dict) and active_poll.get("active", False)
+
+        active_section = ft.Container()
+        if is_active:
+            mt = active_poll.get("meal_type", "Poll")
+            items_names = ", ".join(i.get("Name", "?") for i in active_poll.get("items", []))
+            active_section = self._card(
+                ft.Row([
+                    ft.Icon(ft.Icons.HOW_TO_VOTE_ROUNDED, size=20, color=self._clr("success")),
+                    ft.Text(f"Active Poll: {mt}", size=15, weight="bold",
+                            color=self._clr("text"), font_family="DM Sans"),
+                ], spacing=8),
+                ft.Text(f"Items: {items_names}", size=12, color=self._clr("sub"), font_family="DM Sans"),
+                ft.Row([self._btn("End Poll", ft.Icons.STOP_ROUNDED, do_end)], alignment=ft.MainAxisAlignment.END),
+            )
+
+        create_section = ft.Container()
+        if not is_active:
+            create_section = self._card(
+                ft.Text("Start New Poll", size=15, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                ft.Row([ft.Text("Meal Type:", size=12, color=self._clr("sub"), font_family="DM Sans"), meal_dropdown], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                search_field,
+                ft.Container(content=ft.Column([
+                    ft.Text("Search Results", size=12, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
+                    search_rows,
+                ]), margin=ft.Margin.only(top=4)),
+                ft.Container(content=ft.Column([
+                    ft.Row([ft.Text("Selected Items", size=12, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
+                            ft.Text(f"({len(selected_items)})", size=11, color=self._clr("accent"), font_family="DM Sans")], spacing=4),
+                    selected_view,
+                ]), margin=ft.Margin.only(top=8)),
+                ft.Row([self._btn("Start Poll", ft.Icons.PLAY_ARROW_ROUNDED, do_start)], alignment=ft.MainAxisAlignment.END),
+            )
 
         result_cards = [self._row_card([
-            ft.Text(r.get("Name", "?"), expand=True, weight="bold", color=self._clr("text"), font_family="DM Sans"),
-            ft.Text(f"{r.get('Vote_Count', 0)} Votes", color=self._clr("accent"), weight="bold", font_family="DM Sans"),
+            ft.Text(r.get("Name", "?"), expand=True, weight="bold",
+                    color=self._clr("text"), font_family="DM Sans"),
+            ft.Text(f"{r.get('Vote_Count', 0)} Votes", color=self._clr("accent"),
+                    weight="bold", font_family="DM Sans"),
         ]) for r in poll_results]
 
         ref.content = ft.Column([
@@ -732,8 +898,12 @@ class AdminPage:
             ft.Row([ft.Text("Polls", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans")],
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
-            ft.Text("Live Results", size=14, weight="bold", color=self._clr("text"), font_family="DM Sans"),
-            ft.Column(result_cards) if result_cards else ft.Text("No active poll", color=self._clr("sub"), font_family="DM Sans"),
+            active_section,
+            ft.Container(height=8) if is_active else ft.Container(),
+            create_section,
+            ft.Container(height=12),
+            ft.Text("Results", size=14, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            ft.Column(result_cards) if result_cards else ft.Text("No results yet", color=self._clr("sub"), font_family="DM Sans"),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 

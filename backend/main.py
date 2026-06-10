@@ -376,6 +376,11 @@ def get_poll_results(db=Depends(get_db), user=Depends(permission_checker(["Admin
     return PollDAO(db).get_poll_results()
 
 
+@app.post("/admin/poll/end")
+def end_poll(db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    return PollDAO(db).end_poll()
+
+
 # ── Menu ───────────────────────────────────────────────────────
 
 @app.post("/admin/menu-schedule/{ItemID}/{menu_date}/{meal_type}")

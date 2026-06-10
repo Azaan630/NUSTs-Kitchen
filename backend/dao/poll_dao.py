@@ -62,6 +62,18 @@ class PollDAO(BaseDAO):
             cursor.close()
         return {"status": "Voted successfully"}
 
+    def end_poll(self):
+        cursor = self.db.cursor()
+        try:
+            cursor.execute("DELETE FROM System_Config WHERE Config_Key IN ('active_poll_items', 'active_poll_meal_type')")
+            self.db.commit()
+            return {"status": "Poll Ended"}
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+        finally:
+            cursor.close()
+
     def get_poll_results(self):
         cursor = self.db.cursor(dictionary=True)
         try:

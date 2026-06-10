@@ -250,7 +250,20 @@ def get_poll_results():
 def get_active_poll():
     if not _db["poll_active"]:
         return {"active": False, "items": []}
-    return {"active": True, "items": copy.deepcopy(_db["poll_items"])}
+    return {"active": True, "items": copy.deepcopy(_db["poll_items"]), "meal_type": _db.get("poll_meal_type", "Poll")}
+
+
+def end_poll():
+    _db["poll_active"] = False
+    _db["poll_meal_type"] = ""
+    _db["poll_items"] = []
+    _db["poll_votes"] = {}
+    return {"message": "Poll ended"}
+
+
+def search_food(q, limit=20):
+    q = q.lower()
+    return [f for f in _db["food_items"] if q in f.get("Name", "").lower()][:limit]
 
 
 def cast_vote(item_id, user_id):
