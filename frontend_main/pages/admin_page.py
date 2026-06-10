@@ -143,20 +143,24 @@ class AdminPage:
             title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
             content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e: close()),
-                ft.TextButton("Delete", on_click=lambda e: (close(), run()),
+                ft.TextButton("Cancel", on_click=lambda e: _close()),
+                ft.TextButton("Delete", on_click=lambda e: (_close(), _run()),
                               style=ft.ButtonStyle(color=self._clr("danger"))),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        def close():
+        def _close():
             dlg.open = False
             self.page.update()
-        def run():
-            if asyncio.iscoroutinefunction(on_delete):
-                asyncio.create_task(self._safe_task(on_delete()))
-            else:
-                on_delete()
+        def _run():
+            try:
+                if asyncio.iscoroutinefunction(on_delete):
+                    t = asyncio.create_task(on_delete())
+                    t.add_done_callback(lambda ct: self._snack(str(ct.exception()), False) if ct.exception() else None)
+                else:
+                    on_delete()
+            except Exception as ex:
+                self._snack(f"Error: {ex}", False)
         self.page.dialog = dlg
         dlg.open = True
         self.page.update()
@@ -201,16 +205,6 @@ class AdminPage:
             cursor_color=self._clr("accent"),
         )
 
-    def _safe_task(self, coro):
-        task = asyncio.create_task(coro)
-        task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
-        return task
-
-    def _wrap(self, cb):
-        if asyncio.iscoroutinefunction(cb):
-            return lambda e: self._safe_task(cb(e))
-        return cb
-
     def _btn(self, label, icon, cb, compact=False):
         return ft.FilledButton(
             content=ft.Row([
@@ -218,7 +212,7 @@ class AdminPage:
                 ft.Text(label, size=12, weight="bold", color=self._clr("text"),
                         font_family="DM Sans"),
             ], spacing=6, tight=True),
-            on_click=self._wrap(cb),
+            on_click=cb,
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.with_opacity(0.1, self._clr("accent")),
                 elevation=0,
@@ -229,7 +223,7 @@ class AdminPage:
 
     def _icon_btn(self, icon, color, tip, cb):
         return ft.IconButton(icon=icon, icon_color=color, tooltip=tip,
-                             icon_size=18, on_click=self._wrap(cb),
+                             icon_size=18, on_click=cb,
                              style=ft.ButtonStyle(padding=ft.Padding.all(4)))
 
     def _chip(self, label, fg, bg):
@@ -378,14 +372,11 @@ class AdminPage:
             name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
-            async def do_del(e, u=uid):
-                async def _delete():
-                    if self.is_guest: mock_data.delete_student(u)
-                    else:
-                        r = await _api("students")["delete"](self.email, u)
-                        if "error" in (r or {}): self._snack(r["error"], False); return
-                    self._snack("Deleted"); await refresh()
-                self._confirm("Delete Student", f"Remove {name}?", _delete)
+            def do_del(e, u=uid):
+                if self.is_guest:
+                    mock_data.delete_student(u)
+                    self._snack("Deleted")
+                    asyncio.create_task(refresh())
             student_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -440,14 +431,11 @@ class AdminPage:
             name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
             email = s.get("Email", "")
             label = f"{name} | {email} | {uid}"
-            async def do_del(e, u=uid):
-                async def _delete():
-                    if self.is_guest: mock_data.delete_staff(u)
-                    else:
-                        r = await _api("staff")["delete"](self.email, u)
-                        if "error" in (r or {}): self._snack(r["error"], False); return
-                    self._snack("Deleted"); await refresh()
-                self._confirm("Delete Staff", f"Remove {name}?", _delete)
+            def do_del(e, u=uid):
+                if self.is_guest:
+                    mock_data.delete_staff(u)
+                    self._snack("Deleted")
+                    asyncio.create_task(refresh())
             staff_rows.controls.append(self._row_card([
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -529,25 +517,26 @@ class AdminPage:
                 text_align=ft.TextAlign.CENTER,
                 filled=True, fill_color=self._clr("card"),)
 
-            async def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
+            def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
                 try:
                     p = {"Name": nf.value, "Price": float(pf.value or 0), "Quantity": float(qf.value or 0)}
                 except ValueError:
                     self._snack("Invalid number", False); return
-                if self.is_guest: mock_data.update_food(i, p)
-                else:
-                    r = await _api("food")["update"](self.email, i, p)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Updated")
+                if self.is_guest:
+                    mock_data.update_food(i, p)
+                    self._snack("Updated")
 
-            async def do_del(e, i=iid):
-                async def _delete():
-                    if self.is_guest: mock_data.delete_food(i)
-                    else:
-                        r = await _api("food")["delete"](self.email, i)
-                        if "error" in (r or {}): self._snack(r["error"], False); return
-                    self._snack("Deleted"); await refresh()
-                self._confirm("Delete Food Item", f"Remove {name}?", _delete)
+            def do_del(e, i=iid):
+                if self.is_guest:
+                    mock_data.delete_food(i)
+                    self._snack("Deleted")
+                    asyncio.create_task(refresh())
+                else:
+                    self._confirm("Delete Food Item", f"Remove {name}?", lambda: asyncio.create_task(_del_food(i)))
+            async def _del_food(i=iid):
+                r = await _api("food")["delete"](self.email, i)
+                if "error" in (r or {}): self._snack(r["error"], False); return
+                self._snack("Deleted"); await refresh()
 
             food_rows.controls.append(self._row_card([
                 ef_name, ef_price,
@@ -592,20 +581,22 @@ class AdminPage:
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
             acts = []
             if status == "Pending":
-                async def do_app(e, r=rid):
-                    if self.is_guest: mock_data.approve_mess_off(r)
+                def do_app(e, r=rid):
+                    if self.is_guest:
+                        mock_data.approve_mess_off(r)
+                        self._snack("Approved")
+                        asyncio.create_task(self._render_mess_off(ref))
+                def do_rej(e, r=rid):
+                    if self.is_guest:
+                        mock_data.reject_mess_off(r)
+                        self._snack("Rejected")
+                        asyncio.create_task(self._render_mess_off(ref))
                     else:
-                        res = await _api("mess_off")["approve"](self.email, r)
-                        if "error" in (res or {}): self._snack(res["error"], False); return
-                    self._snack("Approved"); await self._render_mess_off(ref)
-                async def do_rej(e, r=rid):
-                    async def _reject():
-                        if self.is_guest: mock_data.reject_mess_off(r)
-                        else:
-                            res = await _api("mess_off")["reject"](self.email, r)
-                            if "error" in (res or {}): self._snack(res["error"], False); return
-                        self._snack("Rejected"); await self._render_mess_off(ref)
-                    self._confirm("Reject Request", "Reject this mess-off request?", _reject)
+                        self._confirm("Reject Request", "Reject this mess-off request?", lambda: asyncio.create_task(_rej_off(r)))
+                async def _rej_off(r=rid):
+                    res = await _api("mess_off")["reject"](self.email, r)
+                    if "error" in (res or {}): self._snack(res["error"], False); return
+                    self._snack("Rejected"); await self._render_mess_off(ref)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
             rows.append(self._row_card([
@@ -677,19 +668,16 @@ class AdminPage:
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"))
 
-            async def do_save(e, b=bid, tf=ef_total):
+            def do_save(e, b=bid, tf=ef_total):
                 try:
                     amt = float(tf.value or 0)
                 except ValueError:
                     self._snack("Invalid amount", False); return
                 if self.is_guest:
                     mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
-                else:
-                    r = await _api("bills")["update"](self.email, b, {"Amount": amt})
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Updated"); await refresh()
+                    self._snack("Updated")
 
-            async def do_pay(e, b=bid, tf=ef_total, p=paid):
+            def do_pay(e, b=bid, tf=ef_total, p=paid):
                 try:
                     amt = float(tf.value or 0) - p
                     if amt <= 0: self._snack("Already paid", False); return
@@ -697,10 +685,7 @@ class AdminPage:
                     self._snack("Invalid amount", False); return
                 if self.is_guest:
                     mock_data.pay_bill(b, amt)
-                else:
-                    r = await _api("bills")["pay"](self.email, b, amt, "Cash")
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Paid"); await refresh()
+                    self._snack("Paid")
 
             rows.append(self._row_card([
                 ft.Column([
@@ -747,14 +732,11 @@ class AdminPage:
             mt = item.get("meal_type", "")
             d = item.get("Date", "")
             mc = m_colors.get(mt, self._clr("accent"))
-            async def do_del(e, i=iid, s=sid):
-                async def _delete():
-                    if self.is_guest: mock_data.delete_menu_item(i, s)
-                    else:
-                        r = await _api("menu")["delete"](self.email, i, s)
-                        if "error" in (r or {}): self._snack(r["error"], False); return
-                    self._snack("Removed"); await self._render_menu(ref)
-                self._confirm("Remove Menu Item", f"Remove {name}?", _delete)
+            def do_del(e, i=iid, s=sid):
+                if self.is_guest:
+                    mock_data.delete_menu_item(i, s)
+                    self._snack("Removed")
+                    asyncio.create_task(self._render_menu(ref))
             rows.append(self._row_card([
                 ft.Container(
                     content=ft.Text(mt[:1], size=12, weight="bold", color=mc),
@@ -867,31 +849,38 @@ class AdminPage:
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
             border_radius=10, filled=True, fill_color=self._clr("card2"),
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
-            on_change=lambda e: self._safe_task(do_search(e.control.value)),
+            on_change=lambda e: asyncio.create_task(do_search(e.control.value)),
             expand=True,
         )
 
-        async def do_start(e):
+        def do_start(e):
             if not selected_items:
                 self._snack("Select at least one food item", False); return
             ids = [s.get("Item_ID") for s in selected_items]
             mt = meal_dropdown.value or "Lunch"
             if self.is_guest:
                 mock_data.start_poll({"item_ids": ids, "meal_type": mt})
+                self._snack("Poll started!")
+                asyncio.create_task(refresh())
             else:
-                r = await _api("poll")["start"](self.email, {"item_ids": ids, "meal_type": mt})
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                asyncio.create_task(_start_poll(ids, mt))
+        async def _start_poll(ids, mt):
+            r = await _api("poll")["start"](self.email, {"item_ids": ids, "meal_type": mt})
+            if "error" in (r or {}): self._snack(r["error"], False); return
             self._snack("Poll started!"); await refresh()
 
         # ── end poll ───────────────────────────────────────────
-        async def do_end(e):
-            async def _end():
-                if self.is_guest: mock_data.end_poll()
-                else:
-                    r = await _api("poll")["end"](self.email)
-                    if "error" in (r or {}): self._snack(r["error"], False); return
-                self._snack("Poll ended"); await refresh()
-            self._confirm("End Poll", "End the current poll?", _end)
+        def do_end(e):
+            if self.is_guest:
+                mock_data.end_poll()
+                self._snack("Poll ended")
+                asyncio.create_task(refresh())
+            else:
+                self._confirm("End Poll", "End the current poll?", lambda: asyncio.create_task(_end_poll()))
+        async def _end_poll():
+            r = await _api("poll")["end"](self.email)
+            if "error" in (r or {}): self._snack(r["error"], False); return
+            self._snack("Poll ended"); await refresh()
 
         # ── build sections ─────────────────────────────────────
         is_active = isinstance(active_poll, dict) and active_poll.get("active", False)
@@ -971,20 +960,22 @@ class AdminPage:
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
             acts = []
             if status == "Pending":
-                async def do_app(e, ri=rid):
-                    if self.is_guest: mock_data.approve_registration(ri)
+                def do_app(e, ri=rid):
+                    if self.is_guest:
+                        mock_data.approve_registration(ri)
+                        self._snack("Approved")
+                        asyncio.create_task(self._render_requests(ref))
+                def do_rej(e, ri=rid):
+                    if self.is_guest:
+                        mock_data.reject_registration(ri)
+                        self._snack("Rejected")
+                        asyncio.create_task(self._render_requests(ref))
                     else:
-                        rr = await _api("registration")["approve"](self.email, ri, None)
-                        if "error" in (rr or {}): self._snack(rr["error"], False); return
-                    self._snack("Approved"); await self._render_requests(ref)
-                async def do_rej(e, ri=rid):
-                    async def _reject():
-                        if self.is_guest: mock_data.reject_registration(ri)
-                        else:
-                            rr = await _api("registration")["reject"](self.email, ri)
-                            if "error" in (rr or {}): self._snack(rr["error"], False); return
-                        self._snack("Rejected"); await self._render_requests(ref)
-                    self._confirm("Reject Request", f"Reject {name}'s registration?", _reject)
+                        self._confirm("Reject Request", f"Reject {name}'s registration?", lambda: asyncio.create_task(_rej_reg(ri)))
+                async def _rej_reg(ri=rid):
+                    rr = await _api("registration")["reject"](self.email, ri)
+                    if "error" in (rr or {}): self._snack(rr["error"], False); return
+                    self._snack("Rejected"); await self._render_requests(ref)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
             cards.append(self._row_card([
