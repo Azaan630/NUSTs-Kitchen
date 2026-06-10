@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
         await run_db_seeder()
     except Exception as e:
         print(f"Startup database routing error: {e}")
+    yield 
 app = FastAPI(title="NUST's Kitchen API", lifespan=lifespan)
 
 raw_origins = os.getenv("CORS_ORIGINS", "")

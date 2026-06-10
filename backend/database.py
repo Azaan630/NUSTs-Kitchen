@@ -26,6 +26,7 @@ db_pool: MySQLConnectionPool = create_pool()
 
 
 async def run_db_seeder():
+    # Looks for seed.sql in the same directory as this file
     seed_file_path = os.path.join(os.path.dirname(__file__), "seed.sql")
 
     if not os.path.exists(seed_file_path):
@@ -34,6 +35,7 @@ async def run_db_seeder():
 
     print("Executing raw SQL seed scripts on Aiven cluster via Async connection pool...")
 
+    # Grab and await connection resources out of your custom aio pool
     conn = await db_pool.get_connection()
     cursor = await conn.cursor()
 
@@ -44,9 +46,12 @@ async def run_db_seeder():
         if not sql_content:
             return
 
-        results = await cursor.execute(sql_content, multi=True)
+        # cursor.execute(..., multi=True) returns a regular iterable generator tracking operation tasks
+        iterator = await cursor.execute(sql_content, multi=True)
 
-        async for result in results:
+        # Use a standard loop, but await individual structural tasks inside it if needed
+        for statement_result in iterator:
+            # Explicitly consuming ensures the driver handles back-to-back commands
             pass
 
         await conn.commit()
