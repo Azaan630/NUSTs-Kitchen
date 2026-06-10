@@ -2,7 +2,6 @@ import time
 from mysql.connector import pooling, Error
 from dotenv import load_dotenv
 import os
-
 from mysql.connector.aio import MySQLConnectionPool
 
 load_dotenv()
@@ -25,15 +24,39 @@ def create_pool():
 
 db_pool: MySQLConnectionPool = create_pool()
 
-def get_db():
-    if db_pool is not None:
-        conn = db_pool.get_connection()
-        try:
-            yield conn
-        finally:
-            conn.close()
-    else:
-        raise RuntimeError("Database pool was not initialized.")
+
+async def run_db_seeder():
+    seed_file_path = os.path.join(os.path.dirname(__file__), "seed.sql")
+
+    if not os.path.exists(seed_file_path):
+        print("Seeder skipped: seed.sql file not found.")
+        return
+
+    print("Executing raw SQL seed scripts on Aiven cluster via Async connection pool...")
+
+    conn = await db_pool.get_connection()
+    cursor = await conn.cursor()
+
+    try:
+        with open(seed_file_path, "r") as f:
+            sql_content = f.read().strip()
+
+        if not sql_content:
+            return
+
+        results = await cursor.execute(sql_content, multi=True)
+
+        for result in results:
+            pass
+
+        await conn.commit()
+        print("Aiven Database initialized and seeded successfully!")
+    except Exception as e:
+        await conn.rollback()
+        print(f"Database seeding failed: {e}")
+    finally:
+        await cursor.close()
+        await conn.close()
 
 if __name__ == "__main__":
     try:

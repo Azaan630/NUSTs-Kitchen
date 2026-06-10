@@ -10,10 +10,17 @@ from database import get_db
 from datetime import date, timedelta
 import models
 import mysql.connector
-
 from models import PollRequest
+from contextlib import asynccontextmanager
+from database import run_db_seeder
 
-app = FastAPI(title="NUST's Kitchen API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await run_db_seeder()
+    except Exception as e:
+        print(f"Startup database routing error: {e}")
+app = FastAPI(title="NUST's Kitchen API", lifespan=lifespan)
 
 raw_origins = os.getenv("CORS_ORIGINS", "")
 origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
