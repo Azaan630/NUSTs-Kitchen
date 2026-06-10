@@ -100,7 +100,7 @@ class StudentVotingPage:
                 ft.Column([
                     ft.Text(item.get("Name", "Item"), size=15, weight="bold",
                             color=self.txt_c, font_family="DM Sans"),
-                    ft.Text(f"PKR {item.get('Price', '—')}", size=12,
+                    ft.Text(f"PKR {item.get('Price', '\u2014')}", size=12,
                             color=self.sub_c, font_family="DM Sans"),
                 ], expand=True, spacing=4),
                 vote_btn,
