@@ -95,7 +95,7 @@ def build_register_form(page, on_submit, on_back):
         options=[ft.dropdown.Option("Student"), ft.dropdown.Option("Staff")],
         value="Student", width=320,
         color=WHITE, label_style=ft.TextStyle(color=GREY, size=13),
-        border_color=AMBER, prefix_icon=ft.Icons.PERSON_ROUNDED,
+        border_color=AMBER,
     )
 
     fields = {}
@@ -286,8 +286,9 @@ async def main(page: ft.Page):
                 ft.Icons.LIGHT_MODE_OUTLINED if is_dark["v"] else ft.Icons.DARK_MODE_OUTLINED
             )
             page.bgcolor = bg()
-            dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
             top_bar.bgcolor = DARK_CARD if is_dark["v"] else WHITE
+            if page.navigation_bar:
+                page.navigation_bar.bgcolor = DARK_CARD if is_dark["v"] else WHITE
             load_page(current_index["v"])
             page.update()
 
@@ -300,10 +301,9 @@ async def main(page: ft.Page):
         last  = get_val("Last_Name", "")
         initials = (first[0] + (last[0] if last else "")).upper()
 
-        avatar = ft.Container(
-            content=ft.Text(initials, size=13, weight="bold", color=WHITE),
-            width=36, height=36, bgcolor=AMBER, border_radius=18,
-            alignment=ft.Alignment(0, 0),
+        avatar = ft.CircleAvatar(
+            content=ft.Text(initials, size=14, weight="bold", color=WHITE),
+            radius=18, bgcolor=AMBER,
         )
 
         name_chip = ft.Container(
@@ -334,73 +334,21 @@ async def main(page: ft.Page):
                 offset=ft.Offset(0, 1)),
         )
 
-        NAV_ITEMS = [
-            {"icon": ft.Icons.RESTAURANT_MENU_ROUNDED, "label": "Menu",     "index": 0},
-            {"icon": ft.Icons.HOW_TO_VOTE_ROUNDED,      "label": "Vote",     "index": 1},
-            {"icon": ft.Icons.PERSON_ROUNDED,            "label": "Profile",  "index": 2},
-            {"icon": ft.Icons.CALENDAR_TODAY_ROUNDED,    "label": "Mess Off", "index": 3},
+        nav_destinations = [
+            ft.NavigationDestination(icon=ft.Icons.RESTAURANT_MENU_ROUNDED, label="Menu"),
+            ft.NavigationDestination(icon=ft.Icons.HOW_TO_VOTE_ROUNDED,    label="Vote"),
+            ft.NavigationDestination(icon=ft.Icons.PERSON_ROUNDED,         label="Profile"),
+            ft.NavigationDestination(icon=ft.Icons.CALENDAR_TODAY_ROUNDED, label="Mess Off"),
         ]
 
-        dock_items = []
-
-        def make_dock_btn(item):
-            idx = item["index"]
-            is_sel = current_index["v"] == idx
-            btn = ft.Container(
-                content=ft.Column([
-                    ft.Container(
-                        content=ft.Icon(item["icon"], size=24,
-                            color=AMBER if is_sel else GREY),
-                        width=48, height=48,
-                        bgcolor=ft.Colors.with_opacity(0.15, AMBER) if is_sel else ft.Colors.TRANSPARENT,
-                        border_radius=16, alignment=ft.Alignment(0, 0),
-                        animate=ft.Animation(200, "easeOut"),
-                    ),
-                    ft.Text(item["label"], size=10,
-                        color=AMBER if is_sel else GREY,
-                        font_family="DM Sans", weight="bold" if is_sel else "normal"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4),
-                padding=ft.Padding.symmetric(horizontal=8, vertical=8),
-                on_click=lambda e, i=idx: load_page(i),
-                border_radius=16, animate=ft.Animation(200, "easeOut"),
-                tooltip=item["label"],
+        def student_nav(index):
+            return ft.NavigationBar(
+                destinations=nav_destinations,
+                selected_index=index,
+                on_change=lambda e: load_page(e.control.selected_index),
+                bgcolor=WHITE,
+                indicator_color=ft.Colors.with_opacity(0.15, AMBER),
             )
-            dock_items.append(btn)
-            return btn
-
-        dock_row = ft.Row(
-            [make_dock_btn(item) for item in NAV_ITEMS],
-            alignment=ft.MainAxisAlignment.CENTER, spacing=4,
-        )
-
-        dock_container = ft.Container(
-            content=dock_row, bgcolor=WHITE, border_radius=32,
-            padding=ft.Padding.symmetric(horizontal=16, vertical=8),
-            shadow=ft.BoxShadow(blur_radius=32, spread_radius=0,
-                color=ft.Colors.with_opacity(0.18, "#000000"),
-                offset=ft.Offset(0, 8)),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.08, "#000000")),
-        )
-
-        dock_wrapper = ft.Container(
-            content=dock_container, alignment=ft.Alignment(0, 0),
-            padding=ft.Padding.only(bottom=20),
-        )
-
-        def refresh_dock():
-            for i, item in enumerate(NAV_ITEMS):
-                is_sel = current_index["v"] == item["index"]
-                inner = dock_items[i].content
-                icon_box = inner.controls[0]
-                label    = inner.controls[1]
-                icon_box.content.color = AMBER if is_sel else GREY
-                icon_box.bgcolor = (
-                    ft.Colors.with_opacity(0.15, AMBER) if is_sel else ft.Colors.TRANSPARENT
-                )
-                label.color  = AMBER if is_sel else GREY
-                label.weight = "bold" if is_sel else "normal"
-            dock_container.bgcolor = DARK_CARD if is_dark["v"] else WHITE
-            page.update()
 
         def load_page(index):
             current_index["v"] = index
@@ -419,28 +367,27 @@ async def main(page: ft.Page):
                 "NAVY_LIGHT": NAVY_LIGHT, "CREAM2": CREAM2, "DARK_CARD2": DARK_CARD2,
             }
 
+            page.navigation_bar = None
+
             if role == "Admin":
                 page_content.content = AdminPage(page, ud, theme).build()
-                refresh_dock(); page.update(); dock_wrapper.visible = False
+                page.update()
                 return
 
             if role == "Staff":
                 page_content.content = StaffPage(page, ud, theme).build()
-                refresh_dock(); page.update(); dock_wrapper.visible = False
+                page.update()
                 return
 
-            dock_wrapper.visible = True
+            page.navigation_bar = student_nav(index)
             pages = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
             if 0 <= index < len(pages):
                 page_content.content = pages[index](page, ud, theme).build()
-
-            refresh_dock()
             page.update()
 
         body = ft.Column([
             top_bar,
             ft.Container(content=page_content, expand=True),
-            dock_wrapper,
         ], spacing=0, expand=True)
 
         page.add(body)
