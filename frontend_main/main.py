@@ -33,10 +33,9 @@ def build_landing(page, login_click, guest_login, show_register):
             ),
             ft.Container(height=24),
             ft.Text("NUST's Kitchen", size=48, weight="bold",
-                    font_family="Playfair", color=WHITE,
-                    letter_spacing=1),
+                    font_family="Playfair", color=WHITE),
             ft.Text("Mess Portal \u2022 SEECS", size=14, color=GREY,
-                    font_family="DM Sans", letter_spacing=2),
+                    font_family="DM Sans"),
             ft.Container(height=56),
             ft.Container(
                 content=ft.FilledButton(
@@ -55,8 +54,7 @@ def build_landing(page, login_click, guest_login, show_register):
                 ),
             ),
             ft.Container(height=20),
-            ft.Text("— or —", size=12, color=GREY, font_family="DM Sans",
-                    letter_spacing=1),
+            ft.Text("— or —", size=12, color=GREY, font_family="DM Sans"),
             ft.Container(height=16),
             ft.Row([
                 ft.OutlinedButton("Guest Student",
