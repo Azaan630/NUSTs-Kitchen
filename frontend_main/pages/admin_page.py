@@ -84,6 +84,10 @@ def _api(table):
     }[table]
 
 
+def _ensure_list(data):
+    return data if isinstance(data, list) else []
+
+
 class AdminPage:
     TABS = [
         ("Dashboard", ft.Icons.DASHBOARD_ROUNDED),
@@ -310,7 +314,7 @@ class AdminPage:
     async def _render_students(self, ref):
         ref.content = self._loading(); self.page.update()
         students = (mock_data.get_students() if self.is_guest
-                    else [u for u in ((await _api("students")["all"](self.email)) or []) if u.get("Account_Type") == "Student"])
+                    else [u for u in _ensure_list(await _api("students")["all"](self.email)) if u.get("Account_Type") == "Student"])
 
         search_bar = ft.TextField(
             hint_text="Search by name or email\u2026", prefix_icon=ft.Icons.SEARCH_ROUNDED,
@@ -370,7 +374,7 @@ class AdminPage:
     async def _render_staff(self, ref):
         ref.content = self._loading(); self.page.update()
         staff_list = (mock_data.get_staff() if self.is_guest
-                      else [u for u in ((await _api("staff")["all"](self.email)) or []) if u.get("Account_Type") == "Staff"])
+                      else [u for u in _ensure_list(await _api("staff")["all"](self.email)) if u.get("Account_Type") == "Staff"])
 
         search_bar = ft.TextField(
             hint_text="Search staff\u2026", prefix_icon=ft.Icons.SEARCH_ROUNDED,
