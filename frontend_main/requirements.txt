@@ -1,5 +1,4 @@
-flet==0.84.0
-flet-web==0.84.0
-httpx
-requests
-python-dotenv
+flet==0.22.0
+httpx==0.27.0
+python-dotenv==1.0.1
+requests==2.31.0

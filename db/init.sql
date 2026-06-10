@@ -437,7 +437,7 @@ DO
   CALL sp_GenerateMonthlyBills(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
 
 
-# --- DUMMY DATA SEEDING (CORRECTED FOREIGN KEY REFS) ---
+# --- DUMMY DATA SEEDING ---
 
 # 1. Users
 INSERT INTO Users (UserID, First_Name, Last_Name, Email, Account_Type) VALUES
