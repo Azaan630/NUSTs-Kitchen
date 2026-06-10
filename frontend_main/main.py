@@ -103,7 +103,10 @@ def build_landing(page, login_click, guest_login, show_register):
             ft.Container(height=16),
             ft.Row([
                 ft.Container(height=1, bgcolor=sub, expand=True),
-                ft.Text("or", size=12, color=sub, font_family="DM Sans", padding=ft.Padding.symmetric(horizontal=12)),
+                ft.Container(
+                    content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
+                    padding=ft.Padding.symmetric(horizontal=12),
+                ),
                 ft.Container(height=1, bgcolor=sub, expand=True),
             ], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=16),
