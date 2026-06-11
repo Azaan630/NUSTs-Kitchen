@@ -287,7 +287,49 @@ async def main(page: ft.Page):
             tooltip="Toggle theme", on_click=lambda e: toggle_dark(e),
         )
 
-        async def logout_click(e=None):
+        # ── Overlay helpers (toggle-based, no stacking) ──
+        _active_overlay = [None]
+
+        def _remove_overlay():
+            o = _active_overlay[0]
+            if o and o in page.controls:
+                page.remove(o)
+            _active_overlay[0] = None
+            page.update()
+
+        def _show_overlay(content):
+            _remove_overlay()
+            o = ft.Container(
+                content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+                alignment=ft.Alignment(0, 0), expand=True,
+                on_click=lambda e: _remove_overlay(),
+            )
+            page.add(o)
+            _active_overlay[0] = o
+            page.update()
+
+        def _confirm_dialog(title, msg, on_confirm):
+            card = ft.Container(
+                content=ft.Column([
+                    ft.Text(title, weight="bold", size=17, color=t["text"],
+                            font_family="DM Sans"),
+                    ft.Container(height=6),
+                    ft.Text(msg, size=13, color=t["sub"], font_family="DM Sans"),
+                    ft.Container(height=16),
+                    ft.Row([
+                        ft.TextButton("Cancel", on_click=lambda e: _remove_overlay(),
+                            style=ft.ButtonStyle(color=t["sub"])),
+                        ft.FilledButton("Confirm",
+                            style=ft.ButtonStyle(bgcolor=t["danger"]),
+                            on_click=lambda e: [_remove_overlay(), on_confirm()]),
+                    ], alignment=ft.MainAxisAlignment.END, spacing=8),
+                ], tight=True, spacing=4),
+                bgcolor=t["card"], border_radius=18, padding=24, width=340,
+                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            )
+            _show_overlay(card)
+
+        async def logout_click(e):
             is_dark["v"] = True
             page.current_user_data = {}
             page.clean()
@@ -296,48 +338,9 @@ async def main(page: ft.Page):
             page.add(build_landing(page, login_click, guest_login, show_register_page))
             page.update()
 
-        first = get_val("First_Name", "U")
-        last  = get_val("Last_Name", "")
-        email = get_val("Email", "")
-        initials = (first[0] + (last[0] if last else "")).upper()
-
-        avatar = ft.Container(
-            content=ft.Text(initials, size=12, weight="bold", color=WHITE),
-            width=32, height=32, bgcolor=t["accent"], border_radius=16,
-            alignment=ft.Alignment(0, 0),
-        )
-
-        # ── Overlay dialog helpers ──
-        def _show_overlay(content):
-            o = ft.Container(
-                content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
-                alignment=ft.Alignment(0, 0), expand=True,
-                on_click=lambda e: _remove_overlay(o),
-            )
-            page.add(o); page.update(); return o
-        def _remove_overlay(o):
-            if o in page.controls: page.remove(o); page.update()
-        def _confirm_dialog(title, msg, on_confirm):
-            card = ft.Container(
-                content=ft.Column([
-                    ft.Text(title, weight="bold", size=17, color=t["text"], font_family="DM Sans"),
-                    ft.Container(height=6),
-                    ft.Text(msg, size=13, color=t["sub"], font_family="DM Sans"),
-                    ft.Container(height=16),
-                    ft.Row([
-                        ft.TextButton("Cancel", on_click=lambda e: _remove_overlay(ov),
-                            style=ft.ButtonStyle(color=t["sub"])),
-                        ft.FilledButton("Confirm",
-                            style=ft.ButtonStyle(bgcolor=t["danger"]),
-                            on_click=lambda e: [_remove_overlay(ov), on_confirm()]),
-                    ], alignment=ft.MainAxisAlignment.END, spacing=8),
-                ], tight=True, spacing=4),
-                bgcolor=t["card"], border_radius=18, padding=24, width=340,
-                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
-            )
-            ov = _show_overlay(card)
-
-        def _show_profile_popup(e):
+        def show_profile_popup(e):
+            _remove_overlay()
+            email = get_val("Email", "")
             card = ft.Container(
                 content=ft.Column([
                     ft.Container(
@@ -359,7 +362,7 @@ async def main(page: ft.Page):
                         ], spacing=8),
                         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
                         border_radius=10,
-                        on_click=lambda e: [_remove_overlay(po), _confirm_dialog(
+                        on_click=lambda e: [_remove_overlay(), _confirm_dialog(
                             "Logout", "Are you sure you want to log out?",
                             lambda: asyncio.create_task(logout_click(e)),
                         )],
@@ -368,14 +371,24 @@ async def main(page: ft.Page):
                 bgcolor=t["card"], border_radius=18, padding=20, width=280,
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
-            po = _show_overlay(card)
+            _show_overlay(card)
+
+        first = get_val("First_Name", "U")
+        last  = get_val("Last_Name", "")
+        initials = (first[0] + (last[0] if last else "")).upper()
+
+        avatar = ft.Container(
+            content=ft.Text(initials, size=12, weight="bold", color=WHITE),
+            width=32, height=32, bgcolor=t["accent"], border_radius=16,
+            alignment=ft.Alignment(0, 0),
+        )
 
         name_chip = ft.Container(
             content=ft.Row([avatar, ft.Text(f"{first} {last}".strip(), size=13,
                 weight="bold", color=t["text"], font_family="DM Sans")], spacing=8),
             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
             bgcolor=ft.Colors.with_opacity(0.08, t["accent"]), border_radius=16,
-            on_click=_show_profile_popup,
+            on_click=show_profile_popup,
         )
 
         top_bar = ft.Container(

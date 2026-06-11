@@ -154,12 +154,16 @@ class AdminPage:
         task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
         return task
 
-    def _remove_overlay(self, overlay):
-        if overlay in self.page.controls:
-            self.page.remove(overlay)
+    def _remove_overlay(self):
+        o = getattr(self, '_active_overlay', None)
+        if o and o in self.page.controls:
+            self.page.remove(o)
+        self._active_overlay = None
+        if o:
             self.page.update()
 
     def _confirm(self, title, msg, on_delete):
+        self._remove_overlay()
         logger.error("_confirm: %s | %s", title, msg)
         t = self.theme
         card = ft.Container(
@@ -169,8 +173,7 @@ class AdminPage:
                 ft.Text(msg, size=13, color=t.get("sub"), font_family="DM Sans"),
                 ft.Container(height=16),
                 ft.Row([
-                    ft.TextButton("Cancel",
-                        on_click=lambda e: self._remove_overlay(overlay),
+                    ft.TextButton("Cancel", on_click=lambda e: self._remove_overlay(),
                         style=ft.ButtonStyle(color=t.get("sub"))),
                     ft.FilledButton("Confirm",
                         style=ft.ButtonStyle(
@@ -184,13 +187,14 @@ class AdminPage:
         overlay = ft.Container(
             content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
             alignment=ft.Alignment(0, 0), expand=True,
-            on_click=lambda e: self._remove_overlay(overlay),
+            on_click=lambda e: self._remove_overlay(),
         )
         self.page.add(overlay)
+        self._active_overlay = overlay
         self.page.update()
         # wire confirm click after overlay is in scope
         card.content.controls[4].controls[1].on_click = lambda e: [
-            self._remove_overlay(overlay),
+            self._remove_overlay(),
             self._run(on_delete()) if asyncio.iscoroutinefunction(on_delete)
             else on_delete(),
         ]
