@@ -2,8 +2,12 @@ import flet as ft
 import asyncio
 import httpx
 import os
+import logging
 from datetime import date
 import mock_data
+
+logging.basicConfig(level=logging.ERROR, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("admin")
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
@@ -13,6 +17,7 @@ async def _req(method, endpoint, params=None, json_data=None):
         try:
             url = f"{BASE_URL}{endpoint}"
             kw = dict(params=params, timeout=10.0)
+            logger.error("REQ %s %s params=%s body=%s", method, url, params, json_data)
             if method == "GET":    r = await client.get(url, **kw)
             elif method == "POST":  r = await client.post(url, json=json_data, **kw)
             elif method == "PATCH": r = await client.patch(url, json=json_data, **kw)
@@ -23,8 +28,11 @@ async def _req(method, endpoint, params=None, json_data=None):
         except httpx.HTTPStatusError as e:
             try: d = e.response.json().get("detail", e.response.text)
             except Exception: d = e.response.text
-            return {"error": f"({e.response.status_code}) {d}"}
+            msg = f"({e.response.status_code}) {d}"
+            logger.error("REQ ERR %s %s -> %s", method, url, msg)
+            return {"error": msg}
         except Exception as ex:
+            logger.error("REQ EXC %s %s -> %s", method, url, ex)
             return {"error": str(ex)}
 
 
@@ -89,6 +97,8 @@ def _api(table):
 
 
 def _ensure_list(data):
+    if isinstance(data, dict) and "error" in data:
+        logger.warning("_ensure_list swallowed error: %s", data["error"])
     return data if isinstance(data, list) else []
 
 
@@ -144,30 +154,36 @@ class AdminPage:
         return task
 
     def _confirm(self, title, msg, on_delete):
-        dlg = ft.AlertDialog(
-            title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
-            content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
-            actions=[
-                ft.TextButton("Cancel", on_click=lambda e: _close()),
-                ft.TextButton("Delete", on_click=lambda e: (_close(), _exec()),
-                              style=ft.ButtonStyle(color=self._clr("danger"))),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-        def _close():
-            dlg.open = False
+        try:
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
+                content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
+                actions=[
+                    ft.TextButton("Cancel", on_click=lambda e: _close()),
+                    ft.TextButton("Delete", on_click=lambda e: (_close(), _exec()),
+                                  style=ft.ButtonStyle(color=self._clr("danger"))),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            def _close():
+                dlg.open = False
+                self.page.update()
+            def _exec():
+                try:
+                    if asyncio.iscoroutinefunction(on_delete):
+                        AdminPage._run(self, on_delete())
+                    else:
+                        on_delete()
+                except Exception as ex:
+                    logger.error("_exec failed: %s", ex, exc_info=True)
+                    self._snack(f"Error: {ex}", False)
+            self.page.dialog = dlg
+            dlg.open = True
             self.page.update()
-        def _exec():
-            try:
-                if asyncio.iscoroutinefunction(on_delete):
-                    AdminPage._run(self, on_delete())
-                else:
-                    on_delete()
-            except Exception as ex:
-                self._snack(f"Error: {ex}", False)
-        self.page.dialog = dlg
-        dlg.open = True
-        self.page.update()
+        except Exception as ex:
+            logger.error("_confirm dialog failed: %s", ex, exc_info=True)
+            self._snack(f"Dialog error: {ex}", False)
 
     def _card(self, *controls, pad=14):
         return ft.Container(
@@ -385,7 +401,7 @@ class AdminPage:
                     self._confirm("Delete Student", f"Remove {name}?", lambda: self._run(_del_student(u)))
             async def _del_student(u=uid):
                 r = await _api("students")["delete"](self.email, u)
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("del_student %s: %s", u, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
             student_rows.controls.append(self._row_card([
                 ft.Column([
@@ -450,7 +466,7 @@ class AdminPage:
                     self._confirm("Delete Staff", f"Remove {name}?", lambda: self._run(_del_staff(u)))
             async def _del_staff(u=uid):
                 r = await _api("staff")["delete"](self.email, u)
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("del_staff %s: %s", u, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
             staff_rows.controls.append(self._row_card([
                 ft.Column([
@@ -502,7 +518,6 @@ class AdminPage:
             ft.Row([
                 ft.Text("Name", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
                 ft.Text("Price", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=90, text_align=ft.TextAlign.CENTER),
-                ft.Text("Cost", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
                 ft.Text("Qty", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
                 ft.Container(width=72),
             ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -514,7 +529,6 @@ class AdminPage:
         for item in items:
             iid = item.get("Item_ID")
             name = item.get("Name", "")
-            cost = item.get("Estimated_Cost", 0)
             price = item.get("Price", 0)
             qty = item.get("Quantity", 0)
             label = f"{name} | {iid}"
@@ -545,7 +559,7 @@ class AdminPage:
                     self._run(_upd_food(i, p))
             async def _upd_food(i=iid, p=None):
                 r = await _api("food")["update"](self.email, i, p)
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("upd_food %s: %s", i, r["error"]); self._snack(r["error"], False); return
                 self._snack("Updated")
 
             def do_del(e, i=iid):
@@ -557,12 +571,11 @@ class AdminPage:
                     self._confirm("Delete Food Item", f"Remove {name}?", lambda: self._run(_del_food(i)))
             async def _del_food(i=iid):
                 r = await _api("food")["delete"](self.email, i)
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("del_food %s: %s", i, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
 
             food_rows.controls.append(self._row_card([
                 ef_name, ef_price,
-                ft.Text(f"PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
                 ef_qty,
             ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
@@ -612,7 +625,7 @@ class AdminPage:
                         self._run(_app_off(r))
                 async def _app_off(r=rid):
                     res = await _api("mess_off")["approve"](self.email, r)
-                    if "error" in (res or {}): self._snack(res["error"], False); return
+                    if "error" in (res or {}): logger.error("app_off %s: %s", r, res["error"]); self._snack(res["error"], False); return
                     self._snack("Approved"); await self._render_mess_off(ref)
                 def do_rej(e, r=rid):
                     if self.is_guest:
@@ -623,7 +636,7 @@ class AdminPage:
                         self._confirm("Reject Request", "Reject this mess-off request?", lambda: self._run(_rej_off(r)))
                 async def _rej_off(r=rid):
                     res = await _api("mess_off")["reject"](self.email, r)
-                    if "error" in (res or {}): self._snack(res["error"], False); return
+                    if "error" in (res or {}): logger.error("rej_off %s: %s", r, res["error"]); self._snack(res["error"], False); return
                     self._snack("Rejected"); await self._render_mess_off(ref)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
@@ -714,7 +727,7 @@ class AdminPage:
                     self._run(_save_bill(b, amt))
             async def _save_bill(b=bid, amt=0):
                 r = await _api("bills")["update"](self.email, b, {"Amount": amt})
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("save_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
                 self._snack("Updated"); await refresh()
 
             def do_pay(e, b=bid, tf=ef_total, p=paid):
@@ -731,7 +744,7 @@ class AdminPage:
                     self._run(_pay_bill(b, amt))
             async def _pay_bill(b=bid, amt=0):
                 r = await _api("bills")["pay"](self.email, b, amt, "Cash")
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("pay_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
                 self._snack("Paid"); await refresh()
 
             rows.append(self._row_card([
@@ -788,7 +801,7 @@ class AdminPage:
                     self._confirm("Remove Menu Item", f"Remove {name}?", lambda: self._run(_del_menu(i, s)))
             async def _del_menu(i=iid, s=sid):
                 r = await _api("menu")["delete"](self.email, i, s)
-                if "error" in (r or {}): self._snack(r["error"], False); return
+                if "error" in (r or {}): logger.error("del_menu %s/%s: %s", i, s, r["error"]); self._snack(r["error"], False); return
                 self._snack("Removed"); await self._render_menu(ref)
             rows.append(self._row_card([
                 ft.Container(
@@ -837,8 +850,13 @@ class AdminPage:
             if not q or len(q.strip()) < 1:
                 self.page.update(); return
             q = q.strip()
-            sdata = (mock_data.search_food(q) if self.is_guest
-                     else _ensure_list(await _api("food")["search"](self.email, q)))
+            if self.is_guest:
+                sdata = mock_data.search_food(q)
+            else:
+                sdata = await _api("food")["search"](self.email, q)
+                if isinstance(sdata, dict) and "error" in sdata:
+                    logger.error("search failed: %s", sdata["error"])
+                    sdata = []
             for fi in sdata:
                 fid = fi.get("Item_ID")
                 fname = fi.get("Name", "")
@@ -919,7 +937,7 @@ class AdminPage:
                 self._run(_start_poll(ids, mt))
         async def _start_poll(ids, mt):
             r = await _api("poll")["start"](self.email, {"item_ids": ids, "meal_type": mt})
-            if "error" in (r or {}): self._snack(r["error"], False); return
+            if "error" in (r or {}): logger.error("start_poll: %s", r["error"]); self._snack(r["error"], False); return
             self._snack("Poll started!"); await refresh()
 
         # ── end poll ───────────────────────────────────────────
@@ -932,7 +950,7 @@ class AdminPage:
                 self._confirm("End Poll", "End the current poll?", lambda: self._run(_end_poll()))
         async def _end_poll():
             r = await _api("poll")["end"](self.email)
-            if "error" in (r or {}): self._snack(r["error"], False); return
+            if "error" in (r or {}): logger.error("end_poll: %s", r["error"]); self._snack(r["error"], False); return
             self._snack("Poll ended"); await refresh()
 
         # ── build sections ─────────────────────────────────────
@@ -1022,7 +1040,7 @@ class AdminPage:
                         self._run(_app_reg(ri))
                 async def _app_reg(ri=rid):
                     rr = await _api("registration")["approve"](self.email, ri, None)
-                    if "error" in (rr or {}): self._snack(rr["error"], False); return
+                    if "error" in (rr or {}): logger.error("app_reg %s: %s", ri, rr["error"]); self._snack(rr["error"], False); return
                     self._snack("Approved"); await self._render_requests(ref)
                 def do_rej(e, ri=rid):
                     if self.is_guest:
@@ -1033,7 +1051,7 @@ class AdminPage:
                         self._confirm("Reject Request", f"Reject {name}'s registration?", lambda: self._run(_rej_reg(ri)))
                 async def _rej_reg(ri=rid):
                     rr = await _api("registration")["reject"](self.email, ri)
-                    if "error" in (rr or {}): self._snack(rr["error"], False); return
+                    if "error" in (rr or {}): logger.error("rej_reg %s: %s", ri, rr["error"]); self._snack(rr["error"], False); return
                     self._snack("Rejected"); await self._render_requests(ref)
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
@@ -1062,8 +1080,7 @@ class AdminPage:
         try:
             await getattr(self, method_name)(ref)
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.error("render %s failed: %s", method_name, e, exc_info=True)
             ref.content = ft.Column([
                 ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, size=48, color=self._clr("danger")),
                 ft.Text(f"Error: {e}", color=self._clr("danger"), font_family="DM Sans", size=14),

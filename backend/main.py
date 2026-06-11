@@ -1,7 +1,11 @@
+import logging
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 import os
 from io import BytesIO, StringIO
 import csv
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("backend")
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from fastapi.responses import StreamingResponse
@@ -58,8 +62,11 @@ def permission_checker(allowed_roles: list):
     def mapper(email: str, db=Depends(get_db)):
         user_record = UserDAO(db).find_by_email(email)
         if not user_record:
+            logger.warning("permission_checker: email=%s not found", email)
             raise HTTPException(status_code=404, detail="User record not found")
         if user_record.get("Account_Type") not in allowed_roles:
+            logger.warning("permission_checker: email=%s role=%s not in %s",
+                          email, user_record.get("Account_Type"), allowed_roles)
             raise HTTPException(status_code=403, detail="Unauthorized")
         return user_record
     return mapper
@@ -505,7 +512,11 @@ def get_dashboard_stats(user=Depends(permission_checker(["Admin"])), db=Depends(
 @app.get("/admin/food/search")
 def search_food_items(q: str = Query(min_length=1), limit: int = Query(default=20, le=100),
                       user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
-    return FoodDAO(db).search_food_items(q, limit)
+    try:
+        return FoodDAO(db).search_food_items(q, limit)
+    except Exception as e:
+        logger.error("search_food_items q=%s: %s", q, e, exc_info=True)
+        raise
 
 
 @app.get("/admin/users/search")
