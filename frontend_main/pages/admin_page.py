@@ -176,12 +176,12 @@ class AdminPage:
         task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
         return task
 
-    async def _remove_overlay(self, animate=True):
+    async def _remove_overlay(self, animate=True, fast=False):
         o = getattr(self, '_active_overlay', None)
         if o and animate and o in self.page.controls:
             o.opacity = 0
             self.page.update()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.08 if fast else 0.2)
         if o and o in self.page.controls:
             self.page.remove(o)
         self._active_overlay = None
@@ -193,10 +193,10 @@ class AdminPage:
         t = self.theme
 
         async def do_cancel(e):
-            await self._remove_overlay()
+            await self._remove_overlay(fast=True)
 
         async def do_confirm(e):
-            await self._remove_overlay()
+            await self._remove_overlay(fast=True)
             on_delete()
 
         card = ft.Container(
@@ -1024,36 +1024,36 @@ class AdminPage:
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Avg Ratings (top 8)", ratings_chart), 1),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Price vs Cost Trend", cost_chart), 2),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("Inventory & Menu", ft.Icons.INVENTORY_ROUNDED, 3),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Stock Levels (lowest 10)", stock_chart), 4),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Menu Ratings Trend", menu_ratings_chart), 5),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("People & Finance", ft.Icons.ACCOUNT_BALANCE_ROUNDED, 6),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Population Distribution", population_pie), 7),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Billing Trend (monthly)", billing_chart), 8),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("Operational Trends", ft.Icons.TRENDING_UP_ROUNDED, 9),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Daily Activity Trend", activity_chart), 10),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Ingredient Cost Profile", cost_profile_chart), 11),
-                             col={"sm": 12, "md": 6}),
+                             col={"xs": 6, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             ft.ResponsiveRow([
@@ -1293,6 +1293,22 @@ class AdminPage:
             visible=not self._is_mobile(),
         )
 
+        mobile_header = ft.Container()
+        if mobile:
+            mobile_header = ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
+                        margin=ft.Margin.only(bottom=2),
+                    ),
+                    ft.Row([
+                        ft.Text("Price", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
+                        ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
+                    ], spacing=6),
+                ], spacing=3),
+                margin=ft.Margin.only(bottom=2, top=4),
+            )
+
         for item in items:
             iid = item.get("Item_ID")
             name = item.get("Name", "")
@@ -1383,6 +1399,7 @@ class AdminPage:
             add_f_form,
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             header,
+            mobile_header,
             food_rows if food_rows.controls else ft.Text("No food items", color=self._clr("sub"), font_family="DM Sans"),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
@@ -1494,14 +1511,18 @@ class AdminPage:
         mobile_header = ft.Container()
         if mobile:
             mobile_header = ft.Container(
-                ft.Row([
-                    ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
-                    ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
-                    ft.Text("Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=50, text_align=ft.TextAlign.CENTER),
-                    ft.Text("Cost", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
-                    ft.Container(width=72),
-                ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                margin=ft.Margin.only(bottom=2),
+                content=ft.Column([
+                    ft.Container(
+                        ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
+                        margin=ft.Margin.only(bottom=2),
+                    ),
+                    ft.Row([
+                        ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
+                        ft.Text("Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
+                        ft.Text("Cost/Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
+                    ], spacing=6),
+                ], spacing=3),
+                margin=ft.Margin.only(bottom=2, top=4),
             )
 
         for item in items:

@@ -273,7 +273,7 @@ def build_register_form(page, on_submit, on_back):
                 fields["dob"].update(),
             )[1],
         )
-        page.open(dp)
+        page.show_dialog(dp)
 
     fields["dob"] = ft.TextField(
         label="Date of Birth", hint_text="YYYY-MM-DD", width=fw, expand=m,
@@ -518,25 +518,25 @@ async def main(page: ft.Page):
         # ── Overlay helpers (toggle-based, no stacking) ──
         _active_overlay = [None]
 
-        async def _remove_overlay():
+        async def _remove_overlay(fast=False):
             o = _active_overlay[0]
             if o and o in page.controls:
                 o.opacity = 0
                 page.update()
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.08 if fast else 0.2)
                 if o in page.controls:
                     page.remove(o)
             _active_overlay[0] = None
             page.update()
 
-        def _show_overlay(content):
+        def _show_overlay(content, open_ms=250):
             async def close_overlay(e):
                 await _remove_overlay()
             o = ft.Container(
                 content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
                 alignment=ft.Alignment(0, 0), expand=True,
                 on_click=close_overlay,
-                animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
+                animate_opacity=ft.Animation(open_ms, ft.AnimationCurve.EASE_OUT),
                 opacity=0,
             )
             page.add(o)
@@ -547,9 +547,9 @@ async def main(page: ft.Page):
 
         def _confirm_dialog(title, msg, on_confirm):
             async def do_cancel(e):
-                await _remove_overlay()
+                await _remove_overlay(fast=True)
             async def do_confirm(e):
-                await _remove_overlay()
+                await _remove_overlay(fast=True)
                 on_confirm()
             card = ft.Container(
                 content=ft.Column([
@@ -612,16 +612,20 @@ async def main(page: ft.Page):
                         ], spacing=8),
                         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
                         border_radius=10,
-                        on_click=lambda e: _confirm_dialog(
-                            "Logout", "Are you sure you want to log out?",
-                            lambda: asyncio.create_task(logout_click(e)),
-                        ),
+                        on_click=lambda e: asyncio.create_task(_do_logout()),
                     ),
                 ], tight=True, spacing=4),
                 bgcolor=t["card"], border_radius=18, padding=20, width=280,
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
-            _show_overlay(card)
+            _show_overlay(card, 380)
+
+        async def _do_logout():
+            await _remove_overlay()
+            _confirm_dialog(
+                "Logout", "Are you sure you want to log out?",
+                lambda: asyncio.create_task(logout_click(None)),
+            )
 
         first = get_val("First_Name", "U")
         last  = get_val("Last_Name", "")
