@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/auth-context'
-import { getActivePoll, startPoll, getPollResults, getAllFoodItems } from '@/lib/api'
+import { getActivePoll, startPoll, endPoll, getPollResults, getAllFoodItems } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition, FadeIn } from '@/components/page-transition'
 import { PageLoading } from '@/components/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { MEAL_TYPES } from '@/lib/constants'
-import { Vote, Play, BarChart3, Search, Plus, Trash2 } from 'lucide-react'
+import { Vote, Play, Square, BarChart3, Search, Plus, Trash2 } from 'lucide-react'
 import type { PollResult, FoodItem } from '@/types'
 
 export function AdminPolls() {
@@ -24,6 +25,7 @@ export function AdminPolls() {
   const toast = useToast()
 
   const [startDialogOpen, setStartDialogOpen] = useState(false)
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false)
   const [selectedItems, setSelectedItems] = useState<FoodItem[]>([])
   const [mealType, setMealType] = useState<string>('')
   const [itemSearch, setItemSearch] = useState('')
@@ -47,6 +49,7 @@ export function AdminPolls() {
     mutationFn: () => startPoll(email, selectedItems.map((i) => i.ItemID), mealType),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activePoll'] })
+      queryClient.invalidateQueries({ queryKey: ['pollResults'] })
       toast.success('Poll started! Students can now vote.')
       setStartDialogOpen(false)
       setSelectedItems([])
@@ -55,6 +58,19 @@ export function AdminPolls() {
     },
     onError: (err: Error) => toast.error(err.message),
   })
+
+  const endPollMutation = useMutation({
+    mutationFn: () => endPoll(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activePoll'] })
+      queryClient.invalidateQueries({ queryKey: ['pollResults'] })
+      toast.success('Poll ended.')
+      setEndConfirmOpen(false)
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const hasActivePoll = activeItems && activeItems.length > 0
 
   const filteredItems = (allFoodItems || []).filter(
     (item) =>
@@ -101,10 +117,23 @@ export function AdminPolls() {
           description="Start polls and view voting results"
           icon={Vote}
           action={
-            <Button onClick={() => setStartDialogOpen(true)} className="gap-2">
-              <Play className="h-4 w-4" />
-              Start New Poll
-            </Button>
+            <div className="flex gap-2">
+              {hasActivePoll && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setEndConfirmOpen(true)}
+                  disabled={endPollMutation.isPending}
+                  className="gap-2"
+                >
+                  <Square className="h-4 w-4" />
+                  {endPollMutation.isPending ? 'Ending...' : 'End Poll'}
+                </Button>
+              )}
+              <Button onClick={() => setStartDialogOpen(true)} className="gap-2" disabled={hasActivePoll}>
+                <Play className="h-4 w-4" />
+                Start New Poll
+              </Button>
+            </div>
           }
         />
 
@@ -150,6 +179,9 @@ export function AdminPolls() {
                   columns={resultColumns}
                   data={results || []}
                   keyExtractor={(r) => r.ItemID}
+                  searchable
+                  searchKeys={['ItemName', 'Category']}
+                  searchPlaceholder="Search results..."
                   isLoading={resultsLoading}
                   emptyMessage="No poll results yet"
                 />
@@ -158,7 +190,15 @@ export function AdminPolls() {
           </FadeIn>
         </div>
 
-        <Dialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
+        {/* Start Poll Dialog */}
+        <Dialog open={startDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            setStartDialogOpen(false)
+            setSelectedItems([])
+            setMealType('')
+            setItemSearch('')
+          }
+        }}>
           <DialogHeader>
             <DialogTitle>Start New Poll</DialogTitle>
             <DialogDescription>
@@ -250,6 +290,17 @@ export function AdminPolls() {
             </Button>
           </DialogFooter>
         </Dialog>
+
+        {/* End Poll Confirmation */}
+        <ConfirmDialog
+          open={endConfirmOpen}
+          onOpenChange={setEndConfirmOpen}
+          title="End Active Poll"
+          description="Are you sure you want to end the current poll? Students will no longer be able to vote."
+          confirmLabel="End Poll"
+          onConfirm={() => endPollMutation.mutate()}
+          isLoading={endPollMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

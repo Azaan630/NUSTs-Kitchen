@@ -27,10 +27,18 @@ function authParams(email: string) {
   return { params: { email } }
 }
 
-// ─── Field mapping helpers ───────────────────────────────────────────────────
+// ─── Response mapping helpers ────────────────────────────────────────────────
 
 function fullName(u: any): string {
   return `${u.First_Name ?? ''} ${u.Last_Name ?? ''}`.trim()
+}
+
+function splitName(fullName: string): { First_Name: string; Last_Name: string } {
+  const parts = fullName.trim().split(/\s+/)
+  return {
+    First_Name: parts[0] || '',
+    Last_Name: parts.slice(1).join(' ') || '',
+  }
 }
 
 function mapUser(u: any): User {
@@ -134,7 +142,21 @@ export async function getAllStudents(email: string): Promise<Student[]> {
 }
 
 export async function registerStudent(email: string, payload: CreateStudentPayload): Promise<Student> {
-  const { data } = await api.post('/admin/students/register', payload, authParams(email))
+  const names = splitName(payload.full_name)
+  const body = {
+    First_Name: names.First_Name,
+    Last_Name: names.Last_Name,
+    Email: payload.email,
+    Account_Type: 'Student',
+    DoB: payload.mess_package_start || '2000-01-01',
+    Department: 'General',
+    Contact_Number: '',
+    Address: '',
+    Father_Name: '',
+    Hostel_Name: '',
+    Room_Number: '',
+  }
+  const { data } = await api.post('/admin/students/register', body, authParams(email))
   return data as unknown as Student
 }
 
@@ -143,7 +165,14 @@ export async function updateStudent(
   userId: number,
   payload: Partial<CreateStudentPayload>,
 ): Promise<Student> {
-  const { data } = await api.patch(`/admin/students/update/${userId}`, payload, authParams(email))
+  const body: Record<string, any> = {}
+  if (payload.full_name) {
+    const names = splitName(payload.full_name)
+    body.First_Name = names.First_Name
+    body.Last_Name = names.Last_Name
+  }
+  if (payload.email) body.Email = payload.email
+  const { data } = await api.patch(`/admin/students/update/${userId}`, body, authParams(email))
   return data as unknown as Student
 }
 
@@ -183,7 +212,15 @@ export async function getStaffDetails(email: string, userId: number): Promise<St
 }
 
 export async function registerStaff(email: string, payload: CreateStaffPayload): Promise<Staff> {
-  const { data } = await api.post('/admin/staff/register', payload, authParams(email))
+  const names = splitName(payload.full_name)
+  const body = {
+    First_Name: names.First_Name,
+    Last_Name: names.Last_Name,
+    Email: payload.email,
+    Account_Type: 'Staff',
+    Category: String(payload.category_id),
+  }
+  const { data } = await api.post('/admin/staff/register', body, authParams(email))
   return data as unknown as Staff
 }
 
@@ -192,7 +229,15 @@ export async function updateStaff(
   payload: Partial<CreateStaffPayload> & { user_id: number },
 ): Promise<Staff> {
   const { user_id, ...rest } = payload
-  const { data } = await api.patch('/admin/staff/update/' + user_id, rest, authParams(email))
+  const body: Record<string, any> = {}
+  if (rest.full_name) {
+    const names = splitName(rest.full_name)
+    body.First_Name = names.First_Name
+    body.Last_Name = names.Last_Name
+  }
+  if (rest.email) body.Email = rest.email
+  if (rest.category_id) body.Category = String(rest.category_id)
+  const { data } = await api.patch('/admin/staff/update/' + user_id, body, authParams(email))
   return data as unknown as Staff
 }
 
@@ -237,7 +282,12 @@ export async function getFoodItem(email: string, itemId: number): Promise<FoodIt
 }
 
 export async function createFoodItem(email: string, payload: CreateFoodItemPayload): Promise<FoodItem> {
-  const { data } = await api.post('/admin/food-items/create', payload, authParams(email))
+  const body = {
+    Name: payload.item_name,
+    Quantity: 0,
+    Price: payload.price,
+  }
+  const { data } = await api.post('/admin/food-items/create', body, authParams(email))
   return data as unknown as FoodItem
 }
 
@@ -246,7 +296,10 @@ export async function updateFoodItem(
   itemId: number,
   payload: Partial<CreateFoodItemPayload>,
 ): Promise<FoodItem> {
-  const { data } = await api.patch('/admin/food-items/update/' + itemId, payload, authParams(email))
+  const body: Record<string, any> = {}
+  if (payload.item_name !== undefined) body.Name = payload.item_name
+  if (payload.price !== undefined) body.Price = payload.price
+  const { data } = await api.patch('/admin/food-items/update/' + itemId, body, authParams(email))
   return data as unknown as FoodItem
 }
 
@@ -268,7 +321,13 @@ export async function getAllIngredients(email: string): Promise<Ingredient[]> {
 }
 
 export async function createIngredient(email: string, payload: CreateIngredientPayload): Promise<Ingredient> {
-  const { data } = await api.post('/admin/ingredients/create', payload, authParams(email))
+  const body = {
+    Name: payload.ingredient_name,
+    Total_Quantity: payload.stock_quantity,
+    Unit: payload.unit,
+    Unit_cost: payload.unit_price,
+  }
+  const { data } = await api.post('/admin/ingredients/create', body, authParams(email))
   return data as unknown as Ingredient
 }
 
@@ -277,7 +336,12 @@ export async function updateIngredient(
   id: number,
   payload: Partial<CreateIngredientPayload>,
 ): Promise<Ingredient> {
-  const { data } = await api.patch('/admin/ingredients/update/' + id, payload, authParams(email))
+  const body: Record<string, any> = {}
+  if (payload.ingredient_name !== undefined) body.Name = payload.ingredient_name
+  if (payload.unit !== undefined) body.Unit = payload.unit
+  if (payload.stock_quantity !== undefined) body.Total_Quantity = payload.stock_quantity
+  if (payload.unit_price !== undefined) body.Unit_cost = payload.unit_price
+  const { data } = await api.patch('/admin/ingredients/update/' + id, body, authParams(email))
   return data as unknown as Ingredient
 }
 
@@ -313,10 +377,7 @@ export async function updateRecipe(
   ingredientId: number,
   quantity: number,
 ): Promise<void> {
-  await api.patch('/admin/recipe/update/' + itemId + '/' + ingredientId, null, {
-    ...authParams(email),
-    params: { quantity },
-  })
+  await api.patch('/admin/recipe/update/' + itemId + '/' + ingredientId, { Ingredient_Quantity: quantity }, authParams(email))
 }
 
 export async function deleteRecipe(email: string, itemId: number, ingredientId: number): Promise<void> {
@@ -339,7 +400,7 @@ export async function updateScheduleItem(
   itemId: number,
   scheduleId: number,
 ): Promise<void> {
-  await api.patch('/admin/menu-schedule/' + itemId + '/' + scheduleId, null, authParams(email))
+  await api.patch('/admin/menu-schedule/' + itemId + '/' + scheduleId, { ScheduleID: scheduleId, ItemID: itemId }, authParams(email))
 }
 
 export async function removeFromSchedule(email: string, itemId: number, scheduleId: number): Promise<void> {
@@ -350,6 +411,10 @@ export async function removeFromSchedule(email: string, itemId: number, schedule
 
 export async function startPoll(email: string, itemIds: number[], mealType: string): Promise<void> {
   await api.post('/admin/poll/start', { item_ids: itemIds, meal_type: mealType }, authParams(email))
+}
+
+export async function endPoll(email: string): Promise<void> {
+  await api.post('/admin/poll/end', null, authParams(email))
 }
 
 export async function getActivePoll(email: string): Promise<MenuFoodItem[]> {
@@ -395,7 +460,15 @@ export async function getPollResults(email: string): Promise<PollResult[]> {
 // ─── Bills ───────────────────────────────────────────────────────────────────
 
 export async function createBill(email: string, payload: CreateBillPayload): Promise<Bill> {
-  const { data } = await api.post('/admin/bills/create', payload, authParams(email))
+  const body = {
+    UserID: payload.user_id,
+    Issue_Date: payload.due_date || new Date().toISOString().split('T')[0],
+    Amount: payload.total_amount,
+    Due_Date: payload.due_date,
+    Month: payload.month,
+    Status: 'Unpaid',
+  }
+  const { data } = await api.post('/admin/bills/create', body, authParams(email))
   return data as unknown as Bill
 }
 
@@ -404,7 +477,11 @@ export async function updateBill(
   billId: number,
   payload: Partial<CreateBillPayload>,
 ): Promise<Bill> {
-  const { data } = await api.patch('/admin/bills/update/' + billId, payload, authParams(email))
+  const body: Record<string, any> = {}
+  if (payload.total_amount !== undefined) body.Amount = payload.total_amount
+  if (payload.due_date !== undefined) body.Due_Date = payload.due_date
+  if (payload.month !== undefined) body.Month = payload.month
+  const { data } = await api.patch('/admin/bills/update/' + billId, body, authParams(email))
   return data as unknown as Bill
 }
 
@@ -413,11 +490,14 @@ export async function deleteBill(email: string, billId: number): Promise<void> {
 }
 
 export async function payBill(email: string, billingId: number, payload: PaymentPayload): Promise<void> {
-  await api.post('/admin/bills/pay/' + billingId, payload, authParams(email))
+  await api.post('/admin/bills/pay/' + billingId, null, {
+    ...authParams(email),
+    params: { email, amount: payload.amount_paid, method: payload.payment_method },
+  })
 }
 
 export async function getMonthlyBillingSummary(email: string): Promise<BillingSummaryItem[]> {
-  const { data } = await api.get<any[]>('/admin/monthly_billing_summary', authParams(email))
+  const { data } = await api.get<any[]>('/admin/monthly-billing-summary', authParams(email))
   return (data || []).map((r: any) => ({
     BillingID: r.BillingID ?? 0,
     UserID: r.UserID ?? r.User_ID ?? 0,
@@ -435,17 +515,17 @@ export async function getMonthlyBillingSummary(email: string): Promise<BillingSu
 }
 
 export async function getBillStatus(email: string, userId: number): Promise<Bill[]> {
-  const { data } = await api.get<any[]>('/admin/' + userId + '/bill_status', authParams(email))
+  const { data } = await api.get<any[]>('/admin/' + userId + '/bill-status', authParams(email))
   return (data || []).map(mapBill)
 }
 
 export async function getMyBills(email: string): Promise<Bill[]> {
-  const { data } = await api.get<any[]>('/users/my_bills', authParams(email))
+  const { data } = await api.get<any[]>('/users/my-bills', authParams(email))
   return (data || []).map(mapBill)
 }
 
 export async function getMyBillHistory(email: string): Promise<Transaction[]> {
-  const { data } = await api.get<any[]>('/bills/my_history', authParams(email))
+  const { data } = await api.get<any[]>('/bills/my-history', authParams(email))
   return (data || []).map((r: any) => ({
     TransactionID: r.TransactionID ?? r.Transaction_ID ?? 0,
     BillingID: r.BillingID ?? r.Billing_ID ?? 0,
@@ -479,7 +559,7 @@ export async function getFoodRating(
   date: string,
   mealType: string,
 ): Promise<Rating> {
-  const { data } = await api.get<{ rating: any }>('/getFoodRating/' + itemId + '/' + date + '/' + mealType, authParams(email))
+  const { data } = await api.get<{ rating: any }>('/food-rating/' + itemId + '/' + date + '/' + mealType, authParams(email))
   const r = data?.rating ?? {}
   return r === 'NULL'
     ? { RatingID: 0, UserID: 0, ItemID: itemId, Date: date, Meal_Type: mealType, Score: 0 }
@@ -497,7 +577,7 @@ export async function getFoodRating(
 
 export async function requestMessOff(email: string, payload: MessOffRequestPayload): Promise<MessOff> {
   const { data } = await api.post(
-    '/student/mess_off/request/' + payload.user_id + '/' + payload.start_date + '/' + payload.end_date,
+    '/student/mess-off/request/' + payload.user_id + '/' + payload.start_date + '/' + payload.end_date,
     null,
     authParams(email),
   )
@@ -505,7 +585,7 @@ export async function requestMessOff(email: string, payload: MessOffRequestPaylo
 }
 
 export async function cancelMessOff(email: string, messOffId: number): Promise<void> {
-  await api.post('/student/mess_off/cancel/' + messOffId, null, authParams(email))
+  await api.post('/student/mess-off/cancel/' + messOffId, null, authParams(email))
 }
 
 export async function approveMessOff(email: string, requestId: number): Promise<void> {
