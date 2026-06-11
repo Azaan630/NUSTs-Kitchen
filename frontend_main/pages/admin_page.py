@@ -355,18 +355,30 @@ class AdminPage:
     #  TAB 0 — DASHBOARD
     # ════════════════════════════════════════════════════════════
 
-    def _dash_card(self, title, child, height=None):
+    def _round_up(self, v, step):
+        if v == 0:
+            return step
+        return ((v // step) + (1 if v % step else 0)) * step
+
+    def _dash_card(self, title, child):
         return ft.Container(
             content=ft.Column([
-                ft.Text(title, size=13, weight="bold", color=self._clr("sub"),
+                ft.Text(title, size=12, weight="bold", color=self._clr("sub"),
                         font_family="DM Sans"),
-                ft.Container(content=child, expand=True, margin=ft.Margin.only(top=4)),
+                ft.Container(content=child, expand=True, margin=ft.Margin.only(top=6)),
             ], spacing=4),
             bgcolor=self._clr("card"), border_radius=16,
-            padding=14,
+            padding=ft.Padding.symmetric(horizontal=18, vertical=14),
             expand=True,
-            height=height,
+            animate=ft.Animation(700, ft.AnimationCurve.EASE_OUT_BACK),
         )
+
+    def _trunc(self, s, n):
+        return (s or "?")[:n]
+
+    def _clean_max(self, v, step=50):
+        if v <= 0: return step
+        return ((v // step) + 1) * step
 
     def _build_ratings_chart(self, items):
         if not items:
@@ -378,26 +390,33 @@ class AdminPage:
             avg = r.get("avg_rating") or 0
             val = r.get("rating_count") or 0
             intensity = min(val / max_count, 1)
-            r_c = int(255 * (1 - intensity * 0.6))
-            g_c = int(200 + 55 * intensity)
-            clr = ft.Colors.with_opacity(0.7 + 0.3 * intensity, "#10B981" if avg >= 4 else "#F59E0B" if avg >= 3 else "#EF4444")
+            clr = "#10B981" if avg >= 4 else "#F59E0B" if avg >= 3 else "#EF4444"
+            clr = ft.Colors.with_opacity(0.6 + 0.4 * intensity, clr)
             groups.append(BarChartGroup(
                 x=i,
                 rods=[BarChartRod(from_y=0, to_y=avg, color=clr,
                                   tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
-                                  border_radius=4)],
+                                  border_radius=6, width=18)],
             ))
-        names = [r.get("Name", "?")[:10] for r in top]
+        names = [self._trunc(r.get("Name"), 6) for r in top]
         return BarChart(
             groups=groups,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            group_spacing=6,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="Rating", show_labels=True, label_size=10, title_size=11),
+            left_axis=ChartAxis(
+                title="Rating", title_size=11, show_labels=True,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
+                    for v in range(0, 6)
+                ],
+                label_size=10,
+            ),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
                 show_labels=True, label_size=9,
             ),
-            min_y=0, max_y=5,
+            min_y=0, max_y=5.5,
         )
 
     def _build_cost_chart(self, items):
@@ -412,26 +431,32 @@ class AdminPage:
                 x=i,
                 rods=[
                     BarChartRod(from_y=0, to_y=price, color="#3B82F6",
-                                tooltip=f"{f.get('Name','?')} Price: PKR {price:.0f}",
+                                tooltip=f"{f.get('Name','?')}: PKR {price:.0f}",
                                 width=10, border_radius=4),
                     BarChartRod(from_y=0, to_y=cost, color="#8B5CF6",
-                                tooltip=f"{f.get('Name','?')} Cost: PKR {cost:.0f}",
+                                tooltip=f"Cost: PKR {cost:.0f}",
                                 width=10, border_radius=4),
                 ],
             ))
-        names = [f.get("Name", "?")[:10] for f in top]
+        names = [self._trunc(f.get("Name"), 6) for f in top]
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
+        max_y = self._clean_max(max_v, 50)
         return BarChart(
             groups=groups,
             group_spacing=4,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="PKR", show_labels=True, label_size=10, title_size=11),
+            left_axis=ChartAxis(title="PKR", title_size=11, show_labels=True,
+                                labels=[
+                                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
+                                    for v in range(0, int(max_y) + 1, 50)
+                                ],
+                                label_size=10),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
                 show_labels=True, label_size=9,
             ),
-            min_y=0, max_y=max_v * 1.15,
+            min_y=0, max_y=max_y,
         )
 
     def _build_stock_chart(self, items):
@@ -448,20 +473,27 @@ class AdminPage:
                 x=i,
                 rods=[BarChartRod(from_y=0, to_y=qty, color=clr,
                                   tooltip=f"{ing.get('Name','?')}: {qty} {unit}",
-                                  border_radius=4)],
+                                  border_radius=6, width=16)],
             ))
-        names = [f"{ing.get('Name','?')[:8]}" for ing in top]
+        names = [self._trunc(ing.get("Name"), 5) for ing in top]
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
+        max_y = self._clean_max(max_q, 10)
         return BarChart(
             groups=groups,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            group_spacing=4,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="Qty", show_labels=True, label_size=10, title_size=11),
+            left_axis=ChartAxis(title="Stock", title_size=11, show_labels=True,
+                                labels=[
+                                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
+                                    for v in range(0, int(max_y) + 1, max(1, max_y // 5) if max_y > 10 else 5)
+                                ],
+                                label_size=10),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
                 show_labels=True, label_size=9,
             ),
-            min_y=0, max_y=max_q * 1.15,
+            min_y=0, max_y=max_y,
         )
 
     def _build_meal_pie(self, items):
@@ -481,13 +513,14 @@ class AdminPage:
                     value=cnt / total * 100,
                     color=colors.get(mt, "#6B7280"),
                     title=f"{mt} ({cnt})",
-                    radius=80,
+                    radius=70,
+                    title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans"),
                 ))
         return PieChart(
             sections=sections,
-            sections_space=2,
-            center_space_radius=30,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            sections_space=3,
+            center_space_radius=25,
+            animation=ft.Animation(900, ft.AnimationCurve.EASE_OUT_BACK),
         )
 
     def _build_population_pie(self, students, staff):
@@ -496,15 +529,17 @@ class AdminPage:
             return ft.Text("No user data", color=self._clr("sub"), font_family="DM Sans")
         sections = [
             PieChartSection(value=students / total * 100, color="#3B82F6",
-                            title=f"Students ({students})", radius=80),
+                            title=f"Students ({students})", radius=70,
+                            title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans")),
             PieChartSection(value=staff / total * 100, color="#8B5CF6",
-                            title=f"Staff ({staff})", radius=80),
+                            title=f"Staff ({staff})", radius=70,
+                            title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans")),
         ]
         return PieChart(
             sections=sections,
-            sections_space=2,
-            center_space_radius=30,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            sections_space=3,
+            center_space_radius=25,
+            animation=ft.Animation(900, ft.AnimationCurve.EASE_OUT_BACK),
         )
 
     def _build_billing_chart(self, bills):
@@ -515,29 +550,36 @@ class AdminPage:
         total_v = collected + outstanding
         if total_v == 0:
             return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
+        max_y = self._clean_max(max(collected, outstanding), 1000)
         groups = [
             BarChartGroup(x=0, rods=[
                 BarChartRod(from_y=0, to_y=collected, color="#3B82F6",
-                            tooltip=f"Collected: PKR {collected:,.0f}", border_radius=4),
+                            tooltip=f"Collected: PKR {collected:,.0f}", border_radius=6, width=28),
             ]),
             BarChartGroup(x=1, rods=[
                 BarChartRod(from_y=0, to_y=outstanding, color="#EF4444",
-                            tooltip=f"Outstanding: PKR {outstanding:,.0f}", border_radius=4),
+                            tooltip=f"Outstanding: PKR {outstanding:,.0f}", border_radius=6, width=28),
             ]),
         ]
         return BarChart(
             groups=groups,
-            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            group_spacing=20,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="PKR", show_labels=True, label_size=10, title_size=11),
+            left_axis=ChartAxis(title="PKR", title_size=11, show_labels=True,
+                                labels=[
+                                    ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=10, color=self._clr("sub"), font_family="DM Sans"))
+                                    for v in range(0, int(max_y) + 1, max_y // 4)
+                                ],
+                                label_size=10),
             bottom_axis=ChartAxis(
                 labels=[
-                    ChartAxisLabel(0, ft.Text("Collected", size=10, color=self._clr("sub"), font_family="DM Sans")),
-                    ChartAxisLabel(1, ft.Text("Outstanding", size=10, color=self._clr("sub"), font_family="DM Sans")),
+                    ChartAxisLabel(0, ft.Text("Collected", size=10, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)),
+                    ChartAxisLabel(1, ft.Text("Outstanding", size=10, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)),
                 ],
                 show_labels=True, label_size=10,
             ),
-            min_y=0, max_y=max(collected, outstanding) * 1.2,
+            min_y=0, max_y=max_y,
         )
 
     async def _render_dashboard(self, ref):
@@ -627,15 +669,18 @@ class AdminPage:
                 expand=True,
             )
 
-        stat_cards = ft.ResponsiveRow([
-            ft.Container(_sc(ft.Icons.SCHOOL_ROUNDED, "Students", stats["total_students"], ac), col={"sm": 4}),
-            ft.Container(_sc(ft.Icons.BADGE_ROUNDED, "Staff", stats["total_staff"], ac2), col={"sm": 4}),
-            ft.Container(_sc(ft.Icons.FASTFOOD_ROUNDED, "Food Items", stats["total_food_items"], sc), col={"sm": 4}),
-            ft.Container(_sc(ft.Icons.CATEGORY_ROUNDED, "Ingredients", stats["total_ingredients"], wa), col={"sm": 3}),
-            ft.Container(_sc(ft.Icons.EVENT_BUSY_ROUNDED, "Active Mess Offs", stats["active_mess_offs"], da), col={"sm": 3}),
-            ft.Container(_sc(ft.Icons.RECEIPT_ROUNDED, "Unpaid Bills", stats["unpaid_bills"], wa), col={"sm": 3}),
-            ft.Container(_sc(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, "Pending Reg.", stats["pending_registration_requests"], ac2), col={"sm": 3}),
-        ], spacing=10)
+        stat_cards = ft.Container(
+            content=ft.ResponsiveRow([
+                ft.Container(_sc(ft.Icons.SCHOOL_ROUNDED, "Students", stats["total_students"], ac), col={"sm": 4}),
+                ft.Container(_sc(ft.Icons.BADGE_ROUNDED, "Staff", stats["total_staff"], ac2), col={"sm": 4}),
+                ft.Container(_sc(ft.Icons.FASTFOOD_ROUNDED, "Food Items", stats["total_food_items"], sc), col={"sm": 4}),
+                ft.Container(_sc(ft.Icons.CATEGORY_ROUNDED, "Ingredients", stats["total_ingredients"], wa), col={"sm": 3}),
+                ft.Container(_sc(ft.Icons.EVENT_BUSY_ROUNDED, "Active Mess Offs", stats["active_mess_offs"], da), col={"sm": 3}),
+                ft.Container(_sc(ft.Icons.RECEIPT_ROUNDED, "Unpaid Bills", stats["unpaid_bills"], wa), col={"sm": 3}),
+                ft.Container(_sc(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, "Pending Reg.", stats["pending_registration_requests"], ac2), col={"sm": 3}),
+            ], spacing=10),
+            animate_opacity=ft.Animation(400, ft.AnimationCurve.EASE_OUT),
+        )
 
         ratings_chart = self._build_ratings_chart(ratings)
         cost_chart = self._build_cost_chart(food_items_data)
@@ -705,6 +750,30 @@ class AdminPage:
                 border=ft.border.all(1, ft.Colors.with_opacity(0.2, da)),
             )
 
+        _anim_queue = []
+
+        def _fade_wrap(child, delay):
+            c = ft.Container(
+                content=child, expand=True,
+                opacity=0,
+                animate_opacity=ft.Animation(500 + delay * 120, ft.AnimationCurve.EASE_OUT),
+            )
+            _anim_queue.append(c)
+            return c
+
+        def _section(title, icon, delay):
+            c = ft.Container(
+                content=ft.Row([
+                    ft.Icon(icon, size=18, color=ac),
+                    ft.Text(title, size=15, weight="bold",
+                            color=t.get("text"), font_family="DM Sans"),
+                ], spacing=8),
+                opacity=0,
+                animate_opacity=ft.Animation(400 + delay * 120, ft.AnimationCurve.EASE_OUT),
+            )
+            _anim_queue.append(c)
+            return c
+
         ref.content = ft.Column([
             self._guest_banner(),
             ft.Row([
@@ -718,33 +787,30 @@ class AdminPage:
             ft.Container(height=12),
             stat_cards,
             ft.Container(height=16),
-            ft.Text("Food Analytics", size=15, weight="bold",
-                    color=t.get("text"), font_family="DM Sans"),
+            _section("Food Analytics", ft.Icons.RESTAURANT_ROUNDED, 0),
             ft.Container(height=8),
             ft.ResponsiveRow([
-                ft.Container(self._dash_card("Avg Ratings (top 8)", ratings_chart, 280),
+                ft.Container(_fade_wrap(self._dash_card("Avg Ratings (top 8)", ratings_chart), 1),
                              col={"sm": 12, "md": 6}),
-                ft.Container(self._dash_card("Price vs Cost (top 8)", cost_chart, 280),
+                ft.Container(_fade_wrap(self._dash_card("Price vs Cost (top 8)", cost_chart), 2),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
-            ft.Text("Inventory & Menu", size=15, weight="bold",
-                    color=t.get("text"), font_family="DM Sans"),
+            _section("Inventory & Menu", ft.Icons.INVENTORY_ROUNDED, 3),
             ft.Container(height=8),
             ft.ResponsiveRow([
-                ft.Container(self._dash_card("Stock Levels (lowest 10)", stock_chart, 280),
+                ft.Container(_fade_wrap(self._dash_card("Stock Levels (lowest 10)", stock_chart), 4),
                              col={"sm": 12, "md": 6}),
-                ft.Container(self._dash_card("Meal Type Distribution", meal_pie, 280),
+                ft.Container(_fade_wrap(self._dash_card("Meal Type Distribution", meal_pie), 5),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
-            ft.Text("People & Finance", size=15, weight="bold",
-                    color=t.get("text"), font_family="DM Sans"),
+            _section("People & Finance", ft.Icons.ACCOUNT_BALANCE_ROUNDED, 6),
             ft.Container(height=8),
             ft.ResponsiveRow([
-                ft.Container(self._dash_card("Population Distribution", population_pie, 280),
+                ft.Container(_fade_wrap(self._dash_card("Population Distribution", population_pie), 7),
                              col={"sm": 12, "md": 6}),
-                ft.Container(self._dash_card("Billing Overview", billing_chart, 280),
+                ft.Container(_fade_wrap(self._dash_card("Billing Overview", billing_chart), 8),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
@@ -754,6 +820,13 @@ class AdminPage:
             ], spacing=12) if activity or low_stock else ft.Container(),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
+
+        async def _stagger():
+            for i, c in enumerate(_anim_queue):
+                await asyncio.sleep(0.08)
+                c.opacity = 1
+                self.page.update()
+        asyncio.create_task(_stagger())
 
     # ════════════════════════════════════════════════════════════
     #  TAB 1 — STUDENTS
