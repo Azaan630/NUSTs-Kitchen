@@ -166,6 +166,7 @@ class AdminPage:
         self.page.snack_bar = ft.SnackBar(
             content=ft.Text(msg, color="#FFF"),
             bgcolor=self._clr("success") if ok else self._clr("danger"),
+            duration=4000,
         )
         self.page.snack_bar.open = True
         self.page.update()
@@ -175,8 +176,12 @@ class AdminPage:
         task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
         return task
 
-    def _remove_overlay(self):
+    async def _remove_overlay(self, animate=True):
         o = getattr(self, '_active_overlay', None)
+        if o and animate and o in self.page.controls:
+            o.opacity = 0
+            self.page.update()
+            await asyncio.sleep(0.2)
         if o and o in self.page.controls:
             self.page.remove(o)
         self._active_overlay = None
@@ -184,9 +189,16 @@ class AdminPage:
             self.page.update()
 
     def _confirm(self, title, msg, on_delete):
-        self._remove_overlay()
         logger.error("_confirm: %s | %s", title, msg)
         t = self.theme
+
+        async def do_cancel(e):
+            await self._remove_overlay()
+
+        async def do_confirm(e):
+            await self._remove_overlay()
+            on_delete()
+
         card = ft.Container(
             content=ft.Column([
                 ft.Text(title, weight="bold", size=17, color=t.get("text"), font_family="DM Sans"),
@@ -194,13 +206,10 @@ class AdminPage:
                 ft.Text(msg, size=13, color=t.get("sub"), font_family="DM Sans"),
                 ft.Container(height=16),
                 ft.Row([
-                    ft.TextButton("Cancel", on_click=lambda e: self._remove_overlay(),
+                    ft.TextButton("Cancel", on_click=do_cancel,
                         style=ft.ButtonStyle(color=t.get("sub"))),
                     ft.FilledButton("Confirm",
-                        on_click=lambda e: [
-                            self._remove_overlay(),
-                            on_delete(),
-                        ],
+                        on_click=do_confirm,
                         style=ft.ButtonStyle(
                             bgcolor=t.get("danger") if "Delete" in title or "Remove" in title or "End" in title or "Reject" in title
                                    else t.get("accent"))),
@@ -214,7 +223,7 @@ class AdminPage:
         overlay = ft.Container(
             content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
             alignment=ft.Alignment(0, 0), expand=True,
-            on_click=lambda e: self._remove_overlay(),
+            on_click=do_cancel,
             animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
             opacity=0,
         )
@@ -1252,13 +1261,15 @@ class AdminPage:
             self.page.update()
 
         async def do_add_food(e):
+            for fld in [add_f_name, add_f_price, add_f_qty]:
+                fld.error_text = ""; fld.update()
             from pages.validation import validate_name, validate_positive_number
             v_name, err = validate_name(add_f_name.value, "Name")
-            if err: self._snack(err, False); return
+            if err: add_f_name.error_text = err; add_f_name.update(); self._snack(err, False); return
             v_price, err = validate_positive_number(add_f_price.value, "Price")
-            if err: self._snack(err, False); return
+            if err: add_f_price.error_text = err; add_f_price.update(); self._snack(err, False); return
             v_qty, err = validate_positive_number(add_f_qty.value, "Quantity")
-            if err: self._snack(err, False); return
+            if err: add_f_qty.error_text = err; add_f_qty.update(); self._snack(err, False); return
             data = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
             if self.is_guest:
                 mock_data.create_food(data)
@@ -1306,14 +1317,14 @@ class AdminPage:
             def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
                 from pages.validation import validate_name, validate_positive_number
                 v_name, err = validate_name(nf.value, "Name")
-                if err: nf.error_text = err; nf.update(); return
-                nf.error_text = ""
+                if err: self._snack(err, False); nf.error_text = err; nf.update(); return
+                nf.error_text = ""; nf.update()
                 v_price, err = validate_positive_number(pf.value, "Price")
-                if err: pf.error_text = err; pf.update(); return
-                pf.error_text = ""
+                if err: self._snack(err, False); pf.error_text = err; pf.update(); return
+                pf.error_text = ""; pf.update()
                 v_qty, err = validate_positive_number(qf.value, "Quantity")
-                if err: qf.error_text = err; qf.update(); return
-                qf.error_text = ""
+                if err: self._snack(err, False); qf.error_text = err; qf.update(); return
+                qf.error_text = ""; qf.update()
                 p = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
                 if self.is_guest:
                     mock_data.update_food(i, p)
@@ -1408,7 +1419,7 @@ class AdminPage:
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"),)
-        add_qty    = ft.TextField(hint_text="Qty", dense=True, expand=mobile, width=70 if not mobile else None,
+        add_qty    = ft.TextField(hint_text="Qty", dense=True, expand=mobile, width=100 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
@@ -1444,15 +1455,17 @@ class AdminPage:
             self.page.update()
 
         async def do_save_add(e):
+            for fld in [add_name, add_qty, add_unit, add_cost]:
+                fld.error_text = ""; fld.update()
             from pages.validation import validate_name, validate_required, validate_positive_number
             v_name, err = validate_name(add_name.value, "Name")
-            if err: self._snack(err, False); return
+            if err: add_name.error_text = err; add_name.update(); self._snack(err, False); return
             v_qty, err = validate_positive_number(add_qty.value, "Quantity")
-            if err: self._snack(err, False); return
+            if err: add_qty.error_text = err; add_qty.update(); self._snack(err, False); return
             v_unit, err = validate_required(add_unit.value, "Unit")
-            if err: self._snack(err, False); return
+            if err: add_unit.error_text = err; add_unit.update(); self._snack(err, False); return
             v_cost, err = validate_positive_number(add_cost.value, "Cost/unit")
-            if err: self._snack(err, False); return
+            if err: add_cost.error_text = err; add_cost.update(); self._snack(err, False); return
             data = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
             if self.is_guest:
                 mock_data.create_ingredient(data)
@@ -1466,7 +1479,7 @@ class AdminPage:
         header = ft.Container(
             ft.Row([
                 ft.Text("Name", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
-                ft.Text("Qty", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
+                ft.Text("Qty", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=100, text_align=ft.TextAlign.CENTER),
                 ft.Text("Unit", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
                 ft.Text("Cost/Unit", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=90, text_align=ft.TextAlign.CENTER),
                 ft.Container(width=72),
@@ -1476,6 +1489,20 @@ class AdminPage:
             margin=ft.Margin.only(bottom=4),
             visible=not self._is_mobile(),
         )
+
+        mobile = self._is_mobile()
+        mobile_header = ft.Container()
+        if mobile:
+            mobile_header = ft.Container(
+                ft.Row([
+                    ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
+                    ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
+                    ft.Text("Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=50, text_align=ft.TextAlign.CENTER),
+                    ft.Text("Cost", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
+                    ft.Container(width=72),
+                ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                margin=ft.Margin.only(bottom=2),
+            )
 
         for item in items:
             iid = item.get("Ingredient_ID")
@@ -1489,7 +1516,7 @@ class AdminPage:
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),)
-            ef_qty  = ft.TextField(value=str(qty), expand=mobile, width=70 if not mobile else None, dense=True,
+            ef_qty  = ft.TextField(value=str(qty), expand=mobile, width=100 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
@@ -1505,17 +1532,17 @@ class AdminPage:
             def do_upd(e, i=iid, nf=ef_name, qf=ef_qty, uf=ef_unit, cf=ef_cost):
                 from pages.validation import validate_name, validate_required, validate_positive_number
                 v_name, err = validate_name(nf.value, "Name")
-                if err: nf.error_text = err; nf.update(); return
-                nf.error_text = ""
+                if err: self._snack(err, False); nf.error_text = err; nf.update(); return
+                nf.error_text = ""; nf.update()
                 v_qty, err = validate_positive_number(qf.value, "Quantity")
-                if err: qf.error_text = err; qf.update(); return
-                qf.error_text = ""
+                if err: self._snack(err, False); qf.error_text = err; qf.update(); return
+                qf.error_text = ""; qf.update()
                 v_unit, err = validate_required(uf.value, "Unit")
-                if err: uf.error_text = err; uf.update(); return
-                uf.error_text = ""
+                if err: self._snack(err, False); uf.error_text = err; uf.update(); return
+                uf.error_text = ""; uf.update()
                 v_cost, err = validate_positive_number(cf.value, "Cost/unit")
-                if err: cf.error_text = err; cf.update(); return
-                cf.error_text = ""
+                if err: self._snack(err, False); cf.error_text = err; cf.update(); return
+                cf.error_text = ""; cf.update()
                 d = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
                 if self.is_guest:
                     mock_data.update_ingredient(i, d)
@@ -1572,6 +1599,7 @@ class AdminPage:
             ft.Row([search_bar], spacing=8),
             add_form,
             header,
+            mobile_header,
             ing_rows if ing_rows.controls else ft.Text("No ingredients", color=self._clr("sub"), font_family="DM Sans"),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
@@ -1851,8 +1879,9 @@ class AdminPage:
         async def do_add_menu(e):
             from pages.validation import validate_date_str
             iid = add_m_food.value
+            add_m_date.error_text = ""; add_m_date.update()
             dt, err = validate_date_str(add_m_date.value, "Date")
-            if err: self._snack(err, False); return
+            if err: add_m_date.error_text = err; add_m_date.update(); self._snack(err, False); return
             d = str(dt)
             t = add_m_meal.value
             if not iid or not t:

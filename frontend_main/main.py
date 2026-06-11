@@ -252,14 +252,12 @@ def build_register_form(page, on_submit, on_back):
         ("first", "First Name", "e.g. Ali"),
         ("last", "Last Name", "e.g. Khan"),
         ("email", "Email", "you@seecs.edu.pk"),
-        ("dob", "Date of Birth", "YYYY-MM-DD"),
         ("dept", "Department", "CS, SE, EE"),
         ("phone", "Contact", "03XX-XXXXXXX"),
         ("address", "Address", "H-12 NUST"),
         ("father", "Father's Name", ""),
         ("hostel", "Hostel", "Ghazali"),
         ("room", "Room No.", "101"),
-        ("category", "Staff Category", "Chef / Server"),
     ]:
         fields[key] = ft.TextField(
             label=label, hint_text=hint, width=fw, expand=m,
@@ -267,6 +265,36 @@ def build_register_form(page, on_submit, on_back):
             border_color=ft.Colors.with_opacity(0.3, t["text"]),
             cursor_color=acc, border_radius=10,
         )
+
+    async def pick_date(e):
+        dp = ft.DatePicker(
+            on_change=lambda e: (
+                setattr(fields["dob"], "value", e.control.value.strftime("%Y-%m-%d")),
+                fields["dob"].update(),
+            )[1],
+        )
+        page.open(dp)
+
+    fields["dob"] = ft.TextField(
+        label="Date of Birth", hint_text="YYYY-MM-DD", width=fw, expand=m,
+        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+        border_color=ft.Colors.with_opacity(0.3, t["text"]),
+        cursor_color=acc, border_radius=10, read_only=True,
+        suffix=ft.IconButton(ft.Icons.CALENDAR_MONTH, on_click=pick_date),
+    )
+
+    fields["category"] = ft.TextField(
+        label="Staff Category", hint_text="Chef / Server", width=fw, expand=m,
+        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+        border_color=ft.Colors.with_opacity(0.3, t["text"]),
+        cursor_color=acc, border_radius=10,
+    )
+    category_row = ft.Container(content=fields["category"], visible=role_dd.value == "Staff")
+
+    def on_role_change(e):
+        category_row.visible = role_dd.value == "Staff"
+        page.update()
+    role_dd.on_change = on_role_change
 
     msg = ft.Text("", size=13, color=acc, font_family="DM Sans")
 
@@ -300,13 +328,23 @@ def build_register_form(page, on_submit, on_back):
         if err: fields["hostel"].error_text = err
         v_room, err = validate_room(fields["room"].value)
         if err: fields["room"].error_text = err
-        v_cat, err = validate_category(fields["category"].value)
-        if err: fields["category"].error_text = err
+        if category_row.visible:
+            v_cat, err = validate_category(fields["category"].value)
+            if err: fields["category"].error_text = err
+        else:
+            v_cat = None
 
+        first_err = None
         for f in fields.values():
             if f.error_text:
                 f.update()
-        if any(f.error_text for f in fields.values()):
+                if not first_err:
+                    first_err = f.error_text
+        if first_err:
+            page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
+                bgcolor=t["danger"], duration=4000)
+            page.snack_bar.open = True
+            page.update()
             return
         payload = {
             "First_Name": v_first,
@@ -373,7 +411,7 @@ def build_register_form(page, on_submit, on_back):
                     role_dd, ft.Container(height=4),
                     *[fields[k] for k in ["first", "last", "email"]],
                     ft.Container(height=12),
-                    fields["category"],
+                    category_row,
                     *[fields[k] for k in ["dob", "dept", "phone", "address", "father", "hostel", "room"]],
                     ft.Container(height=12),
                     msg,
@@ -480,25 +518,39 @@ async def main(page: ft.Page):
         # ── Overlay helpers (toggle-based, no stacking) ──
         _active_overlay = [None]
 
-        def _remove_overlay():
+        async def _remove_overlay():
             o = _active_overlay[0]
             if o and o in page.controls:
-                page.remove(o)
+                o.opacity = 0
+                page.update()
+                await asyncio.sleep(0.2)
+                if o in page.controls:
+                    page.remove(o)
             _active_overlay[0] = None
             page.update()
 
         def _show_overlay(content):
-            _remove_overlay()
+            async def close_overlay(e):
+                await _remove_overlay()
             o = ft.Container(
                 content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
                 alignment=ft.Alignment(0, 0), expand=True,
-                on_click=lambda e: _remove_overlay(),
+                on_click=close_overlay,
+                animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
+                opacity=0,
             )
             page.add(o)
             _active_overlay[0] = o
             page.update()
+            o.opacity = 1
+            page.update()
 
         def _confirm_dialog(title, msg, on_confirm):
+            async def do_cancel(e):
+                await _remove_overlay()
+            async def do_confirm(e):
+                await _remove_overlay()
+                on_confirm()
             card = ft.Container(
                 content=ft.Column([
                     ft.Text(title, weight="bold", size=17, color=t["text"],
@@ -507,11 +559,11 @@ async def main(page: ft.Page):
                     ft.Text(msg, size=13, color=t["sub"], font_family="DM Sans"),
                     ft.Container(height=16),
                     ft.Row([
-                        ft.TextButton("Cancel", on_click=lambda e: _remove_overlay(),
+                        ft.TextButton("Cancel", on_click=do_cancel,
                             style=ft.ButtonStyle(color=t["sub"])),
                         ft.FilledButton("Confirm",
                             style=ft.ButtonStyle(bgcolor=t["danger"]),
-                            on_click=lambda e: [_remove_overlay(), on_confirm()]),
+                            on_click=do_confirm),
                     ], alignment=ft.MainAxisAlignment.END, spacing=8),
                 ], tight=True, spacing=4),
                 bgcolor=t["card"], border_radius=18, padding=24, width=340,
@@ -528,8 +580,8 @@ async def main(page: ft.Page):
             page.add(build_landing(page, login_click, guest_login, show_register_page))
             page.update()
 
-        def show_profile_popup(e):
-            _remove_overlay()
+        async def show_profile_popup(e):
+            await _remove_overlay()
             email = get_val("Email", "")
             card = ft.Container(
                 content=ft.Column([
@@ -547,7 +599,7 @@ async def main(page: ft.Page):
                         ),
                         ft.Container(
                             content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=18, color=t["sub"]),
-                            on_click=lambda e: _remove_overlay(),
+                            on_click=lambda e: asyncio.create_task(_remove_overlay()),
                             padding=4, border_radius=8,
                         ),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -560,10 +612,10 @@ async def main(page: ft.Page):
                         ], spacing=8),
                         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
                         border_radius=10,
-                        on_click=lambda e: [_remove_overlay(), _confirm_dialog(
+                        on_click=lambda e: _confirm_dialog(
                             "Logout", "Are you sure you want to log out?",
                             lambda: asyncio.create_task(logout_click(e)),
-                        )],
+                        ),
                     ),
                 ], tight=True, spacing=4),
                 bgcolor=t["card"], border_radius=18, padding=20, width=280,
@@ -780,10 +832,13 @@ async def main(page: ft.Page):
         page.bgcolor = SLATE_900
         reg = build_register_form(page, None, show_landing)
         reg.animate_opacity = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
+        reg.animate_scale = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
         reg.opacity = 0
+        reg.scale = 0.95
         page.add(reg)
         page.update()
         reg.opacity = 1
+        reg.scale = 1.0
         page.update()
 
     if page.auth and page.auth.user and page.current_user_data:
