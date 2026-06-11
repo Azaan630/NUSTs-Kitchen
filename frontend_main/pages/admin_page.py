@@ -154,36 +154,15 @@ class AdminPage:
         return task
 
     def _confirm(self, title, msg, on_delete):
+        logger.error("_confirm: %s | %s", title, msg)
         try:
-            dlg = ft.AlertDialog(
-                modal=True,
-                title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
-                content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
-                actions=[
-                    ft.TextButton("Cancel", on_click=lambda e: _close()),
-                    ft.TextButton("Delete", on_click=lambda e: (_close(), _exec()),
-                                  style=ft.ButtonStyle(color=self._clr("danger"))),
-                ],
-                actions_alignment=ft.MainAxisAlignment.END,
-            )
-            def _close():
-                dlg.open = False
-                self.page.update()
-            def _exec():
-                try:
-                    if asyncio.iscoroutinefunction(on_delete):
-                        AdminPage._run(self, on_delete())
-                    else:
-                        on_delete()
-                except Exception as ex:
-                    logger.error("_exec failed: %s", ex, exc_info=True)
-                    self._snack(f"Error: {ex}", False)
-            self.page.dialog = dlg
-            dlg.open = True
-            self.page.update()
+            if asyncio.iscoroutinefunction(on_delete):
+                self._run(on_delete())
+            else:
+                on_delete()
         except Exception as ex:
-            logger.error("_confirm dialog failed: %s", ex, exc_info=True)
-            self._snack(f"Dialog error: {ex}", False)
+            logger.error("_confirm exec failed: %s", ex, exc_info=True)
+            self._snack(f"Error: {ex}", False)
 
     def _card(self, *controls, pad=14):
         return ft.Container(
