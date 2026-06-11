@@ -401,13 +401,11 @@ class AdminPage:
                                   border_radius=6, width=22)],
             ))
         names = [self._trunc(r.get("Name"), 5) for r in top]
-        n = len(groups)
         return BarChart(
             groups=groups,
             group_spacing=8,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            min_x=-0.5, max_x=n - 0.5,
             min_y=0, max_y=5.5,
             left_axis=ChartAxis(
                 title="Rating", title_size=12, show_labels=True,
@@ -498,13 +496,11 @@ class AdminPage:
         names = [self._trunc(ing.get("Name"), 5) for ing in top]
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
         max_y = self._clean_max(max_q, 10)
-        n = len(groups)
         return BarChart(
             groups=groups,
             group_spacing=6,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            min_x=-0.5, max_x=n - 0.5,
             min_y=0, max_y=max_y,
             left_axis=ChartAxis(
                 title="Stock", title_size=12, show_labels=True,
