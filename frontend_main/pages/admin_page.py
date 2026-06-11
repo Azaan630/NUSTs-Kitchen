@@ -8,6 +8,8 @@ import mock_data
 from flet_charts import (
     BarChart, BarChartGroup, BarChartRod, BarChartRodStackItem,
     PieChart, PieChartSection,
+    LineChart, LineChartData, LineChartDataPoint,
+    ChartCirclePoint,
     ChartAxis, ChartAxisLabel,
 )
 
@@ -396,67 +398,83 @@ class AdminPage:
                 x=i,
                 rods=[BarChartRod(from_y=0, to_y=avg, color=clr,
                                   tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
-                                  border_radius=6, width=18)],
+                                  border_radius=6, width=22)],
             ))
-        names = [self._trunc(r.get("Name"), 6) for r in top]
+        names = [self._trunc(r.get("Name"), 5) for r in top]
         return BarChart(
             groups=groups,
-            group_spacing=6,
+            group_spacing=8,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
             left_axis=ChartAxis(
-                title="Rating", title_size=11, show_labels=True,
+                title="Rating", title_size=12, show_labels=True,
                 labels=[
-                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
+                    ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
                     for v in range(0, 6)
                 ],
-                label_size=10,
+                label_size=12,
             ),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
-                show_labels=True, label_size=9,
+                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
+                                                  font_family="DM Sans",
+                                                  text_align=ft.TextAlign.CENTER))
+                        for i, n in enumerate(names)],
+                show_labels=True, label_size=11,
             ),
             min_y=0, max_y=5.5,
         )
 
-    def _build_cost_chart(self, items):
+    def _build_price_cost_line(self, items):
         if not items:
-            return ft.Text("No cost data", color=self._clr("sub"), font_family="DM Sans")
+            return ft.Text("No food data", color=self._clr("sub"), font_family="DM Sans")
         top = sorted(items, key=lambda x: x.get("Price") or 0, reverse=True)[:8]
-        groups = []
+        price_points = []
+        cost_points = []
         for i, f in enumerate(top):
             price = f.get("Price") or 0
             cost = f.get("Estimated_Cost") or price * 0.6
-            groups.append(BarChartGroup(
-                x=i,
-                rods=[
-                    BarChartRod(from_y=0, to_y=price, color="#3B82F6",
-                                tooltip=f"{f.get('Name','?')}: PKR {price:.0f}",
-                                width=10, border_radius=4),
-                    BarChartRod(from_y=0, to_y=cost, color="#8B5CF6",
-                                tooltip=f"Cost: PKR {cost:.0f}",
-                                width=10, border_radius=4),
-                ],
-            ))
-        names = [self._trunc(f.get("Name"), 6) for f in top]
+            price_points.append(LineChartDataPoint(x=i, y=price,
+                tooltip=f"{f.get('Name','?')}: PKR {price:,.0f}"))
+            cost_points.append(LineChartDataPoint(x=i, y=cost,
+                tooltip=f"Cost: PKR {cost:,.0f}"))
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
         max_y = self._clean_max(max_v, 50)
-        return BarChart(
-            groups=groups,
-            group_spacing=4,
+        names = [self._trunc(f.get("Name"), 5) for f in top]
+        return LineChart(
+            data_series=[
+                LineChartData(
+                    points=price_points, color="#3B82F6", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#3B82F6"),
+                    below_line_cutoff_y=0,
+                ),
+                LineChartData(
+                    points=cost_points, color="#8B5CF6", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#8B5CF6"),
+                    below_line_cutoff_y=0,
+                ),
+            ],
+            min_y=0, max_y=max_y,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="PKR", title_size=11, show_labels=True,
-                                labels=[
-                                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
-                                    for v in range(0, int(max_y) + 1, 50)
-                                ],
-                                label_size=10),
-            bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
-                show_labels=True, label_size=9,
+            left_axis=ChartAxis(
+                title="PKR", title_size=12, show_labels=True,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in range(0, int(max_y) + 1, 50)
+                ],
+                label_size=12,
             ),
-            min_y=0, max_y=max_y,
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
+                                                  font_family="DM Sans",
+                                                  text_align=ft.TextAlign.CENTER))
+                        for i, n in enumerate(names)],
+                show_labels=True, label_size=11,
+            ),
         )
 
     def _build_stock_chart(self, items):
@@ -473,25 +491,31 @@ class AdminPage:
                 x=i,
                 rods=[BarChartRod(from_y=0, to_y=qty, color=clr,
                                   tooltip=f"{ing.get('Name','?')}: {qty} {unit}",
-                                  border_radius=6, width=16)],
+                                  border_radius=6, width=18)],
             ))
         names = [self._trunc(ing.get("Name"), 5) for ing in top]
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
         max_y = self._clean_max(max_q, 10)
         return BarChart(
             groups=groups,
-            group_spacing=4,
+            group_spacing=6,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="Stock", title_size=11, show_labels=True,
-                                labels=[
-                                    ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
-                                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 5) if max_y > 10 else 5)
-                                ],
-                                label_size=10),
+            left_axis=ChartAxis(
+                title="Stock", title_size=12, show_labels=True,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 5) if max_y > 10 else 5)
+                ],
+                label_size=12,
+            ),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)) for i, n in enumerate(names)],
-                show_labels=True, label_size=9,
+                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
+                                                  font_family="DM Sans",
+                                                  text_align=ft.TextAlign.CENTER))
+                        for i, n in enumerate(names)],
+                show_labels=True, label_size=11,
             ),
             min_y=0, max_y=max_y,
         )
@@ -514,7 +538,7 @@ class AdminPage:
                     color=colors.get(mt, "#6B7280"),
                     title=f"{mt} ({cnt})",
                     radius=70,
-                    title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans"),
+                    title_style=ft.TextStyle(size=11, color=self._clr("text"), font_family="DM Sans"),
                 ))
         return PieChart(
             sections=sections,
@@ -530,10 +554,10 @@ class AdminPage:
         sections = [
             PieChartSection(value=students / total * 100, color="#3B82F6",
                             title=f"Students ({students})", radius=70,
-                            title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans")),
+                            title_style=ft.TextStyle(size=11, color=self._clr("text"), font_family="DM Sans")),
             PieChartSection(value=staff / total * 100, color="#8B5CF6",
                             title=f"Staff ({staff})", radius=70,
-                            title_style=ft.TextStyle(size=10, color=self._clr("text"), font_family="DM Sans")),
+                            title_style=ft.TextStyle(size=11, color=self._clr("text"), font_family="DM Sans")),
         ]
         return PieChart(
             sections=sections,
@@ -542,44 +566,70 @@ class AdminPage:
             animation=ft.Animation(900, ft.AnimationCurve.EASE_OUT_BACK),
         )
 
-    def _build_billing_chart(self, bills):
+    def _build_billing_line(self, bills):
         if not bills:
             return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
-        collected = sum((b.get("Total_Collected") or b.get("Total_Collected") or 0) for b in bills)
-        outstanding = sum((b.get("Outstanding") or 0) for b in bills)
-        total_v = collected + outstanding
-        if total_v == 0:
-            return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
-        max_y = self._clean_max(max(collected, outstanding), 1000)
-        groups = [
-            BarChartGroup(x=0, rods=[
-                BarChartRod(from_y=0, to_y=collected, color="#3B82F6",
-                            tooltip=f"Collected: PKR {collected:,.0f}", border_radius=6, width=28),
-            ]),
-            BarChartGroup(x=1, rods=[
-                BarChartRod(from_y=0, to_y=outstanding, color="#EF4444",
-                            tooltip=f"Outstanding: PKR {outstanding:,.0f}", border_radius=6, width=28),
-            ]),
-        ]
-        return BarChart(
-            groups=groups,
-            group_spacing=20,
+        monthly = {}
+        for b in bills:
+            month = b.get("Billing_Month") or b.get("Month") or "Unknown"
+            if month not in monthly:
+                monthly[month] = {"collected": 0, "outstanding": 0}
+            monthly[month]["collected"] += b.get("Total_Collected") or 0
+            monthly[month]["outstanding"] += b.get("Outstanding") or 0
+        sorted_months = sorted(monthly.keys())
+        collected_points = []
+        outstanding_points = []
+        for i, m in enumerate(sorted_months):
+            collected_points.append(LineChartDataPoint(
+                x=i, y=monthly[m]["collected"],
+                tooltip=f"{m}: PKR {monthly[m]['collected']:,.0f} collected",
+            ))
+            outstanding_points.append(LineChartDataPoint(
+                x=i, y=monthly[m]["outstanding"],
+                tooltip=f"{m}: PKR {monthly[m]['outstanding']:,.0f} outstanding",
+            ))
+        max_val = max(
+            max((d["collected"] for d in monthly.values()), default=0),
+            max((d["outstanding"] for d in monthly.values()), default=0),
+        ) or 1
+        max_y = self._clean_max(max_val, 5000)
+        month_labels = [m[-2:] + ("'" + m[2:4]) if len(m) > 4 else m for m in sorted_months]
+        return LineChart(
+            data_series=[
+                LineChartData(
+                    points=collected_points, color="#10B981", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#10B981"),
+                    below_line_cutoff_y=0,
+                ),
+                LineChartData(
+                    points=outstanding_points, color="#EF4444", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#EF4444"),
+                    below_line_cutoff_y=0,
+                ),
+            ],
+            min_y=0, max_y=max_y,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            left_axis=ChartAxis(title="PKR", title_size=11, show_labels=True,
-                                labels=[
-                                    ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=10, color=self._clr("sub"), font_family="DM Sans"))
-                                    for v in range(0, int(max_y) + 1, int(max_y) // 4)
-                                ],
-                                label_size=10),
+            left_axis=ChartAxis(
+                title="PKR", title_size=12, show_labels=True,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                ],
+                label_size=12,
+            ),
             bottom_axis=ChartAxis(
                 labels=[
-                    ChartAxisLabel(0, ft.Text("Collected", size=10, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)),
-                    ChartAxisLabel(1, ft.Text("Outstanding", size=10, color=self._clr("sub"), font_family="DM Sans", text_align=ft.TextAlign.CENTER)),
+                    ChartAxisLabel(i, ft.Text(m, size=11, color=self._clr("text"),
+                                              font_family="DM Sans",
+                                              text_align=ft.TextAlign.CENTER))
+                    for i, m in enumerate(month_labels)
                 ],
-                show_labels=True, label_size=10,
+                show_labels=True, label_size=11,
             ),
-            min_y=0, max_y=max_y,
         )
 
     async def _render_dashboard(self, ref):
@@ -683,11 +733,11 @@ class AdminPage:
         )
 
         ratings_chart = self._build_ratings_chart(ratings)
-        cost_chart = self._build_cost_chart(food_items_data)
+        cost_chart = self._build_price_cost_line(food_items_data)
         stock_chart = self._build_stock_chart(ingredients)
         meal_pie = self._build_meal_pie(menu_items)
-        population_pie = self._build_population_pie(stats["total_students"], stats["total_staff"])
-        billing_chart = self._build_billing_chart(bills_data)
+        population_pie = self._build_population_pie(stats.get("total_students", 0), stats.get("total_staff", 0))
+        billing_chart = self._build_billing_line(bills_data)
 
         activity_section = ft.Container()
         if activity:
@@ -792,7 +842,7 @@ class AdminPage:
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Avg Ratings (top 8)", ratings_chart), 1),
                              col={"sm": 12, "md": 6}),
-                ft.Container(_fade_wrap(self._dash_card("Price vs Cost (top 8)", cost_chart), 2),
+                ft.Container(_fade_wrap(self._dash_card("Price vs Cost Trend", cost_chart), 2),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
@@ -810,7 +860,7 @@ class AdminPage:
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Population Distribution", population_pie), 7),
                              col={"sm": 12, "md": 6}),
-                ft.Container(_fade_wrap(self._dash_card("Billing Overview", billing_chart), 8),
+                ft.Container(_fade_wrap(self._dash_card("Billing Trend (monthly)", billing_chart), 8),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
