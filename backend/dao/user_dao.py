@@ -99,8 +99,8 @@ class UserDAO(BaseDAO):
 
         cursor = self.db.cursor()
         try:
+            cursor.execute("DELETE FROM Transactions WHERE Billing_ID IN (SELECT Billing_ID FROM Bills WHERE User_ID = %s)", (user_id,))
             tables = [
-                "Transactions",
                 "Staff_Contact_Numbers",
                 "Ratings",
                 "Votes",
