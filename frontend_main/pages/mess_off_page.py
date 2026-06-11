@@ -395,7 +395,6 @@ class StudentMessOffPage:
         asyncio.create_task(self._render())
         return ft.Container(
             content=self.main_container,
-            gradient=self.theme.get("bg_gradient"),
             expand=True,
             padding=ft.Padding.symmetric(horizontal=24, vertical=20),
         )

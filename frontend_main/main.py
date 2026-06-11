@@ -74,14 +74,19 @@ def make_theme():
 
 
 FOOD_DECOS = [
-    (ft.Icons.RICE_BOWL_ROUNDED,  150, 30,  50),
-    (ft.Icons.COFFEE_ROUNDED,      90, None, None, 40, 70),
-    (ft.Icons.SET_MEAL_ROUNDED,   120, 50,  None, None, 130),
-    (ft.Icons.DINING_ROUNDED,      70, None, None, 35, 160),
-    (ft.Icons.BAKERY_DINING_ROUNDED, 50, None, 100, None, None),
+    (ft.Icons.RICE_BOWL_ROUNDED,     180, 25,  60),
+    (ft.Icons.COFFEE_ROUNDED,        110, None, None, 35, 40),
+    (ft.Icons.SET_MEAL_ROUNDED,      140, 50,  None, None, 160),
+    (ft.Icons.DINING_ROUNDED,         90, None, None, 30, 200),
+    (ft.Icons.BAKERY_DINING_ROUNDED,  70, None, 120, None, None),
+    (ft.Icons.EGG_ROUNDED,            55, 160, 70),
+    (ft.Icons.LOCAL_PIZZA_ROUNDED,    80, None, None, 100, 300),
+    (ft.Icons.RAMEN_DINING_ROUNDED,   65, 200, None, None, 100),
+    (ft.Icons.SOUP_KITCHEN_ROUNDED,   50, None, 250, None, None),
+    (ft.Icons.FASTFOOD_ROUNDED,       45, 280, 180),
 ]
 
-def _food_decos(accent):
+def _food_decos(accent, opacity=0.05):
     icons = []
     for deco in FOOD_DECOS:
         icon_name, size, left, top, right, bottom = (deco + (None,)*6)[:6]
@@ -91,7 +96,7 @@ def _food_decos(accent):
         if right is not None: kw["right"] = right
         if bottom is not None: kw["bottom"] = bottom
         icons.append(ft.Container(
-            content=ft.Icon(icon_name, size=size, opacity=0.035, color=accent),
+            content=ft.Icon(icon_name, size=size, opacity=opacity, color=accent),
             **kw,
         ))
     return icons
@@ -255,12 +260,20 @@ def build_register_form(page, on_submit, on_back):
         content=ft.Stack([
             ft.Container(expand=True),
             ft.Container(
-                content=ft.Icon(ft.Icons.SET_MEAL_ROUNDED, size=100, opacity=0.03, color=acc),
-                left=20, top=100,
+                content=ft.Icon(ft.Icons.SET_MEAL_ROUNDED, size=120, opacity=0.045, color=acc),
+                left=15, top=60,
             ),
             ft.Container(
-                content=ft.Icon(ft.Icons.RICE_BOWL_ROUNDED, size=80, opacity=0.025, color=acc),
-                right=20, bottom=80,
+                content=ft.Icon(ft.Icons.RICE_BOWL_ROUNDED, size=100, opacity=0.04, color=acc),
+                right=15, bottom=100,
+            ),
+            ft.Container(
+                content=ft.Icon(ft.Icons.COFFEE_ROUNDED, size=70, opacity=0.035, color=acc),
+                left=140, bottom=60,
+            ),
+            ft.Container(
+                content=ft.Icon(ft.Icons.DINING_ROUNDED, size=60, opacity=0.03, color=acc),
+                right=130, top=120,
             ),
             ft.Container(
                 content=ft.Column([
@@ -336,7 +349,35 @@ async def main(page: ft.Page):
         page.update()
 
         current_index = {"v": 0}
-        page_content = ft.Container(expand=True, padding=0, gradient=t["bg_gradient"])
+        _page_bg = ft.Container(expand=True, gradient=t["bg_gradient"])
+        page_content_placeholder = ft.Container(expand=True)
+        page_content = ft.Container(
+            expand=True, padding=0,
+            content=ft.Stack([
+                _page_bg,
+                ft.Container(
+                    content=ft.Icon(ft.Icons.RICE_BOWL_ROUNDED, size=150, opacity=0.035, color=t["accent"]),
+                    left=20, top=30,
+                ),
+                ft.Container(
+                    content=ft.Icon(ft.Icons.COFFEE_ROUNDED, size=90, opacity=0.03, color=t["accent"]),
+                    right=30, top=50,
+                ),
+                ft.Container(
+                    content=ft.Icon(ft.Icons.SET_MEAL_ROUNDED, size=120, opacity=0.025, color=t["accent"]),
+                    left=40, bottom=80,
+                ),
+                ft.Container(
+                    content=ft.Icon(ft.Icons.DINING_ROUNDED, size=70, opacity=0.03, color=t["accent"]),
+                    right=25, bottom=90,
+                ),
+                ft.Container(
+                    content=ft.Icon(ft.Icons.BAKERY_DINING_ROUNDED, size=55, opacity=0.02, color=t["accent"]),
+                    left=120, top=200,
+                ),
+                page_content_placeholder,
+            ]),
+        )
 
         def toggle_dark(e):
             is_dark["v"] = not is_dark["v"]
@@ -344,7 +385,7 @@ async def main(page: ft.Page):
             page.bgcolor = t["bg"]
             top_bar.bgcolor = t["card"]
             dock_container.bgcolor = t["card"]
-            page_content.gradient = t["bg_gradient"]
+            _page_bg.gradient = t["bg_gradient"]
             load_page(current_index["v"])
             page.update()
 
@@ -409,16 +450,24 @@ async def main(page: ft.Page):
             email = get_val("Email", "")
             card = ft.Container(
                 content=ft.Column([
-                    ft.Container(
-                        content=ft.Row([
-                            avatar,
-                            ft.Column([
-                                ft.Text(f"{first} {last}".strip(), weight="bold", size=15,
-                                        color=t["text"], font_family="DM Sans"),
-                                ft.Text(email, size=12, color=t["sub"], font_family="DM Sans"),
-                            ], spacing=0, tight=True),
-                        ], spacing=10),
-                    ),
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Row([
+                                avatar,
+                                ft.Column([
+                                    ft.Text(f"{first} {last}".strip(), weight="bold", size=15,
+                                            color=t["text"], font_family="DM Sans"),
+                                    ft.Text(email, size=12, color=t["sub"], font_family="DM Sans"),
+                                ], spacing=0, tight=True),
+                            ], spacing=10),
+                            expand=True,
+                        ),
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=18, color=t["sub"]),
+                            on_click=lambda e: _remove_overlay(),
+                            padding=4, border_radius=8,
+                        ),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(height=12, color=ft.Colors.with_opacity(0.1, t["text"])),
                     ft.Container(
                         content=ft.Row([
@@ -541,7 +590,7 @@ async def main(page: ft.Page):
 
         def load_page(index):
             current_index["v"] = index
-            page_content.content = None
+            page_content_placeholder.content = None
             page.update()
             ud = page.current_user_data
             role = ud.get("Account_Type", "Student")
@@ -549,18 +598,18 @@ async def main(page: ft.Page):
             theme["is_guest"] = ud.get("is_guest", False)
 
             if role == "Admin":
-                page_content.content = AdminPage(page, ud, theme).build()
+                page_content_placeholder.content = AdminPage(page, ud, theme).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 return
             if role == "Staff":
-                page_content.content = StaffPage(page, ud, theme).build()
+                page_content_placeholder.content = StaffPage(page, ud, theme).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 return
 
             dock_wrapper.visible = True
             pages = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
             if 0 <= index < len(pages):
-                page_content.content = pages[index](page, ud, theme).build()
+                page_content_placeholder.content = pages[index](page, ud, theme).build()
             refresh_dock()
             page.update()
 
