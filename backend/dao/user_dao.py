@@ -101,16 +101,16 @@ class UserDAO(BaseDAO):
         try:
             cursor.execute("DELETE FROM Transactions WHERE Billing_ID IN (SELECT Billing_ID FROM Bills WHERE User_ID = %s)", (user_id,))
             tables = [
-                "Staff_Contact_Numbers",
-                "Ratings",
-                "Votes",
-                "Mess_Off",
-                "Bills",
-                "Student",
-                "Staff",
+                ("Staff_Contact_Numbers", "UserID"),
+                ("Ratings", "User_ID"),
+                ("Votes", "User_ID"),
+                ("Mess_Off", "User_ID"),
+                ("Bills", "User_ID"),
+                ("Student", "UserID"),
+                ("Staff", "UserID"),
             ]
-            for table in tables:
-                cursor.execute(f"DELETE FROM {table} WHERE UserID = %s", (user_id,))
+            for table, col in tables:
+                cursor.execute(f"DELETE FROM {table} WHERE {col} = %s", (user_id,))
             cursor.execute("DELETE FROM Users WHERE UserID = %s", (user_id,))
             self.db.commit()
         except Exception as e:
