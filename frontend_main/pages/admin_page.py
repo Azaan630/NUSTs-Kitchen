@@ -176,6 +176,10 @@ class AdminPage:
                     ft.TextButton("Cancel", on_click=lambda e: self._remove_overlay(),
                         style=ft.ButtonStyle(color=t.get("sub"))),
                     ft.FilledButton("Confirm",
+                        on_click=lambda e: [
+                            self._remove_overlay(),
+                            on_delete(),
+                        ],
                         style=ft.ButtonStyle(
                             bgcolor=t.get("danger") if "Delete" in title or "Remove" in title or "End" in title or "Reject" in title
                                    else t.get("accent"))),
@@ -192,12 +196,6 @@ class AdminPage:
         self.page.add(overlay)
         self._active_overlay = overlay
         self.page.update()
-        # wire confirm click after overlay is in scope
-        card.content.controls[4].controls[1].on_click = lambda e: [
-            self._remove_overlay(),
-            self._run(on_delete()) if asyncio.iscoroutinefunction(on_delete)
-            else on_delete(),
-        ]
 
     def _card(self, *controls, pad=14):
         return ft.Container(
