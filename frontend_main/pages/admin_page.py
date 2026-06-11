@@ -488,7 +488,6 @@ class AdminPage:
             sections_space=2,
             center_space_radius=30,
             animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
-            interactive=True,
         )
 
     def _build_population_pie(self, students, staff):
@@ -506,7 +505,6 @@ class AdminPage:
             sections_space=2,
             center_space_radius=30,
             animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
-            interactive=True,
         )
 
     def _build_billing_chart(self, bills):
