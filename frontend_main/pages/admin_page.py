@@ -382,6 +382,23 @@ class AdminPage:
         if v <= 0: return step
         return ((int(v) // step) + 1) * step
 
+    def _nice_axis(self, max_val, target_ticks=5):
+        if max_val <= 0:
+            return 10, 2
+        raw_step = max_val / target_ticks
+        mag = 10 ** (len(str(int(raw_step))) - 1)
+        norm = raw_step / mag
+        if norm <= 1.5:
+            nice_step = mag
+        elif norm <= 3.5:
+            nice_step = 2 * mag
+        elif norm <= 7.5:
+            nice_step = 5 * mag
+        else:
+            nice_step = 10 * mag
+        max_y = ((max_val // nice_step) + 1) * nice_step
+        return int(max_y), int(nice_step)
+
     def _build_ratings_chart(self, items):
         if not items:
             return ft.Text("No ratings data", color=self._clr("sub"), font_family="DM Sans")
@@ -400,13 +417,13 @@ class AdminPage:
                                   tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
                                   border_radius=6, width=22)],
             ))
-        names = [self._trunc(r.get("Name"), 5) for r in top]
+        names = [self._trunc(r.get("Name"), 7) for r in top]
         return BarChart(
             groups=groups,
             group_spacing=8,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
-            min_y=0, max_y=5.5,
+            min_y=0, max_y=5,
             left_axis=ChartAxis(
                 title="Rating", title_size=12, show_labels=True,
                 label_size=26,
@@ -420,7 +437,7 @@ class AdminPage:
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=70,
+                show_labels=True, label_size=90,
             ),
         )
 
@@ -438,8 +455,8 @@ class AdminPage:
             cost_points.append(LineChartDataPoint(x=i, y=cost,
                 tooltip=f"Cost: PKR {cost:,.0f}"))
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
-        max_y = self._clean_max(max_v, 50)
-        names = [self._trunc(f.get("Name"), 5) for f in top]
+        max_y, step = self._nice_axis(max_v, 5)
+        names = [self._trunc(f.get("Name"), 7) for f in top]
         n = len(price_points)
         return LineChart(
             data_series=[
@@ -466,14 +483,14 @@ class AdminPage:
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in range(0, int(max_y) + 1, 50)
+                    for v in range(0, max_y + 1, step)
                 ],
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=70,
+                show_labels=True, label_size=90,
             ),
         )
 
@@ -493,9 +510,9 @@ class AdminPage:
                                   tooltip=f"{ing.get('Name','?')}: {qty} {unit}",
                                   border_radius=6, width=18)],
             ))
-        names = [self._trunc(ing.get("Name"), 5) for ing in top]
+        names = [self._trunc(ing.get("Name"), 7) for ing in top]
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
-        max_y = self._clean_max(max_q, 10)
+        max_y, step = self._nice_axis(max_q, 5)
         return BarChart(
             groups=groups,
             group_spacing=6,
@@ -508,14 +525,14 @@ class AdminPage:
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 5) if max_y > 10 else 5)
+                    for v in range(0, max_y + 1, step)
                 ],
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=70,
+                show_labels=True, label_size=90,
             ),
         )
 
@@ -529,9 +546,8 @@ class AdminPage:
             nm = m.get("Food_Item_Name") or m.get("meal_type", "?") or "?"
             pts.append(LineChartDataPoint(x=i, y=r,
                 tooltip=f"{nm}: {r:.1f}/5"))
-        names = [self._trunc(m.get("Food_Item_Name") or m.get("meal_type", "?"), 5) for m in top]
-        max_r = max((p.y for p in pts), default=5)
-        max_y = max(5.5, self._clean_max(max_r, 0.5))
+        names = [self._trunc(m.get("Food_Item_Name") or m.get("meal_type", "?"), 7) for m in top]
+        max_y = 5.0
         n = len(pts)
         return LineChart(
             data_series=[
@@ -550,16 +566,16 @@ class AdminPage:
                 title="Rating", title_size=12, show_labels=True,
                 label_size=26,
                 labels=[
-                    ChartAxisLabel(v, ft.Text(f"{v:.1f}", size=11, color=self._clr("text"),
+                    ChartAxisLabel(v, ft.Text(str(v), size=11, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in [x * 0.5 for x in range(0, int(max_y * 2) + 1)]
+                    for v in range(0, 6)
                 ],
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=70,
+                show_labels=True, label_size=90,
             ),
         )
 
@@ -608,7 +624,7 @@ class AdminPage:
             max((d["collected"] for d in monthly.values()), default=0),
             max((d["outstanding"] for d in monthly.values()), default=0),
         ) or 1
-        max_y = self._clean_max(max_val, 5000)
+        max_y, step = self._nice_axis(max_val, 5)
         month_labels = [m[-2:] for m in sorted_months]
         n = len(collected_points)
         return LineChart(
@@ -636,7 +652,7 @@ class AdminPage:
                 labels=[
                     ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                    for v in range(0, max_y + 1, step)
                 ],
             ),
             bottom_axis=ChartAxis(
@@ -645,7 +661,7 @@ class AdminPage:
                                               font_family="DM Sans"))
                     for i, m in enumerate(month_labels)
                 ],
-                show_labels=True, label_size=55,
+                show_labels=True, label_size=60,
             ),
         )
 
@@ -666,7 +682,7 @@ class AdminPage:
             pts.append(LineChartDataPoint(x=i, y=daily[d],
                 tooltip=f"{d}: {daily[d]} events"))
         max_c = max((daily[d] for d in sorted_dates), default=5)
-        max_y = max(5, self._clean_max(max_c, 2))
+        max_y, step = self._nice_axis(max_c, 5)
         date_labels = [d[-5:] for d in sorted_dates]
         n = len(pts)
         return LineChart(
@@ -688,14 +704,14 @@ class AdminPage:
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                    for v in range(0, max_y + 1, step)
                 ],
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(d, size=10, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, d in enumerate(date_labels)],
-                show_labels=True, label_size=65,
+                show_labels=True, label_size=75,
             ),
         )
 
@@ -709,9 +725,9 @@ class AdminPage:
             qty = ing.get("Total_Quantity") or 0
             pts.append(LineChartDataPoint(x=i, y=cost,
                 tooltip=f"{ing.get('Name','?')}: PKR {cost}/unit ({qty} {ing.get('Unit','')})"))
-        names = [self._trunc(ing.get("Name"), 5) for ing in top]
+        names = [self._trunc(ing.get("Name"), 7) for ing in top]
         max_c = max((p.y for p in pts), default=100)
-        max_y = self._clean_max(max_c, 50)
+        max_y, step = self._nice_axis(max_c, 5)
         n = len(pts)
         return LineChart(
             data_series=[
@@ -732,14 +748,14 @@ class AdminPage:
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
-                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                    for v in range(0, max_y + 1, step)
                 ],
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=70,
+                show_labels=True, label_size=90,
             ),
         )
 
