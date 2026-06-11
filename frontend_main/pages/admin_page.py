@@ -401,28 +401,29 @@ class AdminPage:
                                   border_radius=6, width=22)],
             ))
         names = [self._trunc(r.get("Name"), 5) for r in top]
+        n = len(groups)
         return BarChart(
             groups=groups,
             group_spacing=8,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
+            min_x=-0.5, max_x=n - 0.5,
+            min_y=0, max_y=5.5,
             left_axis=ChartAxis(
                 title="Rating", title_size=12, show_labels=True,
+                label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
                     for v in range(0, 6)
                 ],
-                label_size=12,
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans",
-                                                  text_align=ft.TextAlign.CENTER))
+                                                  font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=11,
+                show_labels=True, label_size=70,
             ),
-            min_y=0, max_y=5.5,
         )
 
     def _build_price_cost_line(self, items):
@@ -441,6 +442,7 @@ class AdminPage:
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
         max_y = self._clean_max(max_v, 50)
         names = [self._trunc(f.get("Name"), 5) for f in top]
+        n = len(price_points)
         return LineChart(
             data_series=[
                 LineChartData(
@@ -456,24 +458,24 @@ class AdminPage:
                     below_line_cutoff_y=0,
                 ),
             ],
+            min_x=-0.3, max_x=n - 0.7,
             min_y=0, max_y=max_y,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
             left_axis=ChartAxis(
                 title="PKR", title_size=12, show_labels=True,
+                label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
                     for v in range(0, int(max_y) + 1, 50)
                 ],
-                label_size=12,
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans",
-                                                  text_align=ft.TextAlign.CENTER))
+                                                  font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=11,
+                show_labels=True, label_size=70,
             ),
         )
 
@@ -496,55 +498,73 @@ class AdminPage:
         names = [self._trunc(ing.get("Name"), 5) for ing in top]
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
         max_y = self._clean_max(max_q, 10)
+        n = len(groups)
         return BarChart(
             groups=groups,
             group_spacing=6,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
+            min_x=-0.5, max_x=n - 0.5,
+            min_y=0, max_y=max_y,
             left_axis=ChartAxis(
                 title="Stock", title_size=12, show_labels=True,
+                label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
                     for v in range(0, int(max_y) + 1, max(1, int(max_y) // 5) if max_y > 10 else 5)
                 ],
-                label_size=12,
             ),
             bottom_axis=ChartAxis(
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans",
-                                                  text_align=ft.TextAlign.CENTER))
+                                                  font_family="DM Sans"))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=11,
+                show_labels=True, label_size=70,
             ),
-            min_y=0, max_y=max_y,
         )
 
-    def _build_meal_pie(self, items):
-        counts = {"Breakfast": 0, "Lunch": 0, "Dinner": 0}
-        for m in items:
-            mt = m.get("meal_type", "")
-            if mt in counts:
-                counts[mt] += 1
-        total = sum(counts.values())
-        if total == 0:
+    def _build_menu_ratings_line(self, items):
+        if not items:
             return ft.Text("No menu data", color=self._clr("sub"), font_family="DM Sans")
-        colors = {"Breakfast": "#F59E0B", "Lunch": "#10B981", "Dinner": "#8B5CF6"}
-        sections = []
-        for mt, cnt in counts.items():
-            if cnt > 0:
-                sections.append(PieChartSection(
-                    value=cnt / total * 100,
-                    color=colors.get(mt, "#6B7280"),
-                    title=f"{mt} ({cnt})",
-                    radius=70,
-                    title_style=ft.TextStyle(size=11, color=self._clr("text"), font_family="DM Sans"),
-                ))
-        return PieChart(
-            sections=sections,
-            sections_space=3,
-            center_space_radius=25,
-            animation=ft.Animation(900, ft.AnimationCurve.EASE_OUT_BACK),
+        top = sorted(items, key=lambda x: x.get("Schedule_ID") or 0)[:12]
+        pts = []
+        for i, m in enumerate(top):
+            r = m.get("Ratings_Average") or 0
+            nm = m.get("Food_Item_Name") or m.get("meal_type", "?") or "?"
+            pts.append(LineChartDataPoint(x=i, y=r,
+                tooltip=f"{nm}: {r:.1f}/5"))
+        names = [self._trunc(m.get("Food_Item_Name") or m.get("meal_type", "?"), 5) for m in top]
+        max_r = max((p.y for p in pts), default=5)
+        max_y = max(5.5, self._clean_max(max_r, 0.5))
+        n = len(pts)
+        return LineChart(
+            data_series=[
+                LineChartData(
+                    points=pts, color="#F59E0B", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#F59E0B"),
+                    below_line_cutoff_y=0,
+                ),
+            ],
+            min_x=-0.3, max_x=n - 0.7,
+            min_y=0, max_y=max_y,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
+            interactive=True,
+            left_axis=ChartAxis(
+                title="Rating", title_size=12, show_labels=True,
+                label_size=26,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(f"{v:.1f}", size=11, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in [x * 0.5 for x in range(0, int(max_y * 2) + 1)]
+                ],
+            ),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
+                                                  font_family="DM Sans"))
+                        for i, n in enumerate(names)],
+                show_labels=True, label_size=70,
+            ),
         )
 
     def _build_population_pie(self, students, staff):
@@ -593,7 +613,8 @@ class AdminPage:
             max((d["outstanding"] for d in monthly.values()), default=0),
         ) or 1
         max_y = self._clean_max(max_val, 5000)
-        month_labels = [m[-2:] + ("'" + m[2:4]) if len(m) > 4 else m for m in sorted_months]
+        month_labels = [m[-2:] for m in sorted_months]
+        n = len(collected_points)
         return LineChart(
             data_series=[
                 LineChartData(
@@ -609,26 +630,120 @@ class AdminPage:
                     below_line_cutoff_y=0,
                 ),
             ],
+            min_x=-0.3, max_x=n - 0.7,
             min_y=0, max_y=max_y,
             animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
             interactive=True,
             left_axis=ChartAxis(
                 title="PKR", title_size=12, show_labels=True,
+                label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=12, color=self._clr("text"),
                                               font_family="DM Sans"))
                     for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
                 ],
-                label_size=12,
             ),
             bottom_axis=ChartAxis(
                 labels=[
                     ChartAxisLabel(i, ft.Text(m, size=11, color=self._clr("text"),
-                                              font_family="DM Sans",
-                                              text_align=ft.TextAlign.CENTER))
+                                              font_family="DM Sans"))
                     for i, m in enumerate(month_labels)
                 ],
-                show_labels=True, label_size=11,
+                show_labels=True, label_size=55,
+            ),
+        )
+
+    def _build_activity_trend(self, activity_data):
+        if not activity_data:
+            return ft.Text("No activity data", color=self._clr("sub"), font_family="DM Sans")
+        daily = {}
+        for a in activity_data:
+            dt = a.get("event_date", "")
+            if isinstance(dt, str) and "T" in dt:
+                dt = dt[:10]
+            if dt not in daily:
+                daily[dt] = 0
+            daily[dt] += 1
+        sorted_dates = sorted(daily.keys())[:14]
+        pts = []
+        for i, d in enumerate(sorted_dates):
+            pts.append(LineChartDataPoint(x=i, y=daily[d],
+                tooltip=f"{d}: {daily[d]} events"))
+        max_c = max((daily[d] for d in sorted_dates), default=5)
+        max_y = max(5, self._clean_max(max_c, 2))
+        date_labels = [d[-5:] for d in sorted_dates]
+        n = len(pts)
+        return LineChart(
+            data_series=[
+                LineChartData(
+                    points=pts, color="#3B82F6", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#3B82F6"),
+                    below_line_cutoff_y=0,
+                ),
+            ],
+            min_x=-0.3, max_x=n - 0.7,
+            min_y=0, max_y=max_y,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
+            interactive=True,
+            left_axis=ChartAxis(
+                title="Events", title_size=12, show_labels=True,
+                label_size=26,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                ],
+            ),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(d, size=10, color=self._clr("text"),
+                                                  font_family="DM Sans"))
+                        for i, d in enumerate(date_labels)],
+                show_labels=True, label_size=65,
+            ),
+        )
+
+    def _build_cost_profile_line(self, ingredients):
+        if not ingredients:
+            return ft.Text("No ingredient data", color=self._clr("sub"), font_family="DM Sans")
+        top = sorted(ingredients, key=lambda x: x.get("Unit_cost") or 0, reverse=True)[:10]
+        pts = []
+        for i, ing in enumerate(top):
+            cost = ing.get("Unit_cost") or 0
+            qty = ing.get("Total_Quantity") or 0
+            pts.append(LineChartDataPoint(x=i, y=cost,
+                tooltip=f"{ing.get('Name','?')}: PKR {cost}/unit ({qty} {ing.get('Unit','')})"))
+        names = [self._trunc(ing.get("Name"), 5) for ing in top]
+        max_c = max((p.y for p in pts), default=100)
+        max_y = self._clean_max(max_c, 50)
+        n = len(pts)
+        return LineChart(
+            data_series=[
+                LineChartData(
+                    points=pts, color="#8B5CF6", stroke_width=3,
+                    curved=True, point=ChartCirclePoint(radius=5),
+                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#8B5CF6"),
+                    below_line_cutoff_y=0,
+                ),
+            ],
+            min_x=-0.3, max_x=n - 0.7,
+            min_y=0, max_y=max_y,
+            animation=ft.Animation(800, ft.AnimationCurve.EASE_OUT_BACK),
+            interactive=True,
+            left_axis=ChartAxis(
+                title="PKR/unit", title_size=12, show_labels=True,
+                label_size=26,
+                labels=[
+                    ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
+                                              font_family="DM Sans"))
+                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 4))
+                ],
+            ),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
+                                                  font_family="DM Sans"))
+                        for i, n in enumerate(names)],
+                show_labels=True, label_size=70,
             ),
         )
 
@@ -689,6 +804,15 @@ class AdminPage:
             menu_items = mock_data.get_weekly_menu()
             bills_data = mock_data.get_monthly_billing_summary()
             low_stock = mock_data.get_low_stock_ingredients()
+            from datetime import timedelta
+            today = date.today()
+            activity = [
+                {"description": "New student registration: New Student", "event_date": (today - timedelta(days=i)).isoformat()}
+                for i in range(7)
+            ] + [
+                {"description": f"Bill payment: PKR {a*500}", "event_date": (today - timedelta(days=i)).isoformat()}
+                for i, a in enumerate([3, 5, 2, 4, 1, 6, 3])
+            ]
 
         t = self.theme
         ac = t.get("accent", "#3B82F6")
@@ -735,9 +859,11 @@ class AdminPage:
         ratings_chart = self._build_ratings_chart(ratings)
         cost_chart = self._build_price_cost_line(food_items_data)
         stock_chart = self._build_stock_chart(ingredients)
-        meal_pie = self._build_meal_pie(menu_items)
+        menu_ratings_chart = self._build_menu_ratings_line(menu_items)
         population_pie = self._build_population_pie(stats.get("total_students", 0), stats.get("total_staff", 0))
         billing_chart = self._build_billing_line(bills_data)
+        activity_chart = self._build_activity_trend(activity)
+        cost_profile_chart = self._build_cost_profile_line(ingredients)
 
         activity_section = ft.Container()
         if activity:
@@ -851,7 +977,7 @@ class AdminPage:
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Stock Levels (lowest 10)", stock_chart), 4),
                              col={"sm": 12, "md": 6}),
-                ft.Container(_fade_wrap(self._dash_card("Meal Type Distribution", meal_pie), 5),
+                ft.Container(_fade_wrap(self._dash_card("Menu Ratings Trend", menu_ratings_chart), 5),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
@@ -861,6 +987,15 @@ class AdminPage:
                 ft.Container(_fade_wrap(self._dash_card("Population Distribution", population_pie), 7),
                              col={"sm": 12, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Billing Trend (monthly)", billing_chart), 8),
+                             col={"sm": 12, "md": 6}),
+            ], spacing=12),
+            ft.Container(height=16),
+            _section("Operational Trends", ft.Icons.TRENDING_UP_ROUNDED, 9),
+            ft.Container(height=8),
+            ft.ResponsiveRow([
+                ft.Container(_fade_wrap(self._dash_card("Daily Activity Trend", activity_chart), 10),
+                             col={"sm": 12, "md": 6}),
+                ft.Container(_fade_wrap(self._dash_card("Ingredient Cost Profile", cost_profile_chart), 11),
                              col={"sm": 12, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
