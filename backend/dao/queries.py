@@ -10,6 +10,7 @@ getMenuByDate = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.
                     WHERE ms.Date = %s""")
 
 getWeeklyMenu = ("""SELECT fi.Item_ID, fi.Name, fi.Ratings_Average, ms.Date, ms.meal_type AS meal_type,
+                           mfi.Schedule_ID,
                            (SELECT Score FROM Ratings r WHERE r.User_ID = %s AND r.Item_ID = fi.Item_ID AND r.Schedule_ID = mfi.Schedule_ID LIMIT 1) AS user_rating
                     FROM Food_Items fi
                              JOIN Menu_Food_Items mfi ON fi.Item_ID = mfi.Item_ID
