@@ -208,14 +208,21 @@ class AdminPage:
             ], tight=True, spacing=4),
             bgcolor=t.get("card"), border_radius=18, padding=24, width=340,
             shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
+            opacity=0,
         )
         overlay = ft.Container(
             content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
             alignment=ft.Alignment(0, 0), expand=True,
             on_click=lambda e: self._remove_overlay(),
+            animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
+            opacity=0,
         )
         self.page.add(overlay)
         self._active_overlay = overlay
+        self.page.update()
+        overlay.opacity = 1
+        card.opacity = 1
         self.page.update()
 
     def _card(self, *controls, pad=14):
@@ -364,11 +371,22 @@ class AdminPage:
         return ((v // step) + (1 if v % step else 0)) * step
 
     def _dash_card(self, title, child):
+        acc = self._clr("accent")
+        acc2 = self._clr("accent2")
         return ft.Container(
             content=ft.Column([
-                ft.Text(title, size=12, weight="bold", color=self._clr("sub"),
-                        font_family="DM Sans"),
-                ft.Container(content=child, expand=True, margin=ft.Margin.only(top=6)),
+                ft.Column([
+                    ft.Text(title, size=14, weight="bold", color=self._clr("text"),
+                            font_family="DM Sans"),
+                    ft.Container(height=2,
+                        gradient=ft.LinearGradient(
+                            begin=ft.Alignment(-1, 0), end=ft.Alignment(1, 0),
+                            colors=[acc, acc2, ft.Colors.with_opacity(0, acc2)],
+                        ),
+                        border_radius=1,
+                    ),
+                ], spacing=4),
+                ft.Container(content=child, expand=True, margin=ft.Margin.only(top=8)),
             ], spacing=4),
             bgcolor=self._clr("card"), border_radius=16,
             padding=ft.Padding.symmetric(horizontal=18, vertical=14),
@@ -427,7 +445,7 @@ class AdminPage:
             min_y=0, max_y=5,
             left_axis=ChartAxis(
                 title="Rating", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -480,7 +498,7 @@ class AdminPage:
             interactive=True,
             left_axis=ChartAxis(
                 title="PKR", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -522,7 +540,7 @@ class AdminPage:
             min_y=0, max_y=max_y,
             left_axis=ChartAxis(
                 title="Stock", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -565,7 +583,7 @@ class AdminPage:
             interactive=True,
             left_axis=ChartAxis(
                 title="Rating", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=11, color=self._clr("text"),
                                               font_family="DM Sans"))
@@ -666,7 +684,7 @@ class AdminPage:
             interactive=True,
             left_axis=ChartAxis(
                 title="PKR", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -718,7 +736,7 @@ class AdminPage:
             interactive=True,
             left_axis=ChartAxis(
                 title="Events", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -762,7 +780,7 @@ class AdminPage:
             interactive=True,
             left_axis=ChartAxis(
                 title="PKR/unit", title_size=12, show_labels=True,
-                label_size=26,
+                label_size=40,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
                                               font_family="DM Sans", no_wrap=True))
@@ -1199,23 +1217,25 @@ class AdminPage:
         async def refresh():
             await self._render_food(ref)
 
+        mobile = self._is_mobile()
+
         # ── add food form ──────────────────────────────────
         add_f_name  = ft.TextField(hint_text="Name", dense=True, expand=True,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"),)
-        add_f_price = ft.TextField(hint_text="Price", dense=True, width=90,
+        add_f_price = ft.TextField(hint_text="Price", dense=True, expand=mobile, width=90 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"),)
-        add_f_qty   = ft.TextField(hint_text="Qty", dense=True, width=60,
+        add_f_qty   = ft.TextField(hint_text="Qty", dense=True, expand=mobile, width=60 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
 
         add_f_form = ft.Container(
             content=ft.Column([
-                ft.Row([add_f_name, add_f_price, add_f_qty], spacing=6),
+                ft.Row([add_f_name, add_f_price, add_f_qty], spacing=6, wrap=mobile),
                 ft.Row([
                     self._btn("Save", ft.Icons.SAVE_ROUNDED,
                               lambda e: asyncio.create_task(do_add_food(e))),
@@ -1261,6 +1281,7 @@ class AdminPage:
             bgcolor=self._clr("card"), border_radius=12,
             padding=ft.Padding.symmetric(horizontal=14, vertical=8),
             margin=ft.Margin.only(bottom=4),
+            visible=not self._is_mobile(),
         )
 
         for item in items:
@@ -1274,11 +1295,11 @@ class AdminPage:
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),)
-            ef_price = ft.TextField(value=str(price), width=90, dense=True,
+            ef_price = ft.TextField(value=str(price), expand=mobile, width=90 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),)
-            ef_qty   = ft.TextField(value=str(qty), width=60, dense=True,
+            ef_qty   = ft.TextField(value=str(qty), expand=mobile, width=60 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 text_align=ft.TextAlign.CENTER,
@@ -1311,10 +1332,26 @@ class AdminPage:
                 if "error" in (r or {}): logger.error("del_food %s: %s", i, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
 
-            food_rows.controls.append(self._row_card([
-                ef_name, ef_price,
-                ef_qty,
-            ], actions=[
+            if mobile:
+                food_rows.controls.append(ft.Container(
+                    content=ft.Column([
+                        ef_name,
+                        ft.Row([ef_price, ef_qty], spacing=6),
+                        ft.Row([
+                            self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                            self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
+                        ], alignment=ft.MainAxisAlignment.END),
+                    ], spacing=6),
+                    bgcolor=self._clr("card"), border_radius=12,
+                    padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                    margin=ft.Margin.only(bottom=6),
+                    data=label,
+                ))
+            else:
+                food_rows.controls.append(self._row_card([
+                    ef_name, ef_price,
+                    ef_qty,
+                ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))
@@ -1359,27 +1396,30 @@ class AdminPage:
 
         ing_rows = ft.Column(spacing=4)
 
+        mobile = self._is_mobile()
+
         # ── fields for add form ──────────────────────────────
         add_name   = ft.TextField(hint_text="Name", dense=True, expand=True,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"),)
-        add_qty    = ft.TextField(hint_text="Qty", dense=True, width=70,
+        add_qty    = ft.TextField(hint_text="Qty", dense=True, expand=mobile, width=70 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
-        add_unit   = ft.TextField(hint_text="Unit", dense=True, width=60,
+        add_unit   = ft.TextField(hint_text="Unit", dense=True, expand=mobile, width=60 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
-        add_cost   = ft.TextField(hint_text="Cost/unit", dense=True, width=90,
+        add_cost   = ft.TextField(hint_text="Cost/unit", dense=True, expand=mobile, width=90 if not mobile else None,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
 
         add_form = ft.Container(
             content=ft.Column([
-                ft.Row([add_name, add_qty, add_unit, add_cost], spacing=6),
+                ft.Row([add_name, add_qty, add_unit, add_cost] if not mobile else [add_name, add_qty, add_unit, add_cost], spacing=6,
+                       wrap=mobile),
                 ft.Row([
                     self._btn("Save", ft.Icons.SAVE_ROUNDED,
                               lambda e: asyncio.create_task(do_save_add(e))),
@@ -1430,6 +1470,7 @@ class AdminPage:
             bgcolor=self._clr("card"), border_radius=12,
             padding=ft.Padding.symmetric(horizontal=14, vertical=8),
             margin=ft.Margin.only(bottom=4),
+            visible=not self._is_mobile(),
         )
 
         for item in items:
@@ -1444,15 +1485,15 @@ class AdminPage:
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),)
-            ef_qty  = ft.TextField(value=str(qty), width=70, dense=True,
+            ef_qty  = ft.TextField(value=str(qty), expand=mobile, width=70 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
-            ef_unit = ft.TextField(value=unit, width=60, dense=True,
+            ef_unit = ft.TextField(value=unit, expand=mobile, width=60 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
-            ef_cost = ft.TextField(value=str(cost), width=90, dense=True,
+            ef_cost = ft.TextField(value=str(cost), expand=mobile, width=90 if not mobile else None, dense=True,
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
@@ -1485,9 +1526,25 @@ class AdminPage:
                 if "error" in (r or {}): logger.error("del_ing %s: %s", i, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
 
-            ing_rows.controls.append(self._row_card([
-                ef_name, ef_qty, ef_unit, ef_cost,
-            ], actions=[
+            if mobile:
+                ing_rows.controls.append(ft.Container(
+                    content=ft.Column([
+                        ef_name,
+                        ft.Row([ef_qty, ef_unit, ef_cost], spacing=6),
+                        ft.Row([
+                            self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                            self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
+                        ], alignment=ft.MainAxisAlignment.END),
+                    ], spacing=6),
+                    bgcolor=self._clr("card"), border_radius=12,
+                    padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                    margin=ft.Margin.only(bottom=6),
+                    data=label,
+                ))
+            else:
+                ing_rows.controls.append(self._row_card([
+                    ef_name, ef_qty, ef_unit, ef_cost,
+                ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))

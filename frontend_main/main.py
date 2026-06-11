@@ -39,36 +39,69 @@ is_dark = {"v": True}
 
 def make_theme():
     d = is_dark["v"]
+    if d:
+        return {
+            "is_dark":  True,
+            "is_guest": False,
+            "bg":      SLATE_900,
+            "card":    SLATE_800,
+            "card2":   SLATE_700,
+            "text":    SLATE_100,
+            "sub":     SLATE_500,
+            "accent":  SKY_400,
+            "accent2": VIOLET_400,
+            "success": EMERALD_400,
+            "danger":  ROSE_400,
+            "warn":    AMBER_400,
+            # backward-compat aliases
+            "NAVY":       SLATE_900,
+            "AMBER":      SKY_400,
+            "CREAM":      SLATE_900,
+            "WHITE":      WHITE,
+            "GREY":       SLATE_500,
+            "DARK_BG":    SLATE_900,
+            "DARK_CARD":  SLATE_800,
+            "DARK_CARD2": SLATE_700,
+            "NAVY_LIGHT": SLATE_800,
+            "AMBER_DIM":  SKY_600,
+            "CREAM2":     SLATE_700,
+            # gradients
+            "bg_gradient": ft.LinearGradient(
+                begin=ft.Alignment(-0.3, -0.3),
+                end=ft.Alignment(0.7, 0.7),
+                colors=["#0F172A", "#1a1f38"],
+            ),
+        }
     return {
-        "is_dark":  d,
+        "is_dark":  False,
         "is_guest": False,
-        "bg":      SLATE_900 if d else SLATE_50,
-        "card":    SLATE_800 if d else WHITE,
-        "card2":   SLATE_700 if d else SLATE_200,
-        "text":    SLATE_100 if d else SLATE_900,
-        "sub":     SLATE_500,
-        "accent":  SKY_400,
-        "accent2": VIOLET_400,
-        "success": EMERALD_400,
-        "danger":  ROSE_400,
-        "warn":    AMBER_400,
-        # backward-compat aliases so all pages work without rewriting
-        "NAVY":       SLATE_900,
-        "AMBER":      SKY_400,
-        "CREAM":      SLATE_900 if d else SLATE_50,
-        "WHITE":      WHITE,
-        "GREY":       SLATE_500,
-        "DARK_BG":    SLATE_900 if d else SLATE_50,
-        "DARK_CARD":  SLATE_800 if d else WHITE,
-        "DARK_CARD2": SLATE_700 if d else SLATE_200,
-        "NAVY_LIGHT": SLATE_800,
-        "AMBER_DIM":  SKY_600,
-        "CREAM2":     SLATE_700 if d else SLATE_200,
+        "bg":      "#FAF8F5",
+        "card":    "#FFFFFF",
+        "card2":   "#F0EDEA",
+        "text":    "#1C1C1E",
+        "sub":     "#8E8E93",
+        "accent":  "#007AFF",
+        "accent2": "#AF52DE",
+        "success": "#34C759",
+        "danger":  "#FF3B30",
+        "warn":    "#FF9F0A",
+        # backward-compat aliases
+        "NAVY":       "#1C1C1E",
+        "AMBER":      "#007AFF",
+        "CREAM":      "#FAF8F5",
+        "WHITE":      "#FFFFFF",
+        "GREY":       "#8E8E93",
+        "DARK_BG":    "#FAF8F5",
+        "DARK_CARD":  "#FFFFFF",
+        "DARK_CARD2": "#F0EDEA",
+        "NAVY_LIGHT": "#E8E8E8",
+        "AMBER_DIM":  "#0056B3",
+        "CREAM2":     "#F0EDEA",
         # gradients
         "bg_gradient": ft.LinearGradient(
             begin=ft.Alignment(-0.3, -0.3),
             end=ft.Alignment(0.7, 0.7),
-            colors=["#0F172A", "#1a1f38"] if d else ["#F8FAFC", "#FFF8E7"],
+            colors=["#FAF8F5", "#F5F0EB", "#FAF8F5"],
         ),
     }
 
@@ -113,9 +146,9 @@ def build_landing(page, login_click, guest_login, show_register):
         colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
     )
 
-    isize = 40 if m else 56
-    ibox  = 72 if m else 96
-    tsize = 28 if m else 40
+    isize = 40 if m else 64
+    ibox  = 72 if m else 104
+    tsize = 28 if m else 52
 
     guest_btns = ft.Column([
         ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
@@ -150,7 +183,7 @@ def build_landing(page, login_click, guest_login, show_register):
                     ft.Container(height=16 if m else 20),
                     ft.Text("NUST's Kitchen", size=tsize, weight="bold",
                             font_family="Playfair", color=t["text"]),
-                    ft.Text("Mess Portal \u2022 SEECS", size=14, color=sub,
+                    ft.Text("Mess Portal \u2022 SEECS", size=14 if m else 17, color=sub,
                             font_family="DM Sans"),
                     ft.Container(height=36 if m else 48),
                     ft.FilledButton(
@@ -700,11 +733,14 @@ async def main(page: ft.Page):
         page.clean()
         page.bgcolor = SLATE_900
         landing = build_landing(page, login_click, guest_login, show_register_page)
-        landing.animate_opacity = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
+        landing.animate_opacity = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
         landing.opacity = 0
+        landing.scale = 0.92
+        landing.animate_scale = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
         page.add(landing)
         page.update()
         landing.opacity = 1
+        landing.scale = 1.0
         page.update()
 
     def show_register_page():
