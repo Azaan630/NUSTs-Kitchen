@@ -371,12 +371,12 @@ class AdminPage:
     def _build_ratings_chart(self, items):
         if not items:
             return ft.Text("No ratings data", color=self._clr("sub"), font_family="DM Sans")
-        top = sorted(items, key=lambda x: x.get("avg_rating", 0), reverse=True)[:8]
+        top = sorted(items, key=lambda x: x.get("avg_rating") or 0, reverse=True)[:8]
         groups = []
-        max_count = max((r.get("rating_count", 1) for r in top), default=1)
+        max_count = max(((r.get("rating_count") or 1) for r in top), default=1)
         for i, r in enumerate(top):
-            avg = r.get("avg_rating", 0)
-            val = r.get("rating_count", 0)
+            avg = r.get("avg_rating") or 0
+            val = r.get("rating_count") or 0
             intensity = min(val / max_count, 1)
             r_c = int(255 * (1 - intensity * 0.6))
             g_c = int(200 + 55 * intensity)
@@ -403,11 +403,11 @@ class AdminPage:
     def _build_cost_chart(self, items):
         if not items:
             return ft.Text("No cost data", color=self._clr("sub"), font_family="DM Sans")
-        top = sorted(items, key=lambda x: x.get("Price", 0), reverse=True)[:8]
+        top = sorted(items, key=lambda x: x.get("Price") or 0, reverse=True)[:8]
         groups = []
         for i, f in enumerate(top):
-            price = f.get("Price", 0)
-            cost = f.get("Estimated_Cost", price * 0.6)
+            price = f.get("Price") or 0
+            cost = f.get("Estimated_Cost") or price * 0.6
             groups.append(BarChartGroup(
                 x=i,
                 rods=[
@@ -420,7 +420,7 @@ class AdminPage:
                 ],
             ))
         names = [f.get("Name", "?")[:10] for f in top]
-        max_v = max((f.get("Price", 0) for f in top), default=100)
+        max_v = max(((f.get("Price") or 0) for f in top), default=100)
         return BarChart(
             groups=groups,
             group_spacing=4,
@@ -437,11 +437,11 @@ class AdminPage:
     def _build_stock_chart(self, items):
         if not items:
             return ft.Text("No ingredients", color=self._clr("sub"), font_family="DM Sans")
-        top = sorted(items, key=lambda x: x.get("Total_Quantity", 0))[:10]
+        top = sorted(items, key=lambda x: x.get("Total_Quantity") or 0)[:10]
         groups = []
         for i, ing in enumerate(top):
-            qty = ing.get("Total_Quantity", 0)
-            unit = ing.get("Unit", "")
+            qty = ing.get("Total_Quantity") or 0
+            unit = ing.get("Unit") or ""
             is_low = qty < 10
             clr = "#EF4444" if is_low else "#F59E0B" if qty < 25 else "#10B981"
             groups.append(BarChartGroup(
@@ -451,7 +451,7 @@ class AdminPage:
                                   border_radius=4)],
             ))
         names = [f"{ing.get('Name','?')[:8]}" for ing in top]
-        max_q = max((i.get("Total_Quantity", 0) for i in top), default=10)
+        max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
         return BarChart(
             groups=groups,
             animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
@@ -512,8 +512,8 @@ class AdminPage:
     def _build_billing_chart(self, bills):
         if not bills:
             return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
-        collected = sum(b.get("Total_Collected", b.get("Total_Collected", 0)) for b in bills)
-        outstanding = sum(b.get("Outstanding", 0) for b in bills)
+        collected = sum((b.get("Total_Collected") or b.get("Total_Collected") or 0) for b in bills)
+        outstanding = sum((b.get("Outstanding") or 0) for b in bills)
         total_v = collected + outstanding
         if total_v == 0:
             return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
@@ -683,9 +683,9 @@ class AdminPage:
         if low_stock:
             ls_rows = []
             for ing in low_stock[:5]:
-                nm = ing.get("Name", "?")
-                qty = ing.get("Total_Quantity", 0)
-                unit = ing.get("Unit", "")
+                nm = ing.get("Name") or "?"
+                qty = ing.get("Total_Quantity") or 0
+                unit = ing.get("Unit") or ""
                 ls_rows.append(ft.Row([
                     ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=16, color=da),
                     ft.Text(f"{nm}: {qty} {unit}", size=12, color=t.get("text"),
