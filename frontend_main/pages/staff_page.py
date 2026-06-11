@@ -36,7 +36,8 @@ class StaffPage:
         self.email = user_data.get("Email", "")
         self.is_guest = theme.get("is_guest", False)
         self.section_idx = {"v": 0}
-        self.content = ft.Container(expand=True)
+        self.content = ft.Container(expand=True,
+            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
         self.content.content = self._loading()
 
     def _clr(self, key, fallback=None):
@@ -321,8 +322,14 @@ class StaffPage:
         def select_section(idx):
             self.section_idx["v"] = idx
             sidebar.controls[0] = self._sidebar(select_section)
-            asyncio.create_task(self._safe_render(self.RENDERERS[idx], self.content))
+            self.content.opacity = 0
             self.page.update()
+            async def _do():
+                await asyncio.sleep(0.05)
+                await self._safe_render(self.RENDERERS[idx], self.content)
+                self.content.opacity = 1
+                self.page.update()
+            asyncio.create_task(_do())
 
         sidebar = ft.Column([self._sidebar(select_section)])
         if mobile:

@@ -368,7 +368,8 @@ async def main(page: ft.Page):
 
         current_index = {"v": 0}
         _page_bg = ft.Container(expand=True, gradient=t["bg_gradient"])
-        page_content_placeholder = ft.Container(expand=True)
+        page_content_placeholder = ft.Container(expand=True,
+            animate_opacity=ft.Animation(350, ft.AnimationCurve.EASE_OUT))
         page_content = ft.Container(
             expand=True, padding=0,
             content=ft.Stack([
@@ -609,6 +610,7 @@ async def main(page: ft.Page):
         def load_page(index):
             current_index["v"] = index
             page_content_placeholder.content = None
+            page_content_placeholder.opacity = 0
             page.update()
             ud = page.current_user_data
             role = ud.get("Account_Type", "Student")
@@ -618,10 +620,12 @@ async def main(page: ft.Page):
             if role == "Admin":
                 page_content_placeholder.content = AdminPage(page, ud, theme).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
+                page_content_placeholder.opacity = 1; page.update()
                 return
             if role == "Staff":
                 page_content_placeholder.content = StaffPage(page, ud, theme).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
+                page_content_placeholder.opacity = 1; page.update()
                 return
 
             dock_wrapper.visible = True
@@ -629,6 +633,8 @@ async def main(page: ft.Page):
             if 0 <= index < len(pages):
                 page_content_placeholder.content = pages[index](page, ud, theme).build()
             refresh_dock()
+            page.update()
+            page_content_placeholder.opacity = 1
             page.update()
 
         body = ft.Column([
@@ -693,14 +699,24 @@ async def main(page: ft.Page):
         register_mode["v"] = False
         page.clean()
         page.bgcolor = SLATE_900
-        page.add(build_landing(page, login_click, guest_login, show_register_page))
+        landing = build_landing(page, login_click, guest_login, show_register_page)
+        landing.animate_opacity = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
+        landing.opacity = 0
+        page.add(landing)
+        page.update()
+        landing.opacity = 1
         page.update()
 
     def show_register_page():
         register_mode["v"] = True
         page.clean()
         page.bgcolor = SLATE_900
-        page.add(build_register_form(page, None, show_landing))
+        reg = build_register_form(page, None, show_landing)
+        reg.animate_opacity = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
+        reg.opacity = 0
+        page.add(reg)
+        page.update()
+        reg.opacity = 1
         page.update()
 
     if page.auth and page.auth.user and page.current_user_data:

@@ -143,7 +143,8 @@ class AdminPage:
         self.email = user_data.get("Email", "")
         self.is_guest = theme.get("is_guest", False)
         self.tab_idx = {"v": 0}
-        self.content = ft.Container(expand=True)
+        self.content = ft.Container(expand=True,
+            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
         self.content.content = self._loading()
         self.proxy_rows = {}
 
@@ -429,7 +430,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, 6)
                 ],
             ),
@@ -482,7 +483,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, max_y + 1, step)
                 ],
             ),
@@ -524,7 +525,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, max_y + 1, step)
                 ],
             ),
@@ -609,23 +610,40 @@ class AdminPage:
             monthly[month]["collected"] += b.get("Total_Collected") or 0
             monthly[month]["outstanding"] += b.get("Outstanding") or 0
         sorted_months = sorted(monthly.keys())
+        first = sorted_months[0]
+        last = sorted_months[-1]
+        try:
+            from calendar import monthrange
+            y1, m1 = int(first[:4]), int(first[5:7])
+            y2, m2 = int(last[:4]), int(last[5:7])
+            all_months = []
+            y, m = y1, m1
+            while (y < y2) or (y == y2 and m <= m2):
+                all_months.append(f"{y}-{m:02d}")
+                m += 1
+                if m > 12:
+                    m = 1
+                    y += 1
+        except (ValueError, IndexError):
+            all_months = sorted_months
         collected_points = []
         outstanding_points = []
-        for i, m in enumerate(sorted_months):
+        for i, m in enumerate(all_months):
+            d = monthly.get(m, {"collected": 0, "outstanding": 0})
             collected_points.append(LineChartDataPoint(
-                x=i, y=monthly[m]["collected"],
-                tooltip=f"{m}: PKR {monthly[m]['collected']:,.0f} collected",
+                x=i, y=d["collected"],
+                tooltip=f"{m}: PKR {d['collected']:,.0f} collected",
             ))
             outstanding_points.append(LineChartDataPoint(
-                x=i, y=monthly[m]["outstanding"],
-                tooltip=f"{m}: PKR {monthly[m]['outstanding']:,.0f} outstanding",
+                x=i, y=d["outstanding"],
+                tooltip=f"{m}: PKR {d['outstanding']:,.0f} outstanding",
             ))
         max_val = max(
             max((d["collected"] for d in monthly.values()), default=0),
             max((d["outstanding"] for d in monthly.values()), default=0),
         ) or 1
         max_y, step = self._nice_axis(max_val, 5)
-        month_labels = [m[-2:] for m in sorted_months]
+        month_labels = [m[-2:] for m in all_months]
         n = len(collected_points)
         return LineChart(
             data_series=[
@@ -651,7 +669,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, max_y + 1, step)
                 ],
             ),
@@ -703,7 +721,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, max_y + 1, step)
                 ],
             ),
@@ -747,7 +765,7 @@ class AdminPage:
                 label_size=26,
                 labels=[
                     ChartAxisLabel(v, ft.Text(str(v), size=12, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                              font_family="DM Sans", no_wrap=True))
                     for v in range(0, max_y + 1, step)
                 ],
             ),
@@ -2062,8 +2080,14 @@ class AdminPage:
         def select_tab(idx):
             self.tab_idx["v"] = idx
             sidebar.controls[0] = self._sidebar(select_tab)
-            asyncio.create_task(self._safe_render(self.RENDERERS[idx], self.content))
+            self.content.opacity = 0
             self.page.update()
+            async def _do():
+                await asyncio.sleep(0.05)
+                await self._safe_render(self.RENDERERS[idx], self.content)
+                self.content.opacity = 1
+                self.page.update()
+            asyncio.create_task(_do())
 
         sidebar = ft.Column([self._sidebar(select_tab)])
         if mobile:
