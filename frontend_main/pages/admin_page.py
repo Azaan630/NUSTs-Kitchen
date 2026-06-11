@@ -59,6 +59,12 @@ def _api(table):
             "delete": lambda e,i: _req("DELETE", f"/admin/food-items/delete/{i}", {"email": e}),
             "search": lambda e,q: _req("GET", "/admin/food/search", {"email": e, "q": q}),
         },
+        "ingredients": {
+            "all":   lambda e: _req("GET", "/analytics/ingredients", {"email": e}),
+            "create": lambda e,d: _req("POST", "/admin/ingredients/create", {"email": e}, d),
+            "update": lambda e,i,d: _req("PATCH", f"/admin/ingredients/update/{i}", {"email": e}, d),
+            "delete": lambda e,i: _req("DELETE", f"/admin/ingredients/delete/{i}", {"email": e}),
+        },
         "mess_off": {
             "history": lambda e: _req("GET", "/student/mess-off/history", {"email": e}),
             "approve": lambda e,i: _req("POST", f"/admin/mess-off/approve/{i}", {"email": e}),
@@ -109,6 +115,7 @@ class AdminPage:
         ("Students",  ft.Icons.PEOPLE_ROUNDED),
         ("Staff",     ft.Icons.BADGE_ROUNDED),
         ("Food Items",ft.Icons.FASTFOOD_ROUNDED),
+        ("Ingredients",ft.Icons.CATEGORY_ROUNDED),
         ("Mess Off",  ft.Icons.EVENT_BUSY_ROUNDED),
         ("Bills",     ft.Icons.RECEIPT_LONG_ROUNDED),
         ("Menu",      ft.Icons.RESTAURANT_MENU_ROUNDED),
@@ -543,6 +550,58 @@ class AdminPage:
         async def refresh():
             await self._render_food(ref)
 
+        # ── add food form ──────────────────────────────────
+        add_f_name  = ft.TextField(hint_text="Name", dense=True, expand=True,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_f_price = ft.TextField(hint_text="Price", dense=True, width=90,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_f_qty   = ft.TextField(hint_text="Qty", dense=True, width=60,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+
+        add_f_form = ft.Container(
+            content=ft.Column([
+                ft.Row([add_f_name, add_f_price, add_f_qty], spacing=6),
+                ft.Row([
+                    self._btn("Save", ft.Icons.SAVE_ROUNDED,
+                              lambda e: asyncio.create_task(do_add_food(e))),
+                    self._btn("Cancel", ft.Icons.CLOSE_ROUNDED, lambda e: do_toggle_add_f(e)),
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=8),
+            visible=False, margin=ft.Margin.only(bottom=6),
+        )
+
+        def do_toggle_add_f(e):
+            add_f_form.visible = not add_f_form.visible
+            if not add_f_form.visible:
+                add_f_name.value = add_f_price.value = add_f_qty.value = ""
+            self.page.update()
+
+        async def do_add_food(e):
+            try:
+                data = {
+                    "Name": add_f_name.value.strip(),
+                    "Price": float(add_f_price.value or 0),
+                    "Quantity": float(add_f_qty.value or 0),
+                }
+            except ValueError:
+                self._snack("Invalid number", False); return
+            if not data["Name"]:
+                self._snack("Name required", False); return
+            if self.is_guest:
+                mock_data.create_food(data)
+                self._snack("Created")
+                await refresh()
+            else:
+                r = await _api("food")["create"](self.email, data)
+                if "error" in (r or {}): logger.error("create_food: %s", r["error"]); self._snack(r["error"], False); return
+                self._snack("Created"); await refresh()
+
         header = ft.Container(
             ft.Row([
                 ft.Text("Name", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
@@ -613,9 +672,13 @@ class AdminPage:
 
         ref.content = ft.Column([
             self._guest_banner(),
-            ft.Row([ft.Text("Food Items", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans")], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([
+                ft.Text("Food Items", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                self._btn("Add Item", ft.Icons.ADD_ROUNDED, do_toggle_add_f),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
             ft.Row([search_bar], spacing=8),
+            add_f_form,
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             header,
             food_rows if food_rows.controls else ft.Text("No food items", color=self._clr("sub"), font_family="DM Sans"),
@@ -623,7 +686,179 @@ class AdminPage:
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
-    #  TAB 4 — MESS OFF
+    #  TAB 4 — INGREDIENTS
+    # ════════════════════════════════════════════════════════════
+
+    async def _render_ingredients(self, ref):
+        ref.content = self._loading(); self.page.update()
+        items = (mock_data.get_ingredients() if self.is_guest
+                 else _ensure_list(await _api("ingredients")["all"](self.email)))
+
+        search_bar = ft.TextField(
+            hint_text="Search ingredients\u2026", prefix_icon=ft.Icons.SEARCH_ROUNDED,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")),
+            border_radius=10, filled=True, fill_color=self._clr("card2"),
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            on_change=lambda e: _filter(e.data), expand=True,
+        )
+
+        def _filter(q):
+            q = q.lower()
+            for c in ing_rows.controls:
+                c.visible = q in (c.data or "").lower() if q else True
+            self.page.update()
+
+        ing_rows = ft.Column(spacing=4)
+
+        # ── fields for add form ──────────────────────────────
+        add_name   = ft.TextField(hint_text="Name", dense=True, expand=True,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_qty    = ft.TextField(hint_text="Qty", dense=True, width=70,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+        add_unit   = ft.TextField(hint_text="Unit", dense=True, width=60,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+        add_cost   = ft.TextField(hint_text="Cost/unit", dense=True, width=90,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+
+        add_form = ft.Container(
+            content=ft.Column([
+                ft.Row([add_name, add_qty, add_unit, add_cost], spacing=6),
+                ft.Row([
+                    self._btn("Save", ft.Icons.SAVE_ROUNDED,
+                              lambda e: asyncio.create_task(do_save_add(e))),
+                    self._btn("Cancel", ft.Icons.CLOSE_ROUNDED, lambda e: do_toggle_add(e)),
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=8),
+            visible=False, margin=ft.Margin.only(bottom=6),
+        )
+
+        async def refresh():
+            await self._render_ingredients(ref)
+
+        def do_toggle_add(e):
+            add_form.visible = not add_form.visible
+            if not add_form.visible:
+                add_name.value = add_qty.value = add_unit.value = add_cost.value = ""
+            self.page.update()
+
+        async def do_save_add(e):
+            try:
+                data = {
+                    "Name": add_name.value.strip(),
+                    "Total_Quantity": float(add_qty.value or 0),
+                    "Unit": add_unit.value.strip(),
+                    "Unit_cost": float(add_cost.value or 0),
+                }
+            except ValueError:
+                self._snack("Invalid number", False); return
+            if not data["Name"] or not data["Unit"]:
+                self._snack("Name and Unit required", False); return
+            if self.is_guest:
+                mock_data.create_ingredient(data)
+                self._snack("Created")
+                await refresh()
+            else:
+                r = await _api("ingredients")["create"](self.email, data)
+                if "error" in (r or {}): logger.error("create_ingredient: %s", r["error"]); self._snack(r["error"], False); return
+                self._snack("Created"); await refresh()
+
+        header = ft.Container(
+            ft.Row([
+                ft.Text("Name", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True),
+                ft.Text("Qty", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=70, text_align=ft.TextAlign.CENTER),
+                ft.Text("Unit", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=60, text_align=ft.TextAlign.CENTER),
+                ft.Text("Cost/Unit", size=11, weight="bold", color=self._clr("sub"), font_family="DM Sans", width=90, text_align=ft.TextAlign.CENTER),
+                ft.Container(width=72),
+            ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor=self._clr("card"), border_radius=12,
+            padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+            margin=ft.Margin.only(bottom=4),
+        )
+
+        for item in items:
+            iid = item.get("Ingredient_ID")
+            name = item.get("Name", "")
+            qty = item.get("Total_Quantity", 0)
+            unit = item.get("Unit", "")
+            cost = item.get("Unit_cost", 0)
+            label = f"{name} | {iid}"
+
+            ef_name = ft.TextField(value=name, expand=True, dense=True,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                filled=True, fill_color=self._clr("card"),)
+            ef_qty  = ft.TextField(value=str(qty), width=70, dense=True,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+            ef_unit = ft.TextField(value=unit, width=60, dense=True,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+            ef_cost = ft.TextField(value=str(cost), width=90, dense=True,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
+
+            def do_upd(e, i=iid, nf=ef_name, qf=ef_qty, uf=ef_unit, cf=ef_cost):
+                try:
+                    d = {"Name": nf.value, "Total_Quantity": float(qf.value or 0),
+                         "Unit": uf.value, "Unit_cost": float(cf.value or 0)}
+                except ValueError:
+                    self._snack("Invalid number", False); return
+                if self.is_guest:
+                    mock_data.update_ingredient(i, d)
+                    self._snack("Updated")
+                else:
+                    self._run(_upd_ing(i, d))
+            async def _upd_ing(i=iid, d=None):
+                r = await _api("ingredients")["update"](self.email, i, d)
+                if "error" in (r or {}): logger.error("upd_ing %s: %s", i, r["error"]); self._snack(r["error"], False); return
+                self._snack("Updated")
+
+            def do_del(e, i=iid):
+                if self.is_guest:
+                    mock_data.delete_ingredient(i)
+                    self._snack("Deleted")
+                    asyncio.create_task(refresh())
+                else:
+                    self._confirm("Delete Ingredient", f"Remove {name}?", lambda: self._run(_del_ing(i)))
+            async def _del_ing(i=iid):
+                r = await _api("ingredients")["delete"](self.email, i)
+                if "error" in (r or {}): logger.error("del_ing %s: %s", i, r["error"]); self._snack(r["error"], False); return
+                self._snack("Deleted"); await refresh()
+
+            ing_rows.controls.append(self._row_card([
+                ef_name, ef_qty, ef_unit, ef_cost,
+            ], actions=[
+                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
+            ], data=label))
+
+        ref.content = ft.Column([
+            self._guest_banner(),
+            ft.Row([
+                ft.Text("Ingredients", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                self._btn("Add Ingredient", ft.Icons.ADD_ROUNDED, do_toggle_add),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=8),
+            ft.Row([search_bar], spacing=8),
+            add_form,
+            header,
+            ing_rows if ing_rows.controls else ft.Text("No ingredients", color=self._clr("sub"), font_family="DM Sans"),
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        self.page.update()
+
+    # ════════════════════════════════════════════════════════════
+    #  TAB 5 — MESS OFF
     # ════════════════════════════════════════════════════════════
 
     async def _render_mess_off(self, ref):
@@ -848,11 +1083,75 @@ class AdminPage:
                 self._icon_btn(ft.Icons.REMOVE_CIRCLE_ROUNDED, self._clr("danger"), "Remove", do_del),
             ]))
 
+        # ── add menu form ──────────────────────────────────────
+        add_m_date = ft.TextField(
+            label="Date", hint_text="YYYY-MM-DD",
+            value=date.today().isoformat(),
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"), expand=2,
+        )
+        add_m_meal = ft.Dropdown(
+            options=[ft.dropdown.Option("Breakfast"), ft.dropdown.Option("Lunch"),
+                     ft.dropdown.Option("Dinner")],
+            value="Lunch",
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"), expand=1,
+        )
+        add_m_food = ft.Dropdown(
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"), expand=3,
+        )
+
+        # populate food dropdown
+        all_food = (mock_data.get_food_costs() if self.is_guest
+                    else (await _api("food")["all"](self.email)) or [])
+        for fi in all_food:
+            add_m_food.options.append(
+                ft.dropdown.Option(key=str(fi.get("Item_ID")),
+                                   text=f"{fi.get('Name', '?')} (PKR {fi.get('Price', 0):.0f})")
+            )
+
+        add_m_form = ft.Container(
+            content=ft.Column([
+                ft.Row([add_m_date, add_m_meal, add_m_food], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Row([
+                    self._btn("Add to Menu", ft.Icons.ADD_ROUNDED,
+                              lambda e: asyncio.create_task(do_add_menu(e))),
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=8),
+            visible=False, margin=ft.Margin.only(bottom=6),
+        )
+
+        def do_toggle_add_m(e):
+            add_m_form.visible = not add_m_form.visible
+            self.page.update()
+
+        async def do_add_menu(e):
+            iid = add_m_food.value
+            d = add_m_date.value.strip()
+            t = add_m_meal.value
+            if not iid or not d or not t:
+                self._snack("All fields required", False); return
+            if self.is_guest:
+                mock_data.add_menu_item(iid, d, t)
+                self._snack("Added")
+                await self._render_menu(ref)
+            else:
+                r = await _api("menu")["add"](self.email, iid, d, t)
+                if "error" in (r or {}): logger.error("add_menu: %s", r["error"]); self._snack(r["error"], False); return
+                self._snack("Added"); await self._render_menu(ref)
+
         ref.content = ft.Column([
             self._guest_banner(),
-            ft.Row([ft.Text("Menu", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans")],
-                   alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([
+                ft.Text("Menu", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                self._btn("Add Item", ft.Icons.ADD_ROUNDED, do_toggle_add_m),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Container(height=8),
+            add_m_form,
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No menu items", color=self._clr("sub")),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
@@ -1121,8 +1420,9 @@ class AdminPage:
 
     RENDERERS = [
         "_render_dashboard", "_render_students", "_render_staff",
-        "_render_food", "_render_mess_off", "_render_bills",
-        "_render_menu", "_render_polls", "_render_requests",
+        "_render_food", "_render_ingredients", "_render_mess_off",
+        "_render_bills", "_render_menu", "_render_polls",
+        "_render_requests",
     ]
 
     def build(self):

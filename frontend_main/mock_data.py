@@ -308,6 +308,23 @@ def get_mess_off_history():
 def get_ingredients():
     return copy.deepcopy(_db.get("ingredients", []))
 
+def create_ingredient(data):
+    existing = _db.setdefault("ingredients", [])
+    iid = max((i.get("Ingredient_ID", 0) for i in existing), default=0) + 1
+    entry = {"Ingredient_ID": iid, **data}
+    existing.append(entry)
+    return entry
+
+def update_ingredient(iid, data):
+    for i in _db.get("ingredients", []):
+        if i.get("Ingredient_ID") == iid:
+            i.update(data)
+    return {}
+
+def delete_ingredient(iid):
+    _db["ingredients"] = [i for i in _db.get("ingredients", []) if i.get("Ingredient_ID") != iid]
+    return {}
+
 
 def get_recipes():
     return copy.deepcopy(_db.get("recipes", []))
