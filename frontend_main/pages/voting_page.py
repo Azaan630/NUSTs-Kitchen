@@ -22,7 +22,8 @@ class StudentVotingPage:
         self.amber = t["AMBER"]
         self.navy  = t["NAVY"]
 
-        self.main_container = ft.Container(expand=True)
+        self.main_container = ft.Container(expand=True,
+            animate_opacity=ft.Animation(350, ft.AnimationCurve.EASE_OUT))
         self._voted = set()
 
     def _guest_banner(self):
@@ -167,6 +168,7 @@ class StudentVotingPage:
 
     async def _render(self):
         self.main_container.content = self._loading()
+        self.main_container.opacity = 0
         self.page.update()
 
         if self.is_guest:
@@ -243,6 +245,8 @@ class StudentVotingPage:
             body,
         ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
 
+        self.page.update()
+        self.main_container.opacity = 1
         self.page.update()
 
     def build(self):

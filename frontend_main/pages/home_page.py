@@ -24,7 +24,8 @@ class StudentHomePage:
         self.navy    = t["NAVY"]
 
         self._view = {"weekly": False}
-        self.main_container = ft.Container(expand=True)
+        self.main_container = ft.Container(expand=True,
+            animate_opacity=ft.Animation(350, ft.AnimationCurve.EASE_OUT))
 
     # ── Safe key helpers ───────────────────────────────────────────
     def _item_name(self, item: dict) -> str:
@@ -446,6 +447,7 @@ class StudentHomePage:
     # ── Load & render ──────────────────────────────────────────────
     async def _render(self):
         self.main_container.content = self._loading()
+        self.main_container.opacity = 0
         self.page.update()
 
         uid = self.user_id if not self.is_guest else None
@@ -502,6 +504,8 @@ class StudentHomePage:
             body,
         ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
 
+        self.page.update()
+        self.main_container.opacity = 1
         self.page.update()
 
     def build(self):
