@@ -17,6 +17,22 @@ class BillDAO(BaseDAO):
     def get_bill_pdf(self, billing_id, email):
         return self._fetchone(getBillPDF, (billing_id, email))
 
+    def get_all_bills(self):
+        return self._fetchall("""
+            SELECT b.Billing_ID, b.User_ID, u.First_Name, u.Last_Name,
+                   b.Month, b.Amount, b.Due_Date, b.Status,
+                   COALESCE(t.Total_Paid, 0) AS Total_Collected
+            FROM Bills b
+            JOIN Users u ON b.User_ID = u.UserID
+            LEFT JOIN (
+                SELECT Billing_ID, SUM(Amount_Paid) AS Total_Paid
+                FROM Transactions
+                WHERE Transaction_Status = 'Success'
+                GROUP BY Billing_ID
+            ) t ON b.Billing_ID = t.Billing_ID
+            ORDER BY b.Issue_Date DESC
+        """)
+
     def get_all_monthly_bills(self):
         return self._fetchall(getMonthBills)
 

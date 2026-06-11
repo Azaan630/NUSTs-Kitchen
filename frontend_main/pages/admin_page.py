@@ -65,6 +65,7 @@ def _api(table):
             "reject":  lambda e,i: _req("DELETE", f"/student/mess-off/cancel/{i}", {"email": e}),
         },
         "bills": {
+            "all":      lambda e: _req("GET", "/admin/bills/all", {"email": e}),
             "summary":  lambda e: _req("GET", "/admin/monthly-billing-summary", {"email": e}),
             "create":   lambda e,d: _req("POST", "/admin/bills/create", {"email": e}, d),
             "export":   lambda e: _req("GET", "/admin/bills/export-csv", {"email": e}),
@@ -644,7 +645,7 @@ class AdminPage:
 
     async def _render_bills(self, ref):
         ref.content = self._loading(); self.page.update()
-        bills = (await _api("bills")["summary"](self.email)) if not self.is_guest else mock_data.get_monthly_bills()
+        bills = (await _api("bills")["all"](self.email)) if not self.is_guest else mock_data.get_monthly_bills()
 
         def do_export(e):
             if self.is_guest:
@@ -681,64 +682,67 @@ class AdminPage:
         for b in (bills if isinstance(bills, list) else []):
             bid = b.get("Billing_ID")
             uid = b.get("User_ID")
-            month = b.get("Billing_Month", "?")
-            total = b.get("Total_Amount", 0)
+            month = b.get("Month", "?")
+            total = b.get("Amount", b.get("Total_Amount", 0))
             paid = b.get("Total_Collected", 0)
-            outstanding = b.get("Outstanding", 0)
+            outstanding = total - paid
             status = "Paid" if outstanding <= 0 else "Unpaid"
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
 
-            actions = []
-            if bid is not None:
-                ef_total = ft.TextField(value=str(total), dense=True, width=100,
-                    border_color=self._clr("accent"), border_radius=8,
-                    text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
-                    filled=True, fill_color=self._clr("card"))
-                def do_save(e, b=bid, tf=ef_total):
-                    try:
-                        amt = float(tf.value or 0)
-                    except ValueError:
-                        self._snack("Invalid amount", False); return
-                    if self.is_guest:
-                        mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
-                        self._snack("Updated")
-                        asyncio.create_task(refresh())
-                    else:
-                        self._run(_save_bill(b, amt))
-                async def _save_bill(b=bid, amt=0):
-                    r = await _api("bills")["update"](self.email, b, {"Amount": amt})
-                    if "error" in (r or {}): logger.error("save_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
-                    self._snack("Updated"); await refresh()
-                def do_pay(e, b=bid, tf=ef_total, p=paid):
-                    try:
-                        amt = float(tf.value or 0) - p
-                        if amt <= 0: self._snack("Already paid", False); return
-                    except ValueError:
-                        self._snack("Invalid amount", False); return
-                    if self.is_guest:
-                        mock_data.pay_bill(b, amt)
-                        self._snack("Paid")
-                        asyncio.create_task(refresh())
-                    else:
-                        self._run(_pay_bill(b, amt))
-                async def _pay_bill(b=bid, amt=0):
-                    r = await _api("bills")["pay"](self.email, b, amt, "Cash")
-                    if "error" in (r or {}): logger.error("pay_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
-                    self._snack("Paid"); await refresh()
-                actions = [
-                    self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
-                    self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay),
-                ]
+            ef_total = ft.TextField(value=str(round(total, 1)), dense=True, width=100,
+                border_color=self._clr("accent"), border_radius=8,
+                text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+                filled=True, fill_color=self._clr("card"))
+            def do_save(e, b=bid, tf=ef_total):
+                try:
+                    amt = float(tf.value or 0)
+                except ValueError:
+                    self._snack("Invalid amount", False); return
+                if self.is_guest:
+                    mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
+                    self._snack("Updated")
+                    asyncio.create_task(refresh())
+                else:
+                    self._run(_save_bill(b, amt))
+            async def _save_bill(b=bid, amt=0):
+                r = await _api("bills")["update"](self.email, b, {"Amount": amt})
+                if "error" in (r or {}): logger.error("save_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
+                self._snack("Updated"); await refresh()
+            def do_pay(e, b=bid, tf=ef_total, p=paid):
+                try:
+                    amt = float(tf.value or 0) - p
+                    if amt <= 0: self._snack("Already paid", False); return
+                except ValueError:
+                    self._snack("Invalid amount", False); return
+                if self.is_guest:
+                    mock_data.pay_bill(b, amt)
+                    self._snack("Paid")
+                    asyncio.create_task(refresh())
+                else:
+                    self._run(_pay_bill(b, amt))
+            async def _pay_bill(b=bid, amt=0):
+                r = await _api("bills")["pay"](self.email, b, amt, "Cash")
+                if "error" in (r or {}): logger.error("pay_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
+                self._snack("Paid"); await refresh()
 
+            name = b.get("First_Name", "")
+            name_str = f" \u2022 {name}" if name else ""
             rows.append(self._row_card([
                 ft.Column([
-                    ft.Text(f"User #{uid} \u2022 {month}", size=13, weight="bold",
+                    ft.Text(f"Bill #{bid}{name_str}", size=13, weight="bold",
                             color=self._clr("text"), font_family="DM Sans"),
-                    ft.Text(f"Total: PKR {total:.0f} \u2022 Paid: PKR {paid:.0f} \u2022 Due: PKR {outstanding:.0f}",
+                    ft.Row([
+                        ft.Text("Amount:", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                        ef_total,
+                    ], spacing=6),
+                    ft.Text(f"Paid: PKR {paid:.0f} \u2022 Due: PKR {outstanding:.0f}",
                             size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 self._chip(status, fg, bg),
-            ], actions=actions))
+            ], actions=[
+                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
+                self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay),
+            ]))
 
         ref.content = ft.Column([
             self._guest_banner(),

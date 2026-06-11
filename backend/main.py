@@ -136,6 +136,11 @@ def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_chec
     return FoodDAO(db).get_food_by_id(ItemID)
 
 
+@app.get("/admin/bills/all")
+def get_all_individual_bills(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BillDAO(db).get_all_bills()
+
+
 @app.get("/admin/monthly-billing-summary")
 def get_monthly_billing_summary(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return BillDAO(db).get_all_monthly_bills()

@@ -100,6 +100,7 @@ class UserDAO(BaseDAO):
         cursor = self.db.cursor()
         try:
             tables = [
+                "Transactions",
                 "Staff_Contact_Numbers",
                 "Ratings",
                 "Votes",

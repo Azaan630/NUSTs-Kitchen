@@ -77,19 +77,12 @@ class PollDAO(BaseDAO):
     def get_poll_results(self):
         cursor = self.db.cursor(dictionary=True)
         try:
-            cursor.execute("SELECT Value FROM System_Config WHERE Config_Key = 'active_poll_items'")
-            config = cursor.fetchone()
-            if not config or not config['Value']:
-                return {"results": [], "message": "No active poll items found"}
-            item_ids = [i.strip() for i in config["Value"].split(",") if i.strip()]
-            if not item_ids:
-                return {"results": []}
-            format_strings = ','.join(['%s'] * len(item_ids))
-            query = f"""SELECT Item_ID, Name, Vote_Count
-                        FROM Food_Items
-                        WHERE Item_ID IN ({format_strings})
-                        ORDER BY Vote_Count DESC"""
-            cursor.execute(query, tuple(item_ids))
+            cursor.execute("""
+                SELECT Item_ID, Name, Vote_Count
+                FROM Food_Items
+                WHERE Vote_Count > 0
+                ORDER BY Vote_Count DESC
+            """)
             results = cursor.fetchall()
             return {"results": results}
         except Exception as e:
