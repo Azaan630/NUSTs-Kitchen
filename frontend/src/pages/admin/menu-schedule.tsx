@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -25,6 +26,7 @@ export function AdminMenuSchedule() {
   const toast = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<MenuScheduleItem | null>(null)
 
   const {
     register,
@@ -80,7 +82,7 @@ export function AdminMenuSchedule() {
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost" size="icon-sm"
-            onClick={() => removeMutation.mutate({ itemId: s.ItemID, scheduleId: s.ScheduleID })}
+            onClick={() => setDeleting(s)}
             aria-label="Remove from schedule"
           >
             <Trash2 className="h-4 w-4 text-destructive" />
@@ -159,6 +161,20 @@ export function AdminMenuSchedule() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Remove from Schedule"
+          description={`Are you sure you want to remove "${deleting?.ItemName}" from the ${deleting?.Meal_Type} schedule on ${deleting ? formatDate(deleting.Date) : ''}?`}
+          onConfirm={() => {
+            if (deleting) {
+              removeMutation.mutate({ itemId: deleting.ItemID, scheduleId: deleting.ScheduleID })
+              setDeleting(null)
+            }
+          }}
+          isLoading={removeMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

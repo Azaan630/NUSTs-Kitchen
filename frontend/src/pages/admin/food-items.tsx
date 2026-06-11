@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -26,6 +27,7 @@ export function AdminFoodItems() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<FoodItem | null>(null)
+  const [deleting, setDeleting] = useState<FoodItem | null>(null)
 
   const {
     register,
@@ -149,7 +151,7 @@ export function AdminFoodItems() {
           <Button variant="ghost" size="icon-sm" onClick={() => openEdit(i)} aria-label="Edit item">
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(i.ItemID)} aria-label="Delete item">
+          <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(i)} aria-label="Delete item">
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -236,6 +238,20 @@ export function AdminFoodItems() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Food Item"
+          description={`Are you sure you want to delete "${deleting?.ItemName}"? This action cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate(deleting.ItemID)
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

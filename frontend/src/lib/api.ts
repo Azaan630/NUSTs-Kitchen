@@ -153,6 +153,20 @@ export async function deleteStudent(email: string, userId: number): Promise<void
 
 // ─── Staff (Admin) ───────────────────────────────────────────────────────────
 
+export async function getAllStaff(email: string): Promise<Staff[]> {
+  const { data } = await api.get<any[]>('/admin/staff/all', authParams(email))
+  return (data || []).map((s: any) => ({
+    UserID: s.UserID,
+    Email: s.Email ?? '',
+    Full_Name: fullName(s),
+    RegisteredAt: '',
+    ContactNumbers: [],
+    Category: s.Category ?? '',
+    Salary: Number(s.Salary ?? 0),
+    HireDate: '',
+  }))
+}
+
 export async function getStaffDetails(email: string, userId: number): Promise<Staff> {
   const { data } = await api.get<any[]>('/admin/staff/details/' + userId, authParams(email))
   const row = (data || [])[0] || {}
@@ -177,7 +191,8 @@ export async function updateStaff(
   email: string,
   payload: Partial<CreateStaffPayload> & { user_id: number },
 ): Promise<Staff> {
-  const { data } = await api.post('/admin/staff/update', payload, authParams(email))
+  const { user_id, ...rest } = payload
+  const { data } = await api.patch('/admin/staff/update/' + user_id, rest, authParams(email))
   return data as unknown as Staff
 }
 
@@ -222,7 +237,7 @@ export async function getFoodItem(email: string, itemId: number): Promise<FoodIt
 }
 
 export async function createFoodItem(email: string, payload: CreateFoodItemPayload): Promise<FoodItem> {
-  const { data } = await api.post('/admin/food_items/create', payload, authParams(email))
+  const { data } = await api.post('/admin/food-items/create', payload, authParams(email))
   return data as unknown as FoodItem
 }
 
@@ -231,12 +246,12 @@ export async function updateFoodItem(
   itemId: number,
   payload: Partial<CreateFoodItemPayload>,
 ): Promise<FoodItem> {
-  const { data } = await api.patch('/admin/food_items/update/' + itemId, payload, authParams(email))
+  const { data } = await api.patch('/admin/food-items/update/' + itemId, payload, authParams(email))
   return data as unknown as FoodItem
 }
 
 export async function deleteFoodItem(email: string, itemId: number): Promise<void> {
-  await api.delete('/admin/food_items/delete/' + itemId, authParams(email))
+  await api.delete('/admin/food-items/delete/' + itemId, authParams(email))
 }
 
 // ─── Ingredients ─────────────────────────────────────────────────────────────
@@ -289,7 +304,7 @@ export async function addRecipe(
   ingredientId: number,
   quantity: number,
 ): Promise<void> {
-  await api.post('/admin/add_recipe/' + itemId + '/' + ingredientId + '/' + quantity, null, authParams(email))
+  await api.post('/admin/add-recipe/' + itemId + '/' + ingredientId + '/' + quantity, null, authParams(email))
 }
 
 export async function updateRecipe(
@@ -316,7 +331,7 @@ export async function addToSchedule(
   date: string,
   mealType: string,
 ): Promise<void> {
-  await api.post('/admin/menu_schedule/' + itemId + '/' + date + '/' + mealType, null, authParams(email))
+  await api.post('/admin/menu-schedule/' + itemId + '/' + date + '/' + mealType, null, authParams(email))
 }
 
 export async function updateScheduleItem(
@@ -324,17 +339,17 @@ export async function updateScheduleItem(
   itemId: number,
   scheduleId: number,
 ): Promise<void> {
-  await api.patch('/admin/menu_schedule/' + itemId + '/' + scheduleId, null, authParams(email))
+  await api.patch('/admin/menu-schedule/' + itemId + '/' + scheduleId, null, authParams(email))
 }
 
 export async function removeFromSchedule(email: string, itemId: number, scheduleId: number): Promise<void> {
-  await api.delete('/admin/recipe/' + itemId + '/' + scheduleId, authParams(email))
+  await api.delete('/admin/menu-schedule/' + itemId + '/' + scheduleId, authParams(email))
 }
 
 // ─── Polls ───────────────────────────────────────────────────────────────────
 
-export async function startPoll(email: string): Promise<void> {
-  await api.post('/admin/poll/start', null, authParams(email))
+export async function startPoll(email: string, itemIds: number[], mealType: string): Promise<void> {
+  await api.post('/admin/poll/start', { item_ids: itemIds, meal_type: mealType }, authParams(email))
 }
 
 export async function getActivePoll(email: string): Promise<MenuFoodItem[]> {
@@ -351,6 +366,20 @@ export async function getActivePoll(email: string): Promise<MenuFoodItem[]> {
 
 export async function castVote(email: string, userId: number, itemId: number): Promise<void> {
   await api.post('/poll/vote/' + itemId + '/' + userId, null, authParams(email))
+}
+
+export async function searchFoodItems(email: string, query: string): Promise<FoodItem[]> {
+  const { data } = await api.get<any[]>('/admin/food/search', { params: { email, q: query } })
+  return (data || []).map((item: any) => ({
+    ItemID: item.ItemID ?? item.Item_ID ?? 0,
+    ItemName: item.ItemName ?? item.Name ?? '',
+    Category: item.Category ?? '',
+    Price: Number(item.Price ?? 0),
+    IsVegetarian: item.IsVegetarian ?? false,
+    Vote_Count: item.Vote_Count ?? 0,
+    Ratings_Average: Number(item.Ratings_Average ?? 0),
+    Description: item.Description ?? undefined,
+  }))
 }
 
 export async function getPollResults(email: string): Promise<PollResult[]> {

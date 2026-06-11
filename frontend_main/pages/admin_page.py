@@ -138,13 +138,18 @@ class AdminPage:
         self.page.snack_bar.open = True
         self.page.update()
 
+    def _run(self, coro):
+        task = asyncio.create_task(coro)
+        task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
+        return task
+
     def _confirm(self, title, msg, on_delete):
         dlg = ft.AlertDialog(
             title=ft.Text(title, color=self._clr("text"), font_family="DM Sans"),
             content=ft.Text(msg, color=self._clr("sub"), font_family="DM Sans"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda e: _close()),
-                ft.TextButton("Delete", on_click=lambda e: (_close(), _run()),
+                ft.TextButton("Delete", on_click=lambda e: (_close(), _exec()),
                               style=ft.ButtonStyle(color=self._clr("danger"))),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
@@ -152,11 +157,10 @@ class AdminPage:
         def _close():
             dlg.open = False
             self.page.update()
-        def _run():
+        def _exec():
             try:
                 if asyncio.iscoroutinefunction(on_delete):
-                    t = asyncio.create_task(on_delete())
-                    t.add_done_callback(lambda ct: self._snack(str(ct.exception()), False) if ct.exception() else None)
+                    AdminPage._run(self, on_delete())
                 else:
                     on_delete()
             except Exception as ex:
@@ -378,7 +382,7 @@ class AdminPage:
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
                 else:
-                    asyncio.create_task(_del_student(u))
+                    self._run(_del_student(u))
             async def _del_student(u=uid):
                 r = await _api("students")["delete"](self.email, u)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -443,7 +447,7 @@ class AdminPage:
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
                 else:
-                    asyncio.create_task(_del_staff(u))
+                    self._run(_del_staff(u))
             async def _del_staff(u=uid):
                 r = await _api("staff")["delete"](self.email, u)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -538,7 +542,7 @@ class AdminPage:
                     mock_data.update_food(i, p)
                     self._snack("Updated")
                 else:
-                    asyncio.create_task(_upd_food(i, p))
+                    self._run(_upd_food(i, p))
             async def _upd_food(i=iid, p=None):
                 r = await _api("food")["update"](self.email, i, p)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -550,7 +554,7 @@ class AdminPage:
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
                 else:
-                    self._confirm("Delete Food Item", f"Remove {name}?", lambda: asyncio.create_task(_del_food(i)))
+                    self._confirm("Delete Food Item", f"Remove {name}?", lambda: self._run(_del_food(i)))
             async def _del_food(i=iid):
                 r = await _api("food")["delete"](self.email, i)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -605,7 +609,7 @@ class AdminPage:
                         self._snack("Approved")
                         asyncio.create_task(self._render_mess_off(ref))
                     else:
-                        asyncio.create_task(_app_off(r))
+                        self._run(_app_off(r))
                 async def _app_off(r=rid):
                     res = await _api("mess_off")["approve"](self.email, r)
                     if "error" in (res or {}): self._snack(res["error"], False); return
@@ -616,7 +620,7 @@ class AdminPage:
                         self._snack("Rejected")
                         asyncio.create_task(self._render_mess_off(ref))
                     else:
-                        self._confirm("Reject Request", "Reject this mess-off request?", lambda: asyncio.create_task(_rej_off(r)))
+                        self._confirm("Reject Request", "Reject this mess-off request?", lambda: self._run(_rej_off(r)))
                 async def _rej_off(r=rid):
                     res = await _api("mess_off")["reject"](self.email, r)
                     if "error" in (res or {}): self._snack(res["error"], False); return
@@ -705,8 +709,9 @@ class AdminPage:
                 if self.is_guest:
                     mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
                     self._snack("Updated")
+                    asyncio.create_task(refresh())
                 else:
-                    asyncio.create_task(_save_bill(b, amt))
+                    self._run(_save_bill(b, amt))
             async def _save_bill(b=bid, amt=0):
                 r = await _api("bills")["update"](self.email, b, {"Amount": amt})
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -721,8 +726,9 @@ class AdminPage:
                 if self.is_guest:
                     mock_data.pay_bill(b, amt)
                     self._snack("Paid")
+                    asyncio.create_task(refresh())
                 else:
-                    asyncio.create_task(_pay_bill(b, amt))
+                    self._run(_pay_bill(b, amt))
             async def _pay_bill(b=bid, amt=0):
                 r = await _api("bills")["pay"](self.email, b, amt, "Cash")
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -779,7 +785,7 @@ class AdminPage:
                     self._snack("Removed")
                     asyncio.create_task(self._render_menu(ref))
                 else:
-                    self._confirm("Remove Menu Item", f"Remove {name}?", lambda: asyncio.create_task(_del_menu(i, s)))
+                    self._confirm("Remove Menu Item", f"Remove {name}?", lambda: self._run(_del_menu(i, s)))
             async def _del_menu(i=iid, s=sid):
                 r = await _api("menu")["delete"](self.email, i, s)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -910,7 +916,7 @@ class AdminPage:
                 self._snack("Poll started!")
                 asyncio.create_task(refresh())
             else:
-                asyncio.create_task(_start_poll(ids, mt))
+                self._run(_start_poll(ids, mt))
         async def _start_poll(ids, mt):
             r = await _api("poll")["start"](self.email, {"item_ids": ids, "meal_type": mt})
             if "error" in (r or {}): self._snack(r["error"], False); return
@@ -923,7 +929,7 @@ class AdminPage:
                 self._snack("Poll ended")
                 asyncio.create_task(refresh())
             else:
-                self._confirm("End Poll", "End the current poll?", lambda: asyncio.create_task(_end_poll()))
+                self._confirm("End Poll", "End the current poll?", lambda: self._run(_end_poll()))
         async def _end_poll():
             r = await _api("poll")["end"](self.email)
             if "error" in (r or {}): self._snack(r["error"], False); return
@@ -1013,7 +1019,7 @@ class AdminPage:
                         self._snack("Approved")
                         asyncio.create_task(self._render_requests(ref))
                     else:
-                        asyncio.create_task(_app_reg(ri))
+                        self._run(_app_reg(ri))
                 async def _app_reg(ri=rid):
                     rr = await _api("registration")["approve"](self.email, ri, None)
                     if "error" in (rr or {}): self._snack(rr["error"], False); return
@@ -1024,7 +1030,7 @@ class AdminPage:
                         self._snack("Rejected")
                         asyncio.create_task(self._render_requests(ref))
                     else:
-                        self._confirm("Reject Request", f"Reject {name}'s registration?", lambda: asyncio.create_task(_rej_reg(ri)))
+                        self._confirm("Reject Request", f"Reject {name}'s registration?", lambda: self._run(_rej_reg(ri)))
                 async def _rej_reg(ri=rid):
                     rr = await _api("registration")["reject"](self.email, ri)
                     if "error" in (rr or {}): self._snack(rr["error"], False); return

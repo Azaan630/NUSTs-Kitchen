@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '@/context/auth-context'
-import { getAllStudents, registerStaff, updateStaff, deleteStaff, getStaffCategories } from '@/lib/api'
+import { getAllStaff, registerStaff, updateStaff, deleteStaff, getStaffCategories } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -25,6 +26,7 @@ export function AdminStaff() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
+  const [deleting, setDeleting] = useState<Staff | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -32,10 +34,7 @@ export function AdminStaff() {
 
   const { data: staffList, isLoading } = useQuery({
     queryKey: ['staffList', email],
-    queryFn: async () => {
-      const students = await getAllStudents(email)
-      return students.filter((s) => s.UserID > 0) as unknown as Staff[]
-    },
+    queryFn: () => getAllStaff(email),
   })
 
   const { data: categories } = useQuery({
@@ -77,7 +76,7 @@ export function AdminStaff() {
     { key: 'actions', header: '', render: (s) => (
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
         <Button variant="ghost" size="icon-sm" onClick={() => { setEditing(s); setDialogOpen(true) }}><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(s.UserID)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     )},
   ]
@@ -129,6 +128,20 @@ export function AdminStaff() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Staff Member"
+          description={`Are you sure you want to delete "${deleting?.Full_Name}"? This will remove all their data and cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate(deleting.UserID)
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

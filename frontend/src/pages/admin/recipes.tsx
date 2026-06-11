@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -23,6 +24,7 @@ export function AdminRecipes() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Recipe | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RecipeFormValues>({
     resolver: zodResolver(recipeFormSchema),
@@ -52,7 +54,7 @@ export function AdminRecipes() {
     { key: 'Quantity', header: 'Quantity', sortable: true },
     { key: 'actions', header: '', render: (r) => (
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate({ itemId: r.ItemID, ingredientId: r.IngredientID })}>
+        <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(r)}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -96,6 +98,20 @@ export function AdminRecipes() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Recipe Entry"
+          description={`Are you sure you want to remove "${deleting?.IngredientName}" from "${deleting?.ItemName}"? This action cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate({ itemId: deleting.ItemID, ingredientId: deleting.IngredientID })
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

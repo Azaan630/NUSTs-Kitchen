@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -25,6 +26,7 @@ export function AdminStudents() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
+  const [deleting, setDeleting] = useState<Student | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -70,7 +72,7 @@ export function AdminStudents() {
     { key: 'actions', header: '', render: (s) => (
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
         <Button variant="ghost" size="icon-sm" onClick={() => { setEditing(s); reset({ email: s.Email, full_name: s.Full_Name, reg_no: s.RegNo }); setDialogOpen(true) }}><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(s.UserID)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     )},
   ]
@@ -115,6 +117,20 @@ export function AdminStudents() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Student"
+          description={`Are you sure you want to delete "${deleting?.Full_Name}"? This will remove all their data and cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate(deleting.UserID)
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

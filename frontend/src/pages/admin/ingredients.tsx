@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -24,6 +25,7 @@ export function AdminIngredients() {
   const toast = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Ingredient | null>(null)
+  const [deleting, setDeleting] = useState<Ingredient | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<IngredientFormValues>({
     resolver: zodResolver(ingredientFormSchema),
@@ -67,7 +69,7 @@ export function AdminIngredients() {
     { key: 'actions', header: '', render: (i) => (
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
         <Button variant="ghost" size="icon-sm" onClick={() => { setEditing(i); reset({ ingredient_name: i.IngredientName, unit: i.Unit, stock_quantity: i.StockQuantity, unit_price: i.UnitPrice }); setDialogOpen(true) }}><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(i.IngredientID)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     )},
   ]
@@ -116,6 +118,20 @@ export function AdminIngredients() {
             </DialogFooter>
           </form>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Ingredient"
+          description={`Are you sure you want to delete "${deleting?.IngredientName}"? This action cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate(deleting.IngredientID)
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )

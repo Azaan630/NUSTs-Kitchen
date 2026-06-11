@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, type Column } from '@/components/data-table'
 import { PageHeader } from '@/components/page-header'
 import { PageTransition } from '@/components/page-transition'
@@ -25,6 +26,7 @@ export function AdminBills() {
   const [createOpen, setCreateOpen] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
   const [payingBill, setPayingBill] = useState<BillingSummaryItem | null>(null)
+  const [deleting, setDeleting] = useState<BillingSummaryItem | null>(null)
   const [createForm, setCreateForm] = useState({
     user_id: 0, month: '', year: new Date().getFullYear(),
     total_days: 30, mess_off_days: 0, daily_rate: 500, total_amount: 15000, due_date: '',
@@ -73,7 +75,7 @@ export function AdminBills() {
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </Button>
         )}
-        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(b.BillingID)}>
+        <Button variant="ghost" size="icon-sm" onClick={() => setDeleting(b)}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -138,6 +140,20 @@ export function AdminBills() {
             <Button onClick={() => payMutation.mutate()} disabled={payMutation.isPending}>Record Payment</Button>
           </DialogFooter>
         </Dialog>
+
+        <ConfirmDialog
+          open={!!deleting}
+          onOpenChange={(open) => { if (!open) setDeleting(null) }}
+          title="Delete Bill"
+          description={`Are you sure you want to delete the bill for "${deleting?.Full_Name}" (${formatCurrency(deleting?.TotalAmount ?? 0)})? This action cannot be undone.`}
+          onConfirm={() => {
+            if (deleting) {
+              deleteMutation.mutate(deleting.BillingID)
+              setDeleting(null)
+            }
+          }}
+          isLoading={deleteMutation.isPending}
+        />
       </div>
     </PageTransition>
   )
