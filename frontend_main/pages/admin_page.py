@@ -3,8 +3,13 @@ import asyncio
 import httpx
 import os
 import logging
-from datetime import date
+from datetime import date, datetime
 import mock_data
+from flet_charts import (
+    BarChart, BarChartGroup, BarChartRod, BarChartRodStackItem,
+    PieChart, PieChartSection,
+    ChartAxis, ChartAxisLabel,
+)
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("admin")
@@ -94,6 +99,12 @@ def _api(table):
             "results": lambda e: _req("GET", "/admin/poll/results", {"email": e}),
             "end":     lambda e: _req("POST", "/admin/poll/end", {"email": e}),
             "active":  lambda e: _req("GET", "/poll/active", {"email": e}),
+        },
+        "analytics": {
+            "ratings":   lambda e: _req("GET", "/menu/ratings-summary", {"email": e}),
+            "low_stock": lambda e: _req("GET", "/analytics/ingredients/low-stock", {"email": e}),
+            "food_costs": lambda e: _req("GET", "/admin/food/costs", {"email": e}),
+            "billing":  lambda e: _req("GET", "/admin/monthly-billing-summary", {"email": e}),
         },
         "stats": {
             "dashboard": lambda e: _req("GET", "/admin/dashboard/stats", {"email": e}),
@@ -344,6 +355,193 @@ class AdminPage:
     #  TAB 0 — DASHBOARD
     # ════════════════════════════════════════════════════════════
 
+    def _dash_card(self, title, child, height=None):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=13, weight="bold", color=self._clr("sub"),
+                        font_family="DM Sans"),
+                ft.Container(content=child, expand=True, margin=ft.Margin.only(top=4)),
+            ], spacing=4),
+            bgcolor=self._clr("card"), border_radius=16,
+            padding=14,
+            expand=True,
+            height=height,
+        )
+
+    def _build_ratings_chart(self, items):
+        if not items:
+            return ft.Text("No ratings data", color=self._clr("sub"), font_family="DM Sans")
+        top = sorted(items, key=lambda x: x.get("avg_rating", 0), reverse=True)[:8]
+        groups = []
+        max_count = max((r.get("rating_count", 1) for r in top), default=1)
+        for i, r in enumerate(top):
+            avg = r.get("avg_rating", 0)
+            val = r.get("rating_count", 0)
+            intensity = min(val / max_count, 1)
+            r_c = int(255 * (1 - intensity * 0.6))
+            g_c = int(200 + 55 * intensity)
+            clr = ft.Colors.with_opacity(0.7 + 0.3 * intensity, "#10B981" if avg >= 4 else "#F59E0B" if avg >= 3 else "#EF4444")
+            groups.append(BarChartGroup(
+                x=i,
+                rods=[BarChartRod(from_y=0, to_y=avg, color=clr,
+                                  tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
+                                  border_radius=4)],
+            ))
+        names = [r.get("Name", "?")[:10] for r in top]
+        return BarChart(
+            groups=groups,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+            left_axis=ChartAxis(title="Rating", show_labels=True, label_size=10, title_size=11),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                show_labels=True, label_size=9,
+            ),
+            min_y=0, max_y=5,
+        )
+
+    def _build_cost_chart(self, items):
+        if not items:
+            return ft.Text("No cost data", color=self._clr("sub"), font_family="DM Sans")
+        top = sorted(items, key=lambda x: x.get("Price", 0), reverse=True)[:8]
+        groups = []
+        for i, f in enumerate(top):
+            price = f.get("Price", 0)
+            cost = f.get("Estimated_Cost", price * 0.6)
+            groups.append(BarChartGroup(
+                x=i,
+                rods=[
+                    BarChartRod(from_y=0, to_y=price, color="#3B82F6",
+                                tooltip=f"{f.get('Name','?')} Price: PKR {price:.0f}",
+                                width=10, border_radius=4),
+                    BarChartRod(from_y=0, to_y=cost, color="#8B5CF6",
+                                tooltip=f"{f.get('Name','?')} Cost: PKR {cost:.0f}",
+                                width=10, border_radius=4),
+                ],
+            ))
+        names = [f.get("Name", "?")[:10] for f in top]
+        max_v = max((f.get("Price", 0) for f in top), default=100)
+        return BarChart(
+            groups=groups,
+            group_spacing=4,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+            left_axis=ChartAxis(title="PKR", show_labels=True, label_size=10, title_size=11),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                show_labels=True, label_size=9,
+            ),
+            min_y=0, max_y=max_v * 1.15,
+        )
+
+    def _build_stock_chart(self, items):
+        if not items:
+            return ft.Text("No ingredients", color=self._clr("sub"), font_family="DM Sans")
+        top = sorted(items, key=lambda x: x.get("Total_Quantity", 0))[:10]
+        groups = []
+        for i, ing in enumerate(top):
+            qty = ing.get("Total_Quantity", 0)
+            unit = ing.get("Unit", "")
+            is_low = qty < 10
+            clr = "#EF4444" if is_low else "#F59E0B" if qty < 25 else "#10B981"
+            groups.append(BarChartGroup(
+                x=i,
+                rods=[BarChartRod(from_y=0, to_y=qty, color=clr,
+                                  tooltip=f"{ing.get('Name','?')}: {qty} {unit}",
+                                  border_radius=4)],
+            ))
+        names = [f"{ing.get('Name','?')[:8]}" for ing in top]
+        max_q = max((i.get("Total_Quantity", 0) for i in top), default=10)
+        return BarChart(
+            groups=groups,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+            left_axis=ChartAxis(title="Qty", show_labels=True, label_size=10, title_size=11),
+            bottom_axis=ChartAxis(
+                labels=[ChartAxisLabel(i, ft.Text(n, size=9, color=self._clr("sub"), font_family="DM Sans")) for i, n in enumerate(names)],
+                show_labels=True, label_size=9,
+            ),
+            min_y=0, max_y=max_q * 1.15,
+        )
+
+    def _build_meal_pie(self, items):
+        counts = {"Breakfast": 0, "Lunch": 0, "Dinner": 0}
+        for m in items:
+            mt = m.get("meal_type", "")
+            if mt in counts:
+                counts[mt] += 1
+        total = sum(counts.values())
+        if total == 0:
+            return ft.Text("No menu data", color=self._clr("sub"), font_family="DM Sans")
+        colors = {"Breakfast": "#F59E0B", "Lunch": "#10B981", "Dinner": "#8B5CF6"}
+        sections = []
+        for mt, cnt in counts.items():
+            if cnt > 0:
+                sections.append(PieChartSection(
+                    value=cnt / total * 100,
+                    color=colors.get(mt, "#6B7280"),
+                    title=f"{mt} ({cnt})",
+                    radius=80,
+                ))
+        return PieChart(
+            sections=sections,
+            sections_space=2,
+            center_space_radius=30,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+        )
+
+    def _build_population_pie(self, students, staff):
+        total = students + staff
+        if total == 0:
+            return ft.Text("No user data", color=self._clr("sub"), font_family="DM Sans")
+        sections = [
+            PieChartSection(value=students / total * 100, color="#3B82F6",
+                            title=f"Students ({students})", radius=80),
+            PieChartSection(value=staff / total * 100, color="#8B5CF6",
+                            title=f"Staff ({staff})", radius=80),
+        ]
+        return PieChart(
+            sections=sections,
+            sections_space=2,
+            center_space_radius=30,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+        )
+
+    def _build_billing_chart(self, bills):
+        if not bills:
+            return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
+        collected = sum(b.get("Total_Collected", b.get("Total_Collected", 0)) for b in bills)
+        outstanding = sum(b.get("Outstanding", 0) for b in bills)
+        total_v = collected + outstanding
+        if total_v == 0:
+            return ft.Text("No billing data", color=self._clr("sub"), font_family="DM Sans")
+        groups = [
+            BarChartGroup(x=0, rods=[
+                BarChartRod(from_y=0, to_y=collected, color="#3B82F6",
+                            tooltip=f"Collected: PKR {collected:,.0f}", border_radius=4),
+            ]),
+            BarChartGroup(x=1, rods=[
+                BarChartRod(from_y=0, to_y=outstanding, color="#EF4444",
+                            tooltip=f"Outstanding: PKR {outstanding:,.0f}", border_radius=4),
+            ]),
+        ]
+        return BarChart(
+            groups=groups,
+            animation=ft.Animation(600, ft.AnimationCurve.EASE_OUT),
+            interactive=True,
+            left_axis=ChartAxis(title="PKR", show_labels=True, label_size=10, title_size=11),
+            bottom_axis=ChartAxis(
+                labels=[
+                    ChartAxisLabel(0, ft.Text("Collected", size=10, color=self._clr("sub"), font_family="DM Sans")),
+                    ChartAxisLabel(1, ft.Text("Outstanding", size=10, color=self._clr("sub"), font_family="DM Sans")),
+                ],
+                show_labels=True, label_size=10,
+            ),
+            min_y=0, max_y=max(collected, outstanding) * 1.2,
+        )
+
     async def _render_dashboard(self, ref):
         ref.content = self._loading()
         self.page.update()
@@ -352,6 +550,13 @@ class AdminPage:
                  "total_ingredients": 0, "active_mess_offs": 0, "unpaid_bills": 0,
                  "pending_registration_requests": 0}
         activity = []
+        ratings = []
+        ingredients = []
+        food_items_data = []
+        menu_items = []
+        bills_data = []
+        low_stock = []
+
         if not self.is_guest:
             s = await _api("stats")["dashboard"](self.email)
             if isinstance(s, dict) and "error" not in s:
@@ -359,38 +564,196 @@ class AdminPage:
             act = await _api("stats")["activity"](self.email)
             if isinstance(act, list):
                 activity = act
+            r = await _api("analytics")["ratings"](self.email)
+            if isinstance(r, list):
+                ratings = r
+            ing = await _api("ingredients")["all"](self.email)
+            if isinstance(ing, list):
+                ingredients = ing
+            fc = await _api("food")["all"](self.email)
+            if isinstance(fc, list):
+                food_items_data = fc
+            mv = await _api("menu")["weekly"](self.email)
+            if isinstance(mv, list):
+                menu_items = mv
+            bl = await _api("analytics")["billing"](self.email)
+            if isinstance(bl, list):
+                bills_data = bl
+            ls = await _api("analytics")["low_stock"](self.email)
+            if isinstance(ls, list):
+                low_stock = ls
+        else:
+            stats = {
+                **stats,
+                "total_students": len(mock_data.get_students()),
+                "total_staff": len(mock_data.get_staff()),
+                "total_food_items": len(mock_data.get_food_costs()),
+                "total_ingredients": len(mock_data.get_ingredients()),
+                "active_mess_offs": len([m for m in mock_data.get_mess_off_history().get("status", []) if m.get("Status") == "Pending"]),
+                "unpaid_bills": len([b for b in mock_data.get_monthly_bills() if b.get("Status") != "Paid"]),
+                "pending_registration_requests": len(mock_data.get_registration_requests()),
+            }
+            ratings = mock_data.get_food_ratings()
+            ingredients = mock_data.get_ingredients()
+            food_items_data = mock_data.get_food_costs()
+            menu_items = mock_data.get_weekly_menu()
+            bills_data = mock_data.get_monthly_billing_summary()
+            low_stock = mock_data.get_low_stock_ingredients()
+
+        t = self.theme
+        ac = t.get("accent", "#3B82F6")
+        ac2 = t.get("accent2", "#8B5CF6")
+        sc = t.get("success", "#10B981")
+        wa = t.get("warn", "#F59E0B")
+        da = t.get("danger", "#EF4444")
+
+        def _sc(icon, label, value, color):
+            c = color or ac
+            return ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Icon(icon, size=18, color=c),
+                            bgcolor=ft.Colors.with_opacity(0.12, c),
+                            width=36, height=36, border_radius=10, alignment=ft.Alignment(0, 0),
+                        ),
+                        ft.Column([
+                            ft.Text(str(value), size=20, weight="bold",
+                                    color=t.get("text"), font_family="DM Sans"),
+                            ft.Text(label, size=10, color=t.get("sub"), font_family="DM Sans"),
+                        ], spacing=0, tight=True),
+                    ], spacing=10),
+                ]),
+                bgcolor=t.get("card"), border_radius=14,
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                expand=True,
+            )
 
         stat_cards = ft.ResponsiveRow([
-            ft.Container(self._stat_card(ft.Icons.SCHOOL_ROUNDED, "Students", stats["total_students"], self._clr("accent")), col={"sm": 4}),
-            ft.Container(self._stat_card(ft.Icons.BADGE_ROUNDED, "Staff", stats["total_staff"], self._clr("accent2")), col={"sm": 4}),
-            ft.Container(self._stat_card(ft.Icons.FASTFOOD_ROUNDED, "Food Items", stats["total_food_items"], self._clr("success")), col={"sm": 4}),
-            ft.Container(self._stat_card(ft.Icons.CATEGORY_ROUNDED, "Ingredients", stats["total_ingredients"], self._clr("warn")), col={"sm": 3}),
-            ft.Container(self._stat_card(ft.Icons.EVENT_BUSY_ROUNDED, "Active Mess Offs", stats["active_mess_offs"], self._clr("danger")), col={"sm": 3}),
-            ft.Container(self._stat_card(ft.Icons.RECEIPT_ROUNDED, "Unpaid Bills", stats["unpaid_bills"], self._clr("warn")), col={"sm": 3}),
-            ft.Container(self._stat_card(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, "Pending Reg.", stats["pending_registration_requests"], self._clr("accent2")), col={"sm": 3}),
+            ft.Container(_sc(ft.Icons.SCHOOL_ROUNDED, "Students", stats["total_students"], ac), col={"sm": 4}),
+            ft.Container(_sc(ft.Icons.BADGE_ROUNDED, "Staff", stats["total_staff"], ac2), col={"sm": 4}),
+            ft.Container(_sc(ft.Icons.FASTFOOD_ROUNDED, "Food Items", stats["total_food_items"], sc), col={"sm": 4}),
+            ft.Container(_sc(ft.Icons.CATEGORY_ROUNDED, "Ingredients", stats["total_ingredients"], wa), col={"sm": 3}),
+            ft.Container(_sc(ft.Icons.EVENT_BUSY_ROUNDED, "Active Mess Offs", stats["active_mess_offs"], da), col={"sm": 3}),
+            ft.Container(_sc(ft.Icons.RECEIPT_ROUNDED, "Unpaid Bills", stats["unpaid_bills"], wa), col={"sm": 3}),
+            ft.Container(_sc(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, "Pending Reg.", stats["pending_registration_requests"], ac2), col={"sm": 3}),
         ], spacing=10)
 
-        activity_col = ft.Column([
-            ft.Text("Recent Activity", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
-            ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.CIRCLE_ROUNDED, size=8, color=self._clr("accent")),
-                    ft.Text(a.get("description", ""), size=12, color=self._clr("sub"), font_family="DM Sans", expand=True),
-                    ft.Text(str(a.get("event_date", "")), size=10, color=self._clr("sub"), font_family="DM Sans"),
-                ], spacing=8) if isinstance(a, dict) else ft.Text("No recent activity", size=12, color=self._clr("sub"))
-                for a in (activity if activity else [{"description": "No recent activity"}])
-            ], spacing=6),
-        ]) if activity else ft.Text("No recent activity", color=self._clr("sub"), font_family="DM Sans")
+        ratings_chart = self._build_ratings_chart(ratings)
+        cost_chart = self._build_cost_chart(food_items_data)
+        stock_chart = self._build_stock_chart(ingredients)
+        meal_pie = self._build_meal_pie(menu_items)
+        population_pie = self._build_population_pie(stats["total_students"], stats["total_staff"])
+        billing_chart = self._build_billing_chart(bills_data)
+
+        activity_section = ft.Container()
+        if activity:
+            feed_rows = []
+            for a in activity:
+                desc = a.get("description", "")
+                dt = a.get("event_date", "")
+                dty = datetime.fromisoformat(str(dt)) if isinstance(dt, str) and "T" in str(dt) else str(dt)[:10]
+                feed_rows.append(ft.Row([
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.CIRCLE_ROUNDED, size=8, color=ac),
+                        margin=ft.Margin.only(top=4),
+                    ),
+                    ft.Container(
+                        content=ft.Text(desc, size=12, color=t.get("text"),
+                                        font_family="DM Sans", expand=True),
+                        expand=True,
+                    ),
+                    ft.Text(str(dty)[:10], size=10, color=t.get("sub"), font_family="DM Sans"),
+                ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START))
+            activity_section = ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.Icons.HISTORY_ROUNDED, size=18, color=ac),
+                        ft.Text("Recent Activity", size=15, weight="bold",
+                                color=t.get("text"), font_family="DM Sans"),
+                    ], spacing=8),
+                    ft.Container(height=4),
+                    ft.Column(feed_rows, spacing=6),
+                ]),
+                bgcolor=t.get("card"), border_radius=16,
+                padding=14,
+            )
+
+        low_stock_section = ft.Container()
+        if low_stock:
+            ls_rows = []
+            for ing in low_stock[:5]:
+                nm = ing.get("Name", "?")
+                qty = ing.get("Total_Quantity", 0)
+                unit = ing.get("Unit", "")
+                ls_rows.append(ft.Row([
+                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=16, color=da),
+                    ft.Text(f"{nm}: {qty} {unit}", size=12, color=t.get("text"),
+                            font_family="DM Sans", expand=True),
+                ], spacing=8))
+            low_stock_section = ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.Icons.INVENTORY_ROUNDED, size=18, color=da),
+                        ft.Text(f"Low Stock Alert ({len(low_stock)})", size=15, weight="bold",
+                                color=t.get("text"), font_family="DM Sans"),
+                    ], spacing=8),
+                    ft.Container(height=4),
+                    ft.Column(ls_rows, spacing=4),
+                ]),
+                bgcolor=ft.Colors.with_opacity(0.08, da),
+                border_radius=16,
+                padding=14,
+                border=ft.border.all(1, ft.Colors.with_opacity(0.2, da)),
+            )
 
         ref.content = ft.Column([
             self._guest_banner(),
-            ft.Text("Dashboard", size=22, weight="bold", color=self._clr("text"), font_family="DM Sans"),
-            ft.Container(height=4),
-            ft.Text("Overview of the mess system", size=13, color=self._clr("sub"), font_family="DM Sans"),
-            ft.Container(height=16),
+            ft.Row([
+                ft.Column([
+                    ft.Text("Dashboard", size=22, weight="bold",
+                            color=t.get("text"), font_family="DM Sans"),
+                    ft.Text("Deep analytics & insights", size=12,
+                            color=t.get("sub"), font_family="DM Sans"),
+                ]),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=12),
             stat_cards,
-            ft.Container(height=20),
-            self._card(activity_col),
+            ft.Container(height=16),
+            ft.Text("Food Analytics", size=15, weight="bold",
+                    color=t.get("text"), font_family="DM Sans"),
+            ft.Container(height=8),
+            ft.ResponsiveRow([
+                ft.Container(self._dash_card("Avg Ratings (top 8)", ratings_chart, 280),
+                             col={"sm": 12, "md": 6}),
+                ft.Container(self._dash_card("Price vs Cost (top 8)", cost_chart, 280),
+                             col={"sm": 12, "md": 6}),
+            ], spacing=12),
+            ft.Container(height=16),
+            ft.Text("Inventory & Menu", size=15, weight="bold",
+                    color=t.get("text"), font_family="DM Sans"),
+            ft.Container(height=8),
+            ft.ResponsiveRow([
+                ft.Container(self._dash_card("Stock Levels (lowest 10)", stock_chart, 280),
+                             col={"sm": 12, "md": 6}),
+                ft.Container(self._dash_card("Meal Type Distribution", meal_pie, 280),
+                             col={"sm": 12, "md": 6}),
+            ], spacing=12),
+            ft.Container(height=16),
+            ft.Text("People & Finance", size=15, weight="bold",
+                    color=t.get("text"), font_family="DM Sans"),
+            ft.Container(height=8),
+            ft.ResponsiveRow([
+                ft.Container(self._dash_card("Population Distribution", population_pie, 280),
+                             col={"sm": 12, "md": 6}),
+                ft.Container(self._dash_card("Billing Overview", billing_chart, 280),
+                             col={"sm": 12, "md": 6}),
+            ], spacing=12),
+            ft.Container(height=16),
+            ft.ResponsiveRow([
+                ft.Container(activity_section, col={"sm": 12, "md": 7 if low_stock else 12}),
+                ft.Container(low_stock_section, col={"sm": 12, "md": 5}) if low_stock else ft.Container(),
+            ], spacing=12) if activity or low_stock else ft.Container(),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 

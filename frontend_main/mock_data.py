@@ -308,6 +308,28 @@ def get_mess_off_history():
 def get_ingredients():
     return copy.deepcopy(_db.get("ingredients", []))
 
+def get_low_stock_ingredients(threshold=10):
+    return [i for i in _db.get("ingredients", []) if i.get("Total_Quantity", 0) < threshold]
+
+def get_food_ratings():
+    ratings_map = {
+        1: {"avg_rating": 4.5, "rating_count": 24},
+        2: {"avg_rating": 3.2, "rating_count": 18},
+        3: {"avg_rating": 4.7, "rating_count": 31},
+        4: {"avg_rating": 4.1, "rating_count": 14},
+        5: {"avg_rating": 3.8, "rating_count": 22},
+        6: {"avg_rating": 3.5, "rating_count": 9},
+    }
+    result = []
+    for f in _db.get("food_items", []):
+        fid = f.get("Item_ID")
+        r = ratings_map.get(fid, {"avg_rating": 3.0, "rating_count": 0})
+        result.append({**f, "avg_rating": r["avg_rating"], "rating_count": r["rating_count"]})
+    return result
+
+def get_monthly_billing_summary():
+    return copy.deepcopy(_db.get("bills", []))
+
 def create_ingredient(data):
     existing = _db.setdefault("ingredients", [])
     iid = max((i.get("Ingredient_ID", 0) for i in existing), default=0) + 1
