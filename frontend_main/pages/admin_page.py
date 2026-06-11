@@ -45,7 +45,7 @@ def _api(table):
             "delete": lambda e,i: _req("DELETE", f"/admin/staff/delete/{i}", {"email": e}),
         },
         "food": {
-            "all":   lambda e: _req("GET", "/admin/food/costs", {"email": e}),
+            "all":   lambda e: _req("GET", "/admin/food-items/all", {"email": e}),
             "create": lambda e,d: _req("POST", "/admin/food-items/create", {"email": e}, d),
             "update": lambda e,i,d: _req("PATCH", f"/admin/food-items/update/{i}", {"email": e}, d),
             "delete": lambda e,i: _req("DELETE", f"/admin/food-items/delete/{i}", {"email": e}),
@@ -382,7 +382,7 @@ class AdminPage:
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
                 else:
-                    self._run(_del_student(u))
+                    self._confirm("Delete Student", f"Remove {name}?", lambda: self._run(_del_student(u)))
             async def _del_student(u=uid):
                 r = await _api("students")["delete"](self.email, u)
                 if "error" in (r or {}): self._snack(r["error"], False); return
@@ -447,7 +447,7 @@ class AdminPage:
                     self._snack("Deleted")
                     asyncio.create_task(refresh())
                 else:
-                    self._run(_del_staff(u))
+                    self._confirm("Delete Staff", f"Remove {name}?", lambda: self._run(_del_staff(u)))
             async def _del_staff(u=uid):
                 r = await _api("staff")["delete"](self.email, u)
                 if "error" in (r or {}): self._snack(r["error"], False); return
