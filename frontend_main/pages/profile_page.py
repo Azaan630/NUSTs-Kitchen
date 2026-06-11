@@ -289,8 +289,9 @@ class StudentProfilePage:
 
     def build(self):
         asyncio.create_task(self._render())
+        m = (self.page.width or 1200) < 720
         return ft.Container(
             content=self.main_container,
             expand=True,
-            padding=ft.Padding.symmetric(horizontal=24, vertical=20),
+            padding=ft.Padding.symmetric(horizontal=12 if m else 24, vertical=20),
         )

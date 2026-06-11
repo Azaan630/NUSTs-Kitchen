@@ -109,11 +109,22 @@ class StaffPage:
 
     # ── Sidebar ────────────────────────────────────────────────
 
+    def _is_mobile(self):
+        return (self.page.width or 1200) < 720
+
     def _sidebar(self, on_select):
+        mobile = self._is_mobile()
         items = []
         for i, (label, icon) in enumerate(self.SECTIONS):
             sel = self.section_idx["v"] == i
             items.append(ft.Container(
+                content=ft.Icon(icon, size=20, color=self._clr("accent") if sel else self._clr("sub")),
+                bgcolor=ft.Colors.with_opacity(0.12, self._clr("accent")) if sel else ft.Colors.TRANSPARENT,
+                border_radius=10,
+                padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+                on_click=lambda e, idx=i: on_select(idx),
+                tooltip=label,
+            ) if mobile else ft.Container(
                 ft.Row([
                     ft.Icon(icon, size=18, color=self._clr("accent") if sel else self._clr("sub")),
                     ft.Text(label, size=13, font_family="DM Sans",
@@ -124,6 +135,12 @@ class StaffPage:
                 border_radius=12, padding=ft.Padding.symmetric(horizontal=14, vertical=10),
                 on_click=lambda e, idx=i: on_select(idx),
             ))
+        if mobile:
+            return ft.Container(
+                content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=6),
+                bgcolor=self._clr("card"), border_radius=14,
+                padding=ft.Padding.symmetric(horizontal=8, vertical=6),
+            )
         return ft.Container(
             content=ft.Column(items, spacing=4),
             bgcolor=self._clr("card"), border_radius=16,
@@ -299,6 +316,8 @@ class StaffPage:
     RENDERERS = ["_render_menu", "_render_food", "_render_ingredients", "_render_recipes"]
 
     def build(self):
+        mobile = self._is_mobile()
+
         def select_section(idx):
             self.section_idx["v"] = idx
             sidebar.controls[0] = self._sidebar(select_section)
@@ -306,23 +325,33 @@ class StaffPage:
             self.page.update()
 
         sidebar = ft.Column([self._sidebar(select_section)])
-        layout = ft.Row([
-            sidebar,
-            ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.08, self._clr("text"))),
-            ft.Container(content=self.content, expand=True, padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
-        ], expand=True, spacing=0)
+        if mobile:
+            layout = ft.Column([
+                sidebar,
+                ft.Container(content=self.content, expand=True,
+                    padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
+            ], expand=True, spacing=6)
+        else:
+            layout = ft.Row([
+                sidebar,
+                ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.08, self._clr("text"))),
+                ft.Container(content=self.content, expand=True,
+                    padding=ft.Padding.symmetric(horizontal=20, vertical=8)),
+            ], expand=True, spacing=0)
 
         asyncio.create_task(self._safe_render("_render_menu", self.content))
 
+        hp = 12 if mobile else 20
         return ft.Container(
             content=ft.Column([
                 ft.Row([
-                    ft.Text("Staff", size=24, weight="bold", font_family="DM Sans", color=self._clr("text")),
+                    ft.Text("Staff", size=20 if mobile else 24, weight="bold",
+                            font_family="DM Sans", color=self._clr("text")),
                     self._chip("Staff", self._clr("accent2"), ft.Colors.with_opacity(0.12, self._clr("accent2"))),
                 ], spacing=12),
-                ft.Container(height=8),
+                ft.Container(height=4 if mobile else 8),
                 ft.Container(content=layout, expand=True),
             ], expand=True),
             expand=True,
-            padding=ft.Padding.symmetric(horizontal=20, vertical=16),
+            padding=ft.Padding.symmetric(horizontal=hp, vertical=12 if mobile else 16),
         )

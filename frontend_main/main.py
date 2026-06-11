@@ -106,11 +106,32 @@ def build_landing(page, login_click, guest_login, show_register):
     acc = t["accent"]
     sub = t["sub"]
     d = t["is_dark"]
+    m = (page.width or 1200) < 720
     grad = ft.LinearGradient(
         begin=ft.Alignment(-1, -1),
         end=ft.Alignment(1, 1),
         colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
     )
+
+    isize = 40 if m else 56
+    ibox  = 72 if m else 96
+    tsize = 28 if m else 40
+
+    guest_btns = ft.Column([
+        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=t["text"],
+                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
+                shape=ft.RoundedRectangleBorder(radius=10),
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
+        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
+    ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER) if m else ft.Row([
+        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=t["text"],
+                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
+                shape=ft.RoundedRectangleBorder(radius=10),
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
+        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
+    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
 
     return ft.Container(
         gradient=grad,
@@ -119,19 +140,19 @@ def build_landing(page, login_click, guest_login, show_register):
             *_food_decos(acc),
             ft.Container(
                 content=ft.Column([
-                    ft.Container(height=80),
+                    ft.Container(height=60 if m else 80),
                     ft.Container(
-                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=56, color=acc),
+                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=isize, color=acc),
                         bgcolor=ft.Colors.with_opacity(0.1, acc),
-                        width=96, height=96, border_radius=48,
+                        width=ibox, height=ibox, border_radius=ibox//2,
                         alignment=ft.Alignment(0, 0),
                     ),
-                    ft.Container(height=20),
-                    ft.Text("NUST's Kitchen", size=40, weight="bold",
+                    ft.Container(height=16 if m else 20),
+                    ft.Text("NUST's Kitchen", size=tsize, weight="bold",
                             font_family="Playfair", color=t["text"]),
                     ft.Text("Mess Portal \u2022 SEECS", size=14, color=sub,
                             font_family="DM Sans"),
-                    ft.Container(height=48),
+                    ft.Container(height=36 if m else 48),
                     ft.FilledButton(
                         content=ft.Row([
                             ft.Icon(ft.Icons.LOGIN_ROUNDED, color=SLATE_900, size=18),
@@ -140,7 +161,8 @@ def build_landing(page, login_click, guest_login, show_register):
                         ], spacing=10, tight=True),
                         on_click=login_click,
                         style=ft.ButtonStyle(
-                            bgcolor=acc, padding=ft.Padding.symmetric(horizontal=36, vertical=16),
+                            bgcolor=acc,
+                            padding=ft.Padding.symmetric(horizontal=36, vertical=16),
                             shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
                         ),
                     ),
@@ -154,14 +176,7 @@ def build_landing(page, login_click, guest_login, show_register):
                         ft.Container(height=1, bgcolor=sub, expand=True),
                     ], alignment=ft.MainAxisAlignment.CENTER),
                     ft.Container(height=16),
-                    ft.Row([
-                        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-                            style=ft.ButtonStyle(color=t["text"],
-                                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                                shape=ft.RoundedRectangleBorder(radius=10),
-                                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-                        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
+                    guest_btns,
                     ft.Container(height=24),
                     ft.TextButton(
                         content=ft.Text("New here? Register as Student / Staff",
@@ -182,16 +197,19 @@ def build_register_form(page, on_submit, on_back):
     acc = t["accent"]
     sub = t["sub"]
     d = t["is_dark"]
+    m = (page.width or 1200) < 720
     grad = ft.LinearGradient(
         begin=ft.Alignment(-1, -1),
         end=ft.Alignment(1, 1),
         colors=["#0F172A", "#1a1f38"] if d else ["#F8FAFC", "#FFF8E7"],
     )
 
+    fw = 320 if not m else None  # None = expand
+
     role_dd = ft.Dropdown(
         label="Role",
         options=[ft.dropdown.Option("Student"), ft.dropdown.Option("Staff")],
-        value="Student", width=320,
+        value="Student", width=fw if not m else None, expand=m,
         color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
         border_color=ft.Colors.with_opacity(0.3, t["text"]),
     )
@@ -211,7 +229,7 @@ def build_register_form(page, on_submit, on_back):
         ("category", "Staff Category", "Chef / Server"),
     ]:
         fields[key] = ft.TextField(
-            label=label, hint_text=hint, width=320,
+            label=label, hint_text=hint, width=fw, expand=m,
             color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
             border_color=ft.Colors.with_opacity(0.3, t["text"]),
             cursor_color=acc, border_radius=10,
@@ -619,6 +637,7 @@ async def main(page: ft.Page):
             dock_wrapper,
         ], spacing=0, expand=True)
 
+        page.on_resized = lambda e: load_page(current_index["v"])
         page.add(body)
         load_page(0)
         page.update()
