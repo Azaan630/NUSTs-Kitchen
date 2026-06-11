@@ -64,68 +64,111 @@ def make_theme():
         "NAVY_LIGHT": SLATE_800,
         "AMBER_DIM":  SKY_600,
         "CREAM2":     SLATE_700 if d else SLATE_200,
+        # gradients
+        "bg_gradient": ft.LinearGradient(
+            begin=ft.Alignment(-0.3, -0.3),
+            end=ft.Alignment(0.7, 0.7),
+            colors=["#0F172A", "#1a1f38"] if d else ["#F8FAFC", "#FFF8E7"],
+        ),
     }
 
 
+FOOD_DECOS = [
+    (ft.Icons.RICE_BOWL_ROUNDED,  150, 30,  50),
+    (ft.Icons.COFFEE_ROUNDED,      90, None, None, 40, 70),
+    (ft.Icons.SET_MEAL_ROUNDED,   120, 50,  None, None, 130),
+    (ft.Icons.DINING_ROUNDED,      70, None, None, 35, 160),
+    (ft.Icons.BAKERY_DINING_ROUNDED, 50, None, 100, None, None),
+]
+
+def _food_decos(accent):
+    icons = []
+    for deco in FOOD_DECOS:
+        icon_name, size, left, top, right, bottom = (deco + (None,)*6)[:6]
+        kw = {}
+        if left is not None: kw["left"] = left
+        if top is not None: kw["top"] = top
+        if right is not None: kw["right"] = right
+        if bottom is not None: kw["bottom"] = bottom
+        icons.append(ft.Container(
+            content=ft.Icon(icon_name, size=size, opacity=0.035, color=accent),
+            **kw,
+        ))
+    return icons
+
 def build_landing(page, login_click, guest_login, show_register):
     t = make_theme()
-    bg  = t["DARK_BG"]
     acc = t["accent"]
     sub = t["sub"]
+    d = t["is_dark"]
+    grad = ft.LinearGradient(
+        begin=ft.Alignment(-1, -1),
+        end=ft.Alignment(1, 1),
+        colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
+    )
 
     return ft.Container(
-        content=ft.Column([
-            ft.Container(height=80),
+        gradient=grad,
+        content=ft.Stack([
+            ft.Container(expand=True),
+            *_food_decos(acc),
             ft.Container(
-                content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=56, color=acc),
-                bgcolor=ft.Colors.with_opacity(0.1, acc),
-                width=96, height=96, border_radius=48,
+                content=ft.Column([
+                    ft.Container(height=80),
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=56, color=acc),
+                        bgcolor=ft.Colors.with_opacity(0.1, acc),
+                        width=96, height=96, border_radius=48,
+                        alignment=ft.Alignment(0, 0),
+                    ),
+                    ft.Container(height=20),
+                    ft.Text("NUST's Kitchen", size=40, weight="bold",
+                            font_family="Playfair", color=t["text"]),
+                    ft.Text("Mess Portal \u2022 SEECS", size=14, color=sub,
+                            font_family="DM Sans"),
+                    ft.Container(height=48),
+                    ft.FilledButton(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.LOGIN_ROUNDED, color=SLATE_900, size=18),
+                            ft.Text("Continue with Google", color=SLATE_900,
+                                    weight="bold", font_family="DM Sans", size=14),
+                        ], spacing=10, tight=True),
+                        on_click=login_click,
+                        style=ft.ButtonStyle(
+                            bgcolor=acc, padding=ft.Padding.symmetric(horizontal=36, vertical=16),
+                            shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
+                        ),
+                    ),
+                    ft.Container(height=16),
+                    ft.Row([
+                        ft.Container(height=1, bgcolor=sub, expand=True),
+                        ft.Container(
+                            content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
+                            padding=ft.Padding.symmetric(horizontal=12),
+                        ),
+                        ft.Container(height=1, bgcolor=sub, expand=True),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Container(height=16),
+                    ft.Row([
+                        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+                            style=ft.ButtonStyle(color=t["text"],
+                                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
+                                shape=ft.RoundedRectangleBorder(radius=10),
+                                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
+                        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
+                    ft.Container(height=24),
+                    ft.TextButton(
+                        content=ft.Text("New here? Register as Student / Staff",
+                                        color=acc, size=13, font_family="DM Sans"),
+                        on_click=lambda e: show_register(),
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 alignment=ft.Alignment(0, 0),
+                expand=True,
             ),
-            ft.Container(height=20),
-            ft.Text("NUST's Kitchen", size=40, weight="bold",
-                    font_family="Playfair", color=t["text"]),
-            ft.Text("Mess Portal \u2022 SEECS", size=14, color=sub,
-                    font_family="DM Sans"),
-            ft.Container(height=48),
-            ft.FilledButton(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.LOGIN_ROUNDED, color=SLATE_900, size=18),
-                    ft.Text("Continue with Google", color=SLATE_900,
-                            weight="bold", font_family="DM Sans", size=14),
-                ], spacing=10, tight=True),
-                on_click=login_click,
-                style=ft.ButtonStyle(
-                    bgcolor=acc, padding=ft.Padding.symmetric(horizontal=36, vertical=16),
-                    shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
-                ),
-            ),
-            ft.Container(height=16),
-            ft.Row([
-                ft.Container(height=1, bgcolor=sub, expand=True),
-                ft.Container(
-                    content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
-                    padding=ft.Padding.symmetric(horizontal=12),
-                ),
-                ft.Container(height=1, bgcolor=sub, expand=True),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-            ft.Container(height=16),
-            ft.Row([
-                ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-                    style=ft.ButtonStyle(color=t["text"],
-                        side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                        shape=ft.RoundedRectangleBorder(radius=10),
-                        padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-                for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
-            ft.Container(height=24),
-            ft.TextButton(
-                content=ft.Text("New here? Register as Student / Staff",
-                                color=acc, size=13, font_family="DM Sans"),
-                on_click=lambda e: show_register(),
-            ),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        alignment=ft.Alignment(0, 0), expand=True,
+        ]),
+        expand=True,
     )
 
 
@@ -133,6 +176,12 @@ def build_register_form(page, on_submit, on_back):
     t = make_theme()
     acc = t["accent"]
     sub = t["sub"]
+    d = t["is_dark"]
+    grad = ft.LinearGradient(
+        begin=ft.Alignment(-1, -1),
+        end=ft.Alignment(1, 1),
+        colors=["#0F172A", "#1a1f38"] if d else ["#F8FAFC", "#FFF8E7"],
+    )
 
     role_dd = ft.Dropdown(
         label="Role",
@@ -202,46 +251,62 @@ def build_register_form(page, on_submit, on_back):
         msg.update()
 
     return ft.Container(
-        content=ft.Column([
-            ft.Container(height=40),
+        gradient=grad,
+        content=ft.Stack([
+            ft.Container(expand=True),
             ft.Container(
-                content=ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, size=36, color=acc),
-                bgcolor=ft.Colors.with_opacity(0.1, acc),
-                width=64, height=64, border_radius=32, alignment=ft.Alignment(0, 0),
+                content=ft.Icon(ft.Icons.SET_MEAL_ROUNDED, size=100, opacity=0.03, color=acc),
+                left=20, top=100,
             ),
-            ft.Container(height=16),
-            ft.Text("Create Account", size=26, weight="bold",
-                    font_family="Playfair", color=t["text"]),
-            ft.Text("Admin will review your request", size=13, color=sub, font_family="DM Sans"),
-            ft.Container(height=20),
-            role_dd, ft.Container(height=4),
-            *[fields[k] for k in ["first", "last", "email"]],
-            ft.Container(height=12),
-            fields["category"],
-            *[fields[k] for k in ["dob", "dept", "phone", "address", "father", "hostel", "room"]],
-            ft.Container(height=12),
-            msg,
-            ft.FilledButton(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.SEND_ROUNDED, color=SLATE_900, size=16),
-                    ft.Text("Submit Request", color=SLATE_900, weight="bold",
-                            font_family="DM Sans", size=14),
-                ], spacing=8, tight=True),
-                on_click=submit,
-                style=ft.ButtonStyle(bgcolor=acc,
-                    shape=ft.RoundedRectangleBorder(radius=10),
-                    padding=ft.Padding.symmetric(horizontal=32, vertical=14), elevation=0),
+            ft.Container(
+                content=ft.Icon(ft.Icons.RICE_BOWL_ROUNDED, size=80, opacity=0.025, color=acc),
+                right=20, bottom=80,
             ),
-            ft.Container(height=8),
-            ft.TextButton(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, color=acc, size=16),
-                    ft.Text("Back to Login", color=acc, size=13, font_family="DM Sans"),
-                ], spacing=4, tight=True),
-                on_click=lambda e: on_back(),
+            ft.Container(
+                content=ft.Column([
+                    ft.Container(height=40),
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, size=36, color=acc),
+                        bgcolor=ft.Colors.with_opacity(0.1, acc),
+                        width=64, height=64, border_radius=32, alignment=ft.Alignment(0, 0),
+                    ),
+                    ft.Container(height=16),
+                    ft.Text("Create Account", size=26, weight="bold",
+                            font_family="Playfair", color=t["text"]),
+                    ft.Text("Admin will review your request", size=13, color=sub, font_family="DM Sans"),
+                    ft.Container(height=20),
+                    role_dd, ft.Container(height=4),
+                    *[fields[k] for k in ["first", "last", "email"]],
+                    ft.Container(height=12),
+                    fields["category"],
+                    *[fields[k] for k in ["dob", "dept", "phone", "address", "father", "hostel", "room"]],
+                    ft.Container(height=12),
+                    msg,
+                    ft.FilledButton(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.SEND_ROUNDED, color=SLATE_900, size=16),
+                            ft.Text("Submit Request", color=SLATE_900, weight="bold",
+                                    font_family="DM Sans", size=14),
+                        ], spacing=8, tight=True),
+                        on_click=submit,
+                        style=ft.ButtonStyle(bgcolor=acc,
+                            shape=ft.RoundedRectangleBorder(radius=10),
+                            padding=ft.Padding.symmetric(horizontal=32, vertical=14), elevation=0),
+                    ),
+                    ft.Container(height=8),
+                    ft.TextButton(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, color=acc, size=16),
+                            ft.Text("Back to Login", color=acc, size=13, font_family="DM Sans"),
+                        ], spacing=4, tight=True),
+                        on_click=lambda e: on_back(),
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE),
+                alignment=ft.Alignment(0, 0),
+                expand=True,
             ),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE),
-        alignment=ft.Alignment(0, 0), expand=True,
+        ]),
+        expand=True,
     )
 
 
@@ -271,7 +336,7 @@ async def main(page: ft.Page):
         page.update()
 
         current_index = {"v": 0}
-        page_content = ft.Container(expand=True, padding=0)
+        page_content = ft.Container(expand=True, padding=0, gradient=t["bg_gradient"])
 
         def toggle_dark(e):
             is_dark["v"] = not is_dark["v"]
@@ -279,6 +344,7 @@ async def main(page: ft.Page):
             page.bgcolor = t["bg"]
             top_bar.bgcolor = t["card"]
             dock_container.bgcolor = t["card"]
+            page_content.gradient = t["bg_gradient"]
             load_page(current_index["v"])
             page.update()
 

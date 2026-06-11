@@ -323,6 +323,6 @@ class StaffPage:
                 ft.Container(height=8),
                 ft.Container(content=layout, expand=True),
             ], expand=True),
-            bgcolor=self._clr("bg"), expand=True,
+            gradient=self.theme.get("bg_gradient"), expand=True,
             padding=ft.Padding.symmetric(horizontal=20, vertical=16),
         )
