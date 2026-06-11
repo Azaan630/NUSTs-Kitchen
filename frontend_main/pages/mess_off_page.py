@@ -241,25 +241,23 @@ class StudentMessOffPage:
         )
 
         async def submit(e):
-            try:
-                start = date.fromisoformat(start_field.value.strip())
-                end   = date.fromisoformat(end_field.value.strip())
-            except ValueError:
-                self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Invalid date format — use YYYY-MM-DD", color="#FFF"),
-                    bgcolor="#EF4444",
-                )
-                self.page.snack_bar.open = True
-                self.page.update()
+            from pages.validation import validate_date_str
+            start_dt, err = validate_date_str(start_field.value, "Start Date")
+            if err:
+                start_field.error_text = err; start_field.update()
                 return
-
+            start_field.error_text = ""
+            end_dt, err = validate_date_str(end_field.value, "End Date")
+            if err:
+                end_field.error_text = err; end_field.update()
+                return
+            end_field.error_text = ""
+            start = start_dt
+            end   = end_dt
             if start > end:
-                self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Start date must be before end date", color="#FFF"),
-                    bgcolor="#EF4444",
-                )
-                self.page.snack_bar.open = True
-                self.page.update()
+                start_field.error_text = "Start date must be before end date"
+                end_field.error_text = "End date must be after start date"
+                start_field.update(); end_field.update()
                 return
 
             if self.is_guest:

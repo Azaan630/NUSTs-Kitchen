@@ -274,22 +274,53 @@ def build_register_form(page, on_submit, on_back):
         for f in fields.values():
             f.error_text = ""
             f.update()
-        if not fields["first"].value or not fields["last"].value or not fields["email"].value:
-            msg.value = "First Name, Last Name, and Email are required"
-            msg.update(); return
+        from pages.validation import (
+            validate_name, validate_email, validate_phone, validate_date_str,
+            validate_hostel, validate_room, validate_address,
+            validate_department, validate_category,
+        )
+        v_first, err = validate_name(fields["first"].value, "First Name")
+        fields["first"].error_text = err
+        v_last, err = validate_name(fields["last"].value, "Last Name")
+        fields["last"].error_text = err
+        v_email, err = validate_email(fields["email"].value)
+        fields["email"].error_text = err
+        v_dob, err = validate_date_str(fields["dob"].value, "Date of Birth") if fields["dob"].value else (None, None)
+        if err and fields["dob"].value:
+            fields["dob"].error_text = err
+        v_dept, err = validate_department(fields["dept"].value)
+        if err: fields["dept"].error_text = err
+        v_phone, err = validate_phone(fields["phone"].value)
+        if err: fields["phone"].error_text = err
+        v_addr, err = validate_address(fields["address"].value)
+        if err: fields["address"].error_text = err
+        v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
+        if err: fields["father"].error_text = err
+        v_hostel, err = validate_hostel(fields["hostel"].value)
+        if err: fields["hostel"].error_text = err
+        v_room, err = validate_room(fields["room"].value)
+        if err: fields["room"].error_text = err
+        v_cat, err = validate_category(fields["category"].value)
+        if err: fields["category"].error_text = err
+
+        for f in fields.values():
+            if f.error_text:
+                f.update()
+        if any(f.error_text for f in fields.values()):
+            return
         payload = {
-            "First_Name": fields["first"].value.strip(),
-            "Last_Name": fields["last"].value.strip(),
-            "Email": fields["email"].value.strip(),
+            "First_Name": v_first,
+            "Last_Name": v_last,
+            "Email": v_email,
             "Account_Type": role_dd.value,
-            "DoB": fields["dob"].value.strip() or None,
-            "Department": fields["dept"].value.strip() or None,
-            "Contact_Number": fields["phone"].value.strip() or None,
-            "Address": fields["address"].value.strip() or None,
-            "Father_Name": fields["father"].value.strip() or None,
-            "Hostel_Name": fields["hostel"].value.strip() or None,
-            "Room_Number": fields["room"].value.strip() or None,
-            "Category": fields["category"].value.strip() or None,
+            "DoB": str(v_dob) if v_dob else None,
+            "Department": v_dept,
+            "Contact_Number": v_phone,
+            "Address": v_addr,
+            "Father_Name": v_father,
+            "Hostel_Name": v_hostel,
+            "Room_Number": v_room,
+            "Category": v_cat,
         }
         try:
             async with httpx.AsyncClient() as client:

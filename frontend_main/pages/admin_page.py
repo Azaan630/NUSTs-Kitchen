@@ -1252,16 +1252,14 @@ class AdminPage:
             self.page.update()
 
         async def do_add_food(e):
-            try:
-                data = {
-                    "Name": add_f_name.value.strip(),
-                    "Price": float(add_f_price.value or 0),
-                    "Quantity": float(add_f_qty.value or 0),
-                }
-            except ValueError:
-                self._snack("Invalid number", False); return
-            if not data["Name"]:
-                self._snack("Name required", False); return
+            from pages.validation import validate_name, validate_positive_number
+            v_name, err = validate_name(add_f_name.value, "Name")
+            if err: self._snack(err, False); return
+            v_price, err = validate_positive_number(add_f_price.value, "Price")
+            if err: self._snack(err, False); return
+            v_qty, err = validate_positive_number(add_f_qty.value, "Quantity")
+            if err: self._snack(err, False); return
+            data = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
             if self.is_guest:
                 mock_data.create_food(data)
                 self._snack("Created")
@@ -1306,10 +1304,17 @@ class AdminPage:
                 filled=True, fill_color=self._clr("card"),)
 
             def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
-                try:
-                    p = {"Name": nf.value, "Price": float(pf.value or 0), "Quantity": float(qf.value or 0)}
-                except ValueError:
-                    self._snack("Invalid number", False); return
+                from pages.validation import validate_name, validate_positive_number
+                v_name, err = validate_name(nf.value, "Name")
+                if err: nf.error_text = err; nf.update(); return
+                nf.error_text = ""
+                v_price, err = validate_positive_number(pf.value, "Price")
+                if err: pf.error_text = err; pf.update(); return
+                pf.error_text = ""
+                v_qty, err = validate_positive_number(qf.value, "Quantity")
+                if err: qf.error_text = err; qf.update(); return
+                qf.error_text = ""
+                p = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
                 if self.is_guest:
                     mock_data.update_food(i, p)
                     self._snack("Updated")
@@ -1439,17 +1444,16 @@ class AdminPage:
             self.page.update()
 
         async def do_save_add(e):
-            try:
-                data = {
-                    "Name": add_name.value.strip(),
-                    "Total_Quantity": float(add_qty.value or 0),
-                    "Unit": add_unit.value.strip(),
-                    "Unit_cost": float(add_cost.value or 0),
-                }
-            except ValueError:
-                self._snack("Invalid number", False); return
-            if not data["Name"] or not data["Unit"]:
-                self._snack("Name and Unit required", False); return
+            from pages.validation import validate_name, validate_required, validate_positive_number
+            v_name, err = validate_name(add_name.value, "Name")
+            if err: self._snack(err, False); return
+            v_qty, err = validate_positive_number(add_qty.value, "Quantity")
+            if err: self._snack(err, False); return
+            v_unit, err = validate_required(add_unit.value, "Unit")
+            if err: self._snack(err, False); return
+            v_cost, err = validate_positive_number(add_cost.value, "Cost/unit")
+            if err: self._snack(err, False); return
+            data = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
             if self.is_guest:
                 mock_data.create_ingredient(data)
                 self._snack("Created")
@@ -1499,11 +1503,20 @@ class AdminPage:
                 text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
 
             def do_upd(e, i=iid, nf=ef_name, qf=ef_qty, uf=ef_unit, cf=ef_cost):
-                try:
-                    d = {"Name": nf.value, "Total_Quantity": float(qf.value or 0),
-                         "Unit": uf.value, "Unit_cost": float(cf.value or 0)}
-                except ValueError:
-                    self._snack("Invalid number", False); return
+                from pages.validation import validate_name, validate_required, validate_positive_number
+                v_name, err = validate_name(nf.value, "Name")
+                if err: nf.error_text = err; nf.update(); return
+                nf.error_text = ""
+                v_qty, err = validate_positive_number(qf.value, "Quantity")
+                if err: qf.error_text = err; qf.update(); return
+                qf.error_text = ""
+                v_unit, err = validate_required(uf.value, "Unit")
+                if err: uf.error_text = err; uf.update(); return
+                uf.error_text = ""
+                v_cost, err = validate_positive_number(cf.value, "Cost/unit")
+                if err: cf.error_text = err; cf.update(); return
+                cf.error_text = ""
+                d = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
                 if self.is_guest:
                     mock_data.update_ingredient(i, d)
                     self._snack("Updated")
@@ -1836,11 +1849,14 @@ class AdminPage:
             self.page.update()
 
         async def do_add_menu(e):
+            from pages.validation import validate_date_str
             iid = add_m_food.value
-            d = add_m_date.value.strip()
+            dt, err = validate_date_str(add_m_date.value, "Date")
+            if err: self._snack(err, False); return
+            d = str(dt)
             t = add_m_meal.value
-            if not iid or not d or not t:
-                self._snack("All fields required", False); return
+            if not iid or not t:
+                self._snack("Meal and Food Item are required", False); return
             if self.is_guest:
                 mock_data.add_menu_item(iid, d, t)
                 self._snack("Added")
