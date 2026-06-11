@@ -62,6 +62,7 @@ class BillDAO(BaseDAO):
 
     def get_recent_activity(self, limit=10):
         """Unify recent bill payments, mess-off approvals, and new registrations."""
+        from datetime import datetime
         bills = self._fetchall(
             """SELECT CONCAT('Bill paid: ', u.First_Name, ' ', u.Last_Name) AS description,
                       b.Status AS detail, b.Issue_Date AS event_date
@@ -83,8 +84,14 @@ class BillDAO(BaseDAO):
                WHERE Status IN ('Approved', 'Rejected')
                ORDER BY Created_At DESC LIMIT %s""", (limit,)
         )
-        items = sorted(bills + mess_offs + regs,
-                       key=lambda x: x.get("event_date") or "", reverse=True)[:limit]
+        def _key(x):
+            v = x.get("event_date")
+            if isinstance(v, datetime):
+                return v
+            if hasattr(v, "isoformat"):
+                return datetime.combine(v, datetime.min.time())
+            return datetime.min
+        items = sorted(bills + mess_offs + regs, key=_key, reverse=True)[:limit]
         return items
 
     def get_dashboard_stats(self):

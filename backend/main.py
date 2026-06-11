@@ -121,6 +121,16 @@ def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depe
     return FoodDAO(db).get_all_food_costs()
 
 
+@app.get("/admin/food/search")
+def search_food_items(q: str = Query(min_length=1), limit: int = Query(default=20, le=100),
+                      user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    try:
+        return FoodDAO(db).search_food_items(q, limit)
+    except Exception as e:
+        logger.error("search_food_items q=%s: %s", q, e, exc_info=True)
+        raise
+
+
 @app.get("/admin/food/{ItemID}")
 def get_food_by_id(ItemID: int, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Staff"]))):
     return FoodDAO(db).get_food_by_id(ItemID)
@@ -507,16 +517,6 @@ def get_mess_off(MessOffID: int, user=Depends(permission_checker(["Student", "Ad
 @app.get("/admin/dashboard/stats")
 def get_dashboard_stats(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return BillDAO(db).get_dashboard_stats()
-
-
-@app.get("/admin/food/search")
-def search_food_items(q: str = Query(min_length=1), limit: int = Query(default=20, le=100),
-                      user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
-    try:
-        return FoodDAO(db).search_food_items(q, limit)
-    except Exception as e:
-        logger.error("search_food_items q=%s: %s", q, e, exc_info=True)
-        raise
 
 
 @app.get("/admin/users/search")
