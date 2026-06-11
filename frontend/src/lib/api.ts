@@ -17,8 +17,13 @@ const api = axios.create({
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const message =
-      err.response?.data?.detail || err.response?.data?.message || err.message || 'An error occurred'
+    const detail = err.response?.data?.detail
+    const message = detail || err.response?.data?.message || err.message || 'An error occurred'
+    console.error('[API Error]', err.config?.method?.toUpperCase(), err.config?.url, {
+      status: err.response?.status,
+      detail,
+      data: err.response?.data,
+    })
     return Promise.reject(new Error(message))
   },
 )
@@ -253,12 +258,12 @@ export async function getStaffCategories(email: string): Promise<StaffCategory[]
 // ─── Food Items ──────────────────────────────────────────────────────────────
 
 export async function getAllFoodItems(email: string): Promise<FoodItem[]> {
-  const { data } = await api.get<any[]>('/admin/food/costs', authParams(email))
+  const { data } = await api.get<any[]>('/admin/food-items/all', authParams(email))
   return (data || []).map((item: any) => ({
-    ItemID: item.ItemID ?? item.Item_ID ?? 0,
-    ItemName: item.ItemName ?? item.Name ?? '',
+    ItemID: item.Item_ID ?? item.ItemID ?? 0,
+    ItemName: item.Name ?? item.ItemName ?? '',
     Category: item.Category ?? '',
-    Price: Number(item.Price ?? item.Estimated_Cost ?? 0),
+    Price: Number(item.Price ?? 0),
     IsVegetarian: item.IsVegetarian ?? false,
     Vote_Count: item.Vote_Count ?? 0,
     Ratings_Average: Number(item.Ratings_Average ?? 0),

@@ -295,6 +295,11 @@ def generate_pdf(BillingID: int, email: str, db=Depends(get_db), user=Depends(pe
 
 # ── Food Items ─────────────────────────────────────────────────
 
+@app.get("/admin/food-items/all")
+def get_all_food_items(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return FoodDAO(db).get_all_food_items()
+
+
 @app.post("/admin/food-items/create")
 def create_food(data: models.Food, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     cursor = FoodDAO(db).create_food(data.Name, data.Quantity, data.Price)
