@@ -378,7 +378,7 @@ class AdminPage:
 
     def _clean_max(self, v, step=50):
         if v <= 0: return step
-        return ((v // step) + 1) * step
+        return ((int(v) // step) + 1) * step
 
     def _build_ratings_chart(self, items):
         if not items:
@@ -486,7 +486,7 @@ class AdminPage:
             left_axis=ChartAxis(title="Stock", title_size=11, show_labels=True,
                                 labels=[
                                     ChartAxisLabel(v, ft.Text(str(v), size=10, color=self._clr("sub"), font_family="DM Sans"))
-                                    for v in range(0, int(max_y) + 1, max(1, max_y // 5) if max_y > 10 else 5)
+                                    for v in range(0, int(max_y) + 1, max(1, int(max_y) // 5) if max_y > 10 else 5)
                                 ],
                                 label_size=10),
             bottom_axis=ChartAxis(
@@ -569,7 +569,7 @@ class AdminPage:
             left_axis=ChartAxis(title="PKR", title_size=11, show_labels=True,
                                 labels=[
                                     ChartAxisLabel(v, ft.Text(f"{v:,.0f}", size=10, color=self._clr("sub"), font_family="DM Sans"))
-                                    for v in range(0, int(max_y) + 1, max_y // 4)
+                                    for v in range(0, int(max_y) + 1, int(max_y) // 4)
                                 ],
                                 label_size=10),
             bottom_axis=ChartAxis(
