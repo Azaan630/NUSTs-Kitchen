@@ -154,16 +154,46 @@ class AdminPage:
         task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
         return task
 
+    def _remove_overlay(self, overlay):
+        if overlay in self.page.controls:
+            self.page.remove(overlay)
+            self.page.update()
+
     def _confirm(self, title, msg, on_delete):
         logger.error("_confirm: %s | %s", title, msg)
-        try:
-            if asyncio.iscoroutinefunction(on_delete):
-                self._run(on_delete())
-            else:
-                on_delete()
-        except Exception as ex:
-            logger.error("_confirm exec failed: %s", ex, exc_info=True)
-            self._snack(f"Error: {ex}", False)
+        t = self.theme
+        card = ft.Container(
+            content=ft.Column([
+                ft.Text(title, weight="bold", size=17, color=t.get("text"), font_family="DM Sans"),
+                ft.Container(height=6),
+                ft.Text(msg, size=13, color=t.get("sub"), font_family="DM Sans"),
+                ft.Container(height=16),
+                ft.Row([
+                    ft.TextButton("Cancel",
+                        on_click=lambda e: self._remove_overlay(overlay),
+                        style=ft.ButtonStyle(color=t.get("sub"))),
+                    ft.FilledButton("Confirm",
+                        style=ft.ButtonStyle(
+                            bgcolor=t.get("danger") if "Delete" in title or "Remove" in title or "End" in title or "Reject" in title
+                                   else t.get("accent"))),
+                ], alignment=ft.MainAxisAlignment.END, spacing=8),
+            ], tight=True, spacing=4),
+            bgcolor=t.get("card"), border_radius=18, padding=24, width=340,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        overlay = ft.Container(
+            content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+            alignment=ft.Alignment(0, 0), expand=True,
+            on_click=lambda e: self._remove_overlay(overlay),
+        )
+        self.page.add(overlay)
+        self.page.update()
+        # wire confirm click after overlay is in scope
+        card.content.controls[4].controls[1].on_click = lambda e: [
+            self._remove_overlay(overlay),
+            self._run(on_delete()) if asyncio.iscoroutinefunction(on_delete)
+            else on_delete(),
+        ]
 
     def _card(self, *controls, pad=14):
         return ft.Container(

@@ -287,7 +287,7 @@ async def main(page: ft.Page):
             tooltip="Toggle theme", on_click=lambda e: toggle_dark(e),
         )
 
-        async def logout_click(e):
+        async def logout_click(e=None):
             is_dark["v"] = True
             page.current_user_data = {}
             page.clean()
@@ -296,13 +296,9 @@ async def main(page: ft.Page):
             page.add(build_landing(page, login_click, guest_login, show_register_page))
             page.update()
 
-        _logout_btn = ft.IconButton(
-            icon=ft.Icons.LOGOUT_ROUNDED, icon_color=t["sub"], icon_size=20,
-            tooltip="Logout", on_click=lambda e: asyncio.create_task(logout_click(e)),
-        )
-
         first = get_val("First_Name", "U")
         last  = get_val("Last_Name", "")
+        email = get_val("Email", "")
         initials = (first[0] + (last[0] if last else "")).upper()
 
         avatar = ft.Container(
@@ -311,11 +307,75 @@ async def main(page: ft.Page):
             alignment=ft.Alignment(0, 0),
         )
 
+        # ── Overlay dialog helpers ──
+        def _show_overlay(content):
+            o = ft.Container(
+                content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+                alignment=ft.Alignment(0, 0), expand=True,
+                on_click=lambda e: _remove_overlay(o),
+            )
+            page.add(o); page.update(); return o
+        def _remove_overlay(o):
+            if o in page.controls: page.remove(o); page.update()
+        def _confirm_dialog(title, msg, on_confirm):
+            card = ft.Container(
+                content=ft.Column([
+                    ft.Text(title, weight="bold", size=17, color=t["text"], font_family="DM Sans"),
+                    ft.Container(height=6),
+                    ft.Text(msg, size=13, color=t["sub"], font_family="DM Sans"),
+                    ft.Container(height=16),
+                    ft.Row([
+                        ft.TextButton("Cancel", on_click=lambda e: _remove_overlay(ov),
+                            style=ft.ButtonStyle(color=t["sub"])),
+                        ft.FilledButton("Confirm",
+                            style=ft.ButtonStyle(bgcolor=t["danger"]),
+                            on_click=lambda e: [_remove_overlay(ov), on_confirm()]),
+                    ], alignment=ft.MainAxisAlignment.END, spacing=8),
+                ], tight=True, spacing=4),
+                bgcolor=t["card"], border_radius=18, padding=24, width=340,
+                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            )
+            ov = _show_overlay(card)
+
+        def _show_profile_popup(e):
+            card = ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        content=ft.Row([
+                            avatar,
+                            ft.Column([
+                                ft.Text(f"{first} {last}".strip(), weight="bold", size=15,
+                                        color=t["text"], font_family="DM Sans"),
+                                ft.Text(email, size=12, color=t["sub"], font_family="DM Sans"),
+                            ], spacing=0, tight=True),
+                        ], spacing=10),
+                    ),
+                    ft.Divider(height=12, color=ft.Colors.with_opacity(0.1, t["text"])),
+                    ft.Container(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.LOGOUT_ROUNDED, size=16, color=t["danger"]),
+                            ft.Text("Logout", size=13, weight="bold", color=t["danger"],
+                                    font_family="DM Sans"),
+                        ], spacing=8),
+                        padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+                        border_radius=10,
+                        on_click=lambda e: [_remove_overlay(po), _confirm_dialog(
+                            "Logout", "Are you sure you want to log out?",
+                            lambda: asyncio.create_task(logout_click(e)),
+                        )],
+                    ),
+                ], tight=True, spacing=4),
+                bgcolor=t["card"], border_radius=18, padding=20, width=280,
+                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            )
+            po = _show_overlay(card)
+
         name_chip = ft.Container(
             content=ft.Row([avatar, ft.Text(f"{first} {last}".strip(), size=13,
                 weight="bold", color=t["text"], font_family="DM Sans")], spacing=8),
             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
             bgcolor=ft.Colors.with_opacity(0.08, t["accent"]), border_radius=16,
+            on_click=_show_profile_popup,
         )
 
         top_bar = ft.Container(
@@ -329,7 +389,7 @@ async def main(page: ft.Page):
                     ft.Text("RotiRouter", size=20, weight="bold",
                             font_family="Playfair", color=t["accent"]),
                 ], spacing=10),
-                ft.Row([name_chip, dark_btn, _logout_btn], spacing=2),
+                ft.Row([name_chip, dark_btn], spacing=2),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             padding=ft.Padding.symmetric(horizontal=20, vertical=8),
             bgcolor=t["card"],
