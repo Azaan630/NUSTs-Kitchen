@@ -404,27 +404,26 @@ class AdminPage:
             items.append(ft.Container(
                 content=ft.Column([
                     ft.Container(
-                        content=ft.Icon(icon, size=20,
+                        content=ft.Icon(icon, size=24,
                             color=self._clr("accent") if sel else self._clr("sub")),
-                        width=40, height=40,
+                        width=48, height=48,
                         bgcolor=ft.Colors.with_opacity(0.12, self._clr("accent")) if sel else ft.Colors.TRANSPARENT,
-                        border_radius=12, alignment=ft.Alignment(0, 0),
+                        border_radius=14, alignment=ft.Alignment(0, 0),
                         animate=ft.Animation(200, "easeOut"),
                     ),
-                    ft.Text(label, size=8,
+                    ft.Text(label, size=9,
                         color=self._clr("accent") if sel else self._clr("sub"),
                         font_family="DM Sans", weight="bold" if sel else "normal"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
-                padding=ft.Padding.symmetric(horizontal=6, vertical=4),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3),
+                padding=ft.Padding.symmetric(horizontal=8, vertical=6),
                 on_click=lambda e, idx=i: on_select(idx),
                 tooltip=label,
             ))
         return ft.Container(
-            content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=2,
+            content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=4,
                            alignment=ft.MainAxisAlignment.CENTER),
             bgcolor=self._clr("card"), border_radius=24,
-            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-            margin=ft.Margin.only(bottom=12),
+            padding=ft.Padding.symmetric(horizontal=8, vertical=6),
         )
 
     # ════════════════════════════════════════════════════════════
@@ -2467,9 +2466,9 @@ class AdminPage:
             bn = ft.Column([self._bottom_nav(select_tab)])
             layout = ft.Column([
                 ft.Container(content=self.content, expand=True,
-                    padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
+                    padding=ft.Padding.symmetric(horizontal=8, vertical=6)),
                 bn,
-            ], expand=True, spacing=6)
+            ], expand=True, spacing=4)
         else:
             sidebar = ft.Column([self._sidebar(select_tab)])
             layout = ft.Row([
@@ -2481,17 +2480,17 @@ class AdminPage:
 
         asyncio.create_task(self._safe_render("_render_dashboard", self.content))
 
-        hp = 12 if mobile else 20
+        hp = 8 if mobile else 20
         return ft.Container(
             content=ft.Column([
                 ft.Row([
-                    ft.Text("Admin", size=20 if mobile else 24, weight="bold",
+                    ft.Text("Admin", size=18 if mobile else 24, weight="bold",
                             font_family="DM Sans", color=self._clr("text")),
                     self._chip("Admin", self._clr("accent"), ft.Colors.with_opacity(0.12, self._clr("accent"))),
-                ], spacing=12),
-                ft.Container(height=4 if mobile else 8),
+                ], spacing=8),
+                ft.Container(height=2 if mobile else 8),
                 ft.Container(content=layout, expand=True),
             ], expand=True),
             expand=True,
-            padding=ft.Padding.symmetric(horizontal=hp, vertical=12 if mobile else 16),
+            padding=ft.Padding.symmetric(horizontal=hp, vertical=8 if mobile else 16),
         )
