@@ -354,6 +354,8 @@ class StaffPage:
             self.section_idx["v"] = idx
             if not mobile:
                 sidebar.controls[0] = self._sidebar(select_section)
+            else:
+                bn.controls[0] = self._bottom_nav(select_section)
             self.content.opacity = 0
             self.page.update()
             async def _do():
@@ -365,7 +367,7 @@ class StaffPage:
 
         if mobile:
             sidebar = ft.Column([self._sidebar(select_section)])
-            bn = self._bottom_nav(select_section)
+            bn = ft.Column([self._bottom_nav(select_section)])
             layout = ft.Column([
                 ft.Container(content=self.content, expand=True,
                     padding=ft.Padding.symmetric(horizontal=12, vertical=8)),

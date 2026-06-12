@@ -239,181 +239,272 @@ def build_register_form(page, on_submit, on_back):
 
     fw = 320 if not m else None  # None = expand
 
-    role_dd = ft.Dropdown(
-        label="Role",
-        options=[ft.dropdown.Option("Student"), ft.dropdown.Option("Staff")],
-        value="Student", width=fw if not m else None, expand=m,
-        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
-        border_color=ft.Colors.with_opacity(0.3, t["text"]),
-    )
+    role = {"v": None}
 
-    fields = {}
-    for key, label, hint in [
-        ("first", "First Name", "e.g. Ali"),
-        ("last", "Last Name", "e.g. Khan"),
-        ("email", "Email", "you@seecs.edu.pk"),
-        ("dept", "Department", "CS, SE, EE"),
-        ("phone", "Contact", "03XX-XXXXXXX"),
-        ("address", "Address", "H-12 NUST"),
-        ("father", "Father's Name", ""),
-        ("hostel", "Hostel", "Ghazali"),
-        ("room", "Room No.", "101"),
-    ]:
-        fields[key] = ft.TextField(
-            label=label, hint_text=hint, width=fw, expand=m,
+    NUST_HOSTELS = [
+        "Ghazali Hostel", "Beruni Hostel", "Razi Hostel", "Rahmat Hostel",
+        "Attar Hostel", "Liaquat Hostel", "Hajveri Hostel", "Zakariya Hostel",
+        "Fatima Hostel", "Zainab Hostel", "Ayesha Hostel", "Khadija Hostel", "Amna Hostel",
+    ]
+
+    def _choice_card(icon, label, desc, on_click):
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Icon(icon, size=28, color=acc),
+                    bgcolor=ft.Colors.with_opacity(0.12, acc),
+                    width=52, height=52, border_radius=26, alignment=ft.Alignment(0, 0),
+                ),
+                ft.Column([
+                    ft.Text(label, size=17, weight="bold", color=t["text"], font_family="DM Sans"),
+                    ft.Text(desc, size=12, color=sub, font_family="DM Sans"),
+                ], spacing=2, expand=True),
+                ft.Icon(ft.Icons.CHEVRON_RIGHT_ROUNDED, color=sub, size=20),
+            ], spacing=14, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor=t["card"], border_radius=16, padding=18,
+            on_click=on_click, ink=True,
+        )
+
+    body = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
+
+    def show_role_choice():
+        body.controls.clear()
+        body.controls.extend([
+            ft.Container(height=40),
+            ft.Container(
+                content=ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, size=36, color=acc),
+                bgcolor=ft.Colors.with_opacity(0.1, acc),
+                width=64, height=64, border_radius=32, alignment=ft.Alignment(0, 0),
+            ),
+            ft.Container(height=16),
+            ft.Text("Create Account", size=26, weight="bold",
+                    font_family="Playfair", color=t["text"]),
+            ft.Text("Select your role to get started", size=13, color=sub, font_family="DM Sans"),
+            ft.Container(height=24),
+            _choice_card(ft.Icons.SCHOOL_ROUNDED, "Student",
+                "Register as a student \u2014 access menu, mess off, voting & more",
+                lambda e: show_form("Student")),
+            ft.Container(height=10),
+            _choice_card(ft.Icons.BADGE_ROUNDED, "Staff",
+                "Register as staff \u2014 manage food, ingredients & inventory",
+                lambda e: show_form("Staff")),
+            ft.Container(height=20),
+            ft.TextButton(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, color=acc, size=16),
+                    ft.Text("Back to Login", color=acc, size=13, font_family="DM Sans"),
+                ], spacing=4, tight=True),
+                on_click=lambda e: on_back() if on_back else None,
+            ),
+        ])
+        page.update()
+
+    DEFAULT_CATEGORIES = ["Chef", "Server", "Cleaner", "Security", "Administrator"]
+
+    def show_form(selected_role):
+        role["v"] = selected_role
+        is_staff = selected_role == "Staff"
+
+        fields = {}
+        for key, label, hint in [
+            ("first", "First Name", "e.g. Ali"),
+            ("last", "Last Name", "e.g. Khan"),
+            ("email", "Email", "you@seecs.edu.pk"),
+            ("dept", "Department", "CS, SE, EE"),
+            ("phone", "Contact", "03XX-XXXXXXX"),
+            ("address", "Address", "H-12 NUST"),
+            ("father", "Father's Name", ""),
+        ]:
+            fields[key] = ft.TextField(
+                label=label, hint_text=hint, width=fw, expand=m,
+                color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+                border_color=ft.Colors.with_opacity(0.3, t["text"]),
+                cursor_color=acc, border_radius=10,
+            )
+
+        sex_dd = ft.Dropdown(
+            label="Sex",
+            options=[ft.dropdown.Option("Male"), ft.dropdown.Option("Female")],
+            width=fw if not m else None, expand=m,
+            color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+            border_color=ft.Colors.with_opacity(0.3, t["text"]),
+        )
+
+        async def pick_date(e):
+            dp = ft.DatePicker(
+                on_change=lambda e: (
+                    setattr(fields["dob"], "value", e.control.value.strftime("%Y-%m-%d")),
+                    fields["dob"].update(),
+                )[1],
+            )
+            page.show_dialog(dp)
+
+        fields["dob"] = ft.TextField(
+            label="Date of Birth", hint_text="YYYY-MM-DD", width=fw, expand=m,
+            color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+            border_color=ft.Colors.with_opacity(0.3, t["text"]),
+            cursor_color=acc, border_radius=10, read_only=True,
+            suffix=ft.IconButton(ft.Icons.CALENDAR_MONTH, on_click=pick_date),
+        )
+
+        hostel_dd = ft.Dropdown(
+            label="Hostel",
+            options=[ft.dropdown.Option(h) for h in NUST_HOSTELS],
+            width=fw if not m else None, expand=m,
+            color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+            border_color=ft.Colors.with_opacity(0.3, t["text"]),
+        )
+
+        room_f = ft.TextField(
+            label="Room No.", hint_text="101", width=fw, expand=m,
             color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
             border_color=ft.Colors.with_opacity(0.3, t["text"]),
             cursor_color=acc, border_radius=10,
         )
 
-    sex_dd = ft.Dropdown(
-        label="Sex",
-        options=[ft.dropdown.Option("Male"), ft.dropdown.Option("Female")],
-        width=fw if not m else None, expand=m,
-        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
-        border_color=ft.Colors.with_opacity(0.3, t["text"]),
-    )
-
-    async def pick_date(e):
-        dp = ft.DatePicker(
-            on_change=lambda e: (
-                setattr(fields["dob"], "value", e.control.value.strftime("%Y-%m-%d")),
-                fields["dob"].update(),
-            )[1],
+        cat_dd = ft.Dropdown(
+            label="Staff Category",
+            options=[ft.dropdown.Option(c) for c in DEFAULT_CATEGORIES],
+            width=fw if not m else None, expand=m,
+            color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+            border_color=ft.Colors.with_opacity(0.3, t["text"]),
         )
-        page.show_dialog(dp)
 
-    fields["dob"] = ft.TextField(
-        label="Date of Birth", hint_text="YYYY-MM-DD", width=fw, expand=m,
-        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
-        border_color=ft.Colors.with_opacity(0.3, t["text"]),
-        cursor_color=acc, border_radius=10, read_only=True,
-        suffix=ft.IconButton(ft.Icons.CALENDAR_MONTH, on_click=pick_date),
-    )
+        async def _fetch_categories():
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(f"{BACKEND_URL}/admin/staff/category", timeout=5)
+                    if resp.status_code == 200:
+                        cats = resp.json()
+                        if cats:
+                            cat_dd.options = [ft.dropdown.Option(c["Category"]) for c in cats]
+                            cat_dd.update()
+            except Exception:
+                pass
+        asyncio.create_task(_fetch_categories())
 
-    DEFAULT_CATEGORIES = ["Chef", "Server", "Cleaner", "Security", "Administrator"]
-    fields["category"] = ft.Dropdown(
-        label="Staff Category",
-        options=[ft.dropdown.Option(c) for c in DEFAULT_CATEGORIES],
-        width=fw if not m else None, expand=m,
-        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
-        border_color=ft.Colors.with_opacity(0.3, t["text"]),
-    )
-    category_row = ft.Container(content=fields["category"], visible=role_dd.value == "Staff")
-    hostel_row = ft.Container(content=fields["hostel"], visible=role_dd.value == "Student")
-    room_row = ft.Container(content=fields["room"], visible=role_dd.value == "Student")
+        msg = ft.Text("", size=13, color=acc, font_family="DM Sans")
 
-    async def _fetch_categories():
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{BACKEND_URL}/admin/staff/category", timeout=5)
-                if resp.status_code == 200:
-                    cats = resp.json()
-                    if cats:
-                        fields["category"].options = [ft.dropdown.Option(c["Category"]) for c in cats]
-                        fields["category"].update()
-        except Exception:
-            pass
-    asyncio.create_task(_fetch_categories())
+        async def submit(e):
+            for f in list(fields.values()) + [sex_dd, hostel_dd, room_f, cat_dd]:
+                f.error = None
+                f.update()
+            from pages.validation import (
+                validate_name, validate_email, validate_phone, validate_date_str,
+                validate_room, validate_address, validate_department,
+            )
+            v_first, err = validate_name(fields["first"].value, "First Name")
+            fields["first"].error = err
+            v_last, err = validate_name(fields["last"].value, "Last Name")
+            fields["last"].error = err
+            v_email, err = validate_email(fields["email"].value)
+            fields["email"].error = err
+            v_dob, err = validate_date_str(fields["dob"].value, "Date of Birth") if fields["dob"].value else (None, None)
+            if err and fields["dob"].value:
+                fields["dob"].error = err
+            v_dept, err = validate_department(fields["dept"].value)
+            fields["dept"].error = err
+            v_phone, err = validate_phone(fields["phone"].value)
+            fields["phone"].error = err
+            v_addr, err = validate_address(fields["address"].value)
+            fields["address"].error = err
+            v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
+            fields["father"].error = err
+            if not is_staff:
+                v_room, err = validate_room(room_f.value)
+                room_f.error = err
+                v_hostel = hostel_dd.value or None
+            else:
+                v_room = v_hostel = None
+                room_f.error = hostel_dd.error = None
+            if is_staff:
+                v_cat = cat_dd.value
+                if not v_cat:
+                    cat_dd.error = "Staff Category is required"
+                    first_err = "Staff Category is required"
+                    page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
+                        bgcolor=t["danger"], duration=4000)
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+            else:
+                v_cat = None
 
-    def on_role_change(e):
-        is_staff = role_dd.value == "Staff"
-        category_row.visible = is_staff
-        hostel_row.visible = not is_staff
-        room_row.visible = not is_staff
-        page.update()
-    role_dd.on_change = on_role_change
-
-    msg = ft.Text("", size=13, color=acc, font_family="DM Sans")
-
-    async def submit(e):
-        for f in list(fields.values()) + [sex_dd]:
-            f.error = None
-            f.update()
-        from pages.validation import (
-            validate_name, validate_email, validate_phone, validate_date_str,
-            validate_hostel, validate_room, validate_address,
-            validate_department, validate_category,
-        )
-        v_first, err = validate_name(fields["first"].value, "First Name")
-        fields["first"].error = err
-        v_last, err = validate_name(fields["last"].value, "Last Name")
-        fields["last"].error = err
-        v_email, err = validate_email(fields["email"].value)
-        fields["email"].error = err
-        v_dob, err = validate_date_str(fields["dob"].value, "Date of Birth") if fields["dob"].value else (None, None)
-        if err and fields["dob"].value:
-            fields["dob"].error = err
-        v_dept, err = validate_department(fields["dept"].value)
-        fields["dept"].error = err
-        v_phone, err = validate_phone(fields["phone"].value)
-        fields["phone"].error = err
-        v_addr, err = validate_address(fields["address"].value)
-        fields["address"].error = err
-        v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
-        fields["father"].error = err
-        is_staff = role_dd.value == "Staff"
-        if not is_staff:
-            v_hostel, err = validate_hostel(fields["hostel"].value)
-            fields["hostel"].error = err
-            v_room, err = validate_room(fields["room"].value)
-            fields["room"].error = err
-        else:
-            v_hostel = v_room = None
-            fields["hostel"].error = fields["room"].error = None
-        if is_staff:
-            v_cat = fields["category"].value
-            if not v_cat:
-                fields["category"].error = "Staff Category is required"
-                first_err = "Staff Category is required"
+            first_err = None
+            for f in list(fields.values()) + [sex_dd, hostel_dd, room_f, cat_dd]:
+                f.update()
+                if f.error and not first_err:
+                    first_err = f.error
+            if first_err:
                 page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
                     bgcolor=t["danger"], duration=4000)
                 page.snack_bar.open = True
                 page.update()
                 return
-        else:
-            v_cat = None
-
-        first_err = None
-        for f in list(fields.values()) + [sex_dd]:
-            f.update()
-            if f.error and not first_err:
-                first_err = f.error
-        if first_err:
-            page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
-                bgcolor=t["danger"], duration=4000)
-            page.snack_bar.open = True
-            page.update()
-            return
-        payload = {
-            "First_Name": v_first,
-            "Last_Name": v_last,
-            "Email": v_email,
-            "Account_Type": role_dd.value,
-            "Sex": sex_dd.value or None,
-            "DoB": str(v_dob) if v_dob else None,
-            "Department": v_dept,
-            "Contact_Number": v_phone,
-            "Address": v_addr,
-            "Father_Name": v_father,
-            "Hostel_Name": v_hostel,
-            "Room_Number": v_room,
-            "Category": v_cat,
-        }
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(f"{BACKEND_URL}/register/request", json=payload, timeout=10)
-            if resp.status_code == 200:
-                msg.value = "Request submitted! Awaiting admin approval."
-                msg.color = t["success"]
-                for f in fields.values(): f.value = ""
-            else:
-                msg.value = f"Error: {resp.json().get('detail', 'Unknown error')}"
+            payload = {
+                "First_Name": v_first,
+                "Last_Name": v_last,
+                "Email": v_email,
+                "Account_Type": selected_role,
+                "Sex": sex_dd.value or None,
+                "DoB": str(v_dob) if v_dob else None,
+                "Department": v_dept,
+                "Contact_Number": v_phone,
+                "Address": v_addr,
+                "Father_Name": v_father,
+                "Hostel_Name": v_hostel,
+                "Room_Number": v_room,
+                "Category": v_cat,
+            }
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(f"{BACKEND_URL}/register/request", json=payload, timeout=10)
+                if resp.status_code == 200:
+                    msg.value = "Request submitted! Awaiting admin approval."
+                    msg.color = t["success"]
+                    for f in fields.values(): f.value = ""
+                else:
+                    msg.value = f"Error: {resp.json().get('detail', 'Unknown error')}"
+                    msg.color = t["danger"]
+            except (httpx.ConnectError, httpx.TimeoutException):
+                msg.value = "Backend unreachable. Try again later."
                 msg.color = t["danger"]
-        except (httpx.ConnectError, httpx.TimeoutException):
-            msg.value = "Backend unreachable. Try again later."
-            msg.color = t["danger"]
-        msg.update()
+            msg.update()
+
+        common_fields = [fields[k] for k in ["first", "last", "email", "dob", "dept", "phone", "address", "father"]]
+        body.controls.clear()
+        body.controls.extend([
+            ft.Container(height=20),
+            ft.Row([
+                ft.IconButton(ft.Icons.ARROW_BACK_ROUNDED, icon_color=sub,
+                    on_click=lambda e: show_role_choice()),
+                ft.Text("Create Account", size=20, weight="bold",
+                        font_family="Playfair", color=t["text"], expand=True),
+            ], alignment=ft.MainAxisAlignment.START),
+            ft.Text(f"Registering as {selected_role}", size=13, color=sub, font_family="DM Sans"),
+            ft.Container(height=12),
+            *common_fields,
+            sex_dd, ft.Container(height=4),
+            cat_dd if is_staff else ft.Container(),
+            *([] if is_staff else [hostel_dd, room_f]),
+            ft.Container(height=12),
+            msg,
+            ft.FilledButton(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.SEND_ROUNDED, color=SLATE_900, size=16),
+                    ft.Text("Submit Request", color=SLATE_900, weight="bold",
+                            font_family="DM Sans", size=14),
+                ], spacing=8, tight=True),
+                on_click=submit,
+                style=ft.ButtonStyle(bgcolor=acc,
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.Padding.symmetric(horizontal=32, vertical=14), elevation=0),
+            ),
+            ft.Container(height=8),
+        ])
+        page.update()
+
+    show_role_choice()
 
     return ft.Container(
         gradient=grad,
@@ -436,47 +527,7 @@ def build_register_form(page, on_submit, on_back):
                 right=130, top=120,
             ),
             ft.Container(
-                content=ft.Column([
-                    ft.Container(height=40),
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, size=36, color=acc),
-                        bgcolor=ft.Colors.with_opacity(0.1, acc),
-                        width=64, height=64, border_radius=32, alignment=ft.Alignment(0, 0),
-                    ),
-                    ft.Container(height=16),
-                    ft.Text("Create Account", size=26, weight="bold",
-                            font_family="Playfair", color=t["text"]),
-                    ft.Text("Admin will review your request", size=13, color=sub, font_family="DM Sans"),
-                    ft.Container(height=20),
-                    role_dd, ft.Container(height=4),
-                    *[fields[k] for k in ["first", "last", "email"]],
-                    sex_dd, ft.Container(height=4),
-                    ft.Container(height=12),
-                    category_row,
-                    *[fields[k] for k in ["dob", "dept", "phone", "address", "father"]],
-                    hostel_row, room_row,
-                    ft.Container(height=12),
-                    msg,
-                    ft.FilledButton(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.SEND_ROUNDED, color=SLATE_900, size=16),
-                            ft.Text("Submit Request", color=SLATE_900, weight="bold",
-                                    font_family="DM Sans", size=14),
-                        ], spacing=8, tight=True),
-                        on_click=submit,
-                        style=ft.ButtonStyle(bgcolor=acc,
-                            shape=ft.RoundedRectangleBorder(radius=10),
-                            padding=ft.Padding.symmetric(horizontal=32, vertical=14), elevation=0),
-                    ),
-                    ft.Container(height=8),
-                    ft.TextButton(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, color=acc, size=16),
-                            ft.Text("Back to Login", color=acc, size=13, font_family="DM Sans"),
-                        ], spacing=4, tight=True),
-                        on_click=lambda e: on_back(),
-                    ),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE),
+                content=body,
                 alignment=ft.Alignment(0, 0),
                 expand=True,
             ),

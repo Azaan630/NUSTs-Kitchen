@@ -1527,10 +1527,14 @@ class AdminPage:
                 self._snack("Deleted"); await refresh()
 
             if mobile:
+                sub = self._clr("sub")
                 food_rows.controls.append(ft.Container(
                     content=ft.Column([
-                        ef_name,
-                        ft.Row([ef_price, ef_qty], spacing=6),
+                        ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], spacing=2),
+                        ft.Row([
+                            ft.Column([ft.Text("Price", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_price], expand=True, spacing=2),
+                            ft.Column([ft.Text("Qty", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_qty], expand=True, spacing=2),
+                        ], spacing=6),
                         ft.Row([
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -1750,10 +1754,15 @@ class AdminPage:
                 self._snack("Deleted"); await refresh()
 
             if mobile:
+                sub = self._clr("sub")
                 ing_rows.controls.append(ft.Container(
                     content=ft.Column([
-                        ef_name,
-                        ft.Row([ef_qty, ef_unit, ef_cost], spacing=6),
+                        ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], spacing=2),
+                        ft.Row([
+                            ft.Column([ft.Text("Qty", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_qty], expand=True, spacing=2),
+                            ft.Column([ft.Text("Unit", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_unit], expand=True, spacing=2),
+                            ft.Column([ft.Text("Cost/Unit", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_cost], expand=True, spacing=2),
+                        ], spacing=6),
                         ft.Row([
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -2468,6 +2477,8 @@ class AdminPage:
             self.tab_idx["v"] = idx
             if not mobile:
                 sidebar.controls[0] = self._sidebar(select_tab)
+            else:
+                bn.controls[0] = self._bottom_nav(select_tab)
             self.content.opacity = 0
             self.page.update()
             async def _do():
@@ -2479,7 +2490,7 @@ class AdminPage:
 
         if mobile:
             sidebar = ft.Column([self._sidebar(select_tab)])
-            bn = self._bottom_nav(select_tab)
+            bn = ft.Column([self._bottom_nav(select_tab)])
             layout = ft.Column([
                 ft.Container(content=self.content, expand=True,
                     padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
