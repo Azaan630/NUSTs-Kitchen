@@ -7,7 +7,6 @@ NUST's Kitchen is a comprehensive mess management solution designed to streamlin
 - **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python)
 - **Database:** [MySQL 8.0](https://www.mysql.com/)
 - **Main Frontend:** [Flet](https://flet.dev/) (Python-based Flutter framework)
-- **Admin Dashboard:** [Streamlit](https://streamlit.io/)
 - **Containerization:** [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
 - **Reports:** ReportLab (PDF Generation)
 
@@ -27,41 +26,11 @@ DB_Project/
 ├── backend/            # FastAPI source code, models, and DAOs
 ├── db/                 # Database initialization scripts (init.sql)
 ├── frontend_main/      # User-facing application (Flet)
-├── frontend_admin/     # Administrator dashboard (Streamlit)
 ├── docker-compose.yml  # Multi-container orchestration
 └── .env                # Environment configuration
 ```
 
-## 🛠️ Installation & Setup
-
-### Using Docker (Recommended)
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/AzaanNust/DB_Project.git
-   cd DB_Project
-   ```
-
-2. **Configure Environment Variables:**
-   Create a `.env` file in the root directory and add your database credentials.
-
-3. **Spin up the containers:**
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the services:**
-   - **Backend API:** `http://localhost:8000`
-   - **Main App (Flet):** `http://localhost:8550`
-   - **Admin Dashboard (Streamlit):** `http://localhost:8501`
-
-### Manual Setup (Development)
-
-Each component (`backend`, `frontend_main`, `frontend_admin`) contains its own `requirements.txt`. You can set up virtual environments for each and run them locally:
-
-- **Backend:** `uvicorn main:app --reload`
-- **User App:** `python main.py`
-- **Admin:** `streamlit run Home.py`
+# 🔗 Link: [NUST's Kitchen](https://nusts-kitchen-production-6c2e.up.railway.app)
 
 ## 📜 License
 
