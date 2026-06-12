@@ -266,6 +266,61 @@ class StaffPage:
         self._active_overlay = overlay
         self.page.update()
 
+    # ── Image Upload ─────────────────────────────────────────────
+
+    def _setup_image_picker(self):
+        if hasattr(self, '_image_picker') and self._image_picker:
+            return
+        def _on_picked(e):
+            if e.files and hasattr(self, '_pending_image_target') and self._pending_image_target:
+                file = e.files[0]
+                asyncio.create_task(self._do_upload_item_image(file.path))
+        self._image_picker = ft.FilePicker()
+        self._image_picker.on_result = _on_picked
+        self.page.overlay.append(self._image_picker)
+        self.page.update()
+
+    async def _do_upload_item_image(self, file_path):
+        target = getattr(self, '_pending_image_target', None)
+        self._pending_image_target = None
+        if not target:
+            return
+        etype, eid = target
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            filename = os.path.basename(file_path)
+            async with httpx.AsyncClient() as client:
+                r = await client.post(f"{BASE_URL}/upload",
+                    files={"file": (filename, content, "image/jpeg")}, timeout=30)
+            if r.status_code == 200:
+                url = r.json()["url"]
+                if self.is_guest:
+                    if etype == "food":
+                        mock_data.update_food(eid, {"Image_Path": url})
+                    else:
+                        mock_data.update_ingredient(eid, {"Image_Path": url})
+                else:
+                    ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
+                    async with httpx.AsyncClient() as client:
+                        await client.patch(f"{BASE_URL}{ep}", json={"Image_Path": url}, params={"email": self.email}, timeout=10)
+            self._snack("Image updated" if r.status_code == 200 else "Upload failed")
+            await self._safe_render(self.RENDERERS[self.section_idx["v"]], self.content)
+        except Exception as ex:
+            self._snack(f"Error: {ex}", False)
+
+    def _upload_img_btn(self, etype, eid):
+        return ft.IconButton(
+            icon=ft.Icons.UPLOAD_FILE_ROUNDED, icon_size=16,
+            icon_color=self._clr("accent"), tooltip="Change photo",
+            on_click=lambda e: self._trigger_upload(etype, eid),
+        )
+
+    def _trigger_upload(self, etype, eid):
+        self._pending_image_target = (etype, eid)
+        self._setup_image_picker()
+        self._image_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
+
     def _guest_banner(self):
         if not self.is_guest: return ft.Container()
         return ft.Container(
@@ -415,6 +470,7 @@ class StaffPage:
                     ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {price}", size=12, weight="bold", color=self._clr("accent"), font_family="DM Sans"),
+                self._upload_img_btn("food", item.get('Item_ID')),
             ], data=label, on_click=lambda e, it=item: self._show_food_detail(it)))
 
         ref.content = ft.Column([
@@ -447,6 +503,7 @@ class StaffPage:
                     ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
                     ft.Text(f"Qty: {i.get('Total_Quantity', 0)} {i.get('Unit', '')}",
                             size=12, color=self._clr("danger"), font_family="DM Sans"),
+                    self._upload_img_btn("ing", i.get('Ingredient_ID')),
                 ], data=i.get("Name"), on_click=lambda e, it=i: self._show_ingredient_detail(it)) for i in low_stock]
             )
 
@@ -461,6 +518,7 @@ class StaffPage:
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {i.get('Unit_cost', 0)}/{i.get('Unit', '')}", size=11,
                         color=self._clr("sub"), font_family="DM Sans"),
+                self._upload_img_btn("ing", i.get('Ingredient_ID')),
             ], on_click=lambda e, it=i: self._show_ingredient_detail(it)))
 
         ref.content = ft.Column([

@@ -547,7 +547,8 @@ class AdminPage:
             if e.files and self._pending_image_target:
                 file = e.files[0]
                 asyncio.create_task(self._do_upload_item_image(file.path))
-        self._image_picker = ft.FilePicker(on_result=_on_picked)
+        self._image_picker = ft.FilePicker()
+        self._image_picker.on_result = _on_picked
         self.page.overlay.append(self._image_picker)
         self.page.update()
 

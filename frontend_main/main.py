@@ -519,7 +519,8 @@ def build_register_form(page, on_submit, on_back):
                 def _on_picked(ev):
                     if ev.files:
                         asyncio.create_task(_do_reg_pfp_upload(ev.files[0].path))
-                p = ft.FilePicker(on_result=_on_picked)
+                p = ft.FilePicker()
+                p.on_result = _on_picked
                 _reg_pfp_state["picker"] = p
                 page.overlay.append(p)
             p.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
@@ -931,7 +932,8 @@ async def main(page: ft.Page):
                     if e.files:
                         file = e.files[0]
                         asyncio.create_task(_do_upload_profile(file.path))
-                profile_picker = ft.FilePicker(on_result=on_picked)
+                profile_picker = ft.FilePicker()
+                profile_picker.on_result = on_picked
                 page.overlay.append(profile_picker)
                 page.update()
                 profile_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])

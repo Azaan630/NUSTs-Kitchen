@@ -120,17 +120,17 @@ async def serve_upload(filename: str):
 
 
 @app.patch("/users/{UserID}/picture")
-def update_profile_picture(UserID: int, data: models.ProfilePictureUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def update_profile_picture(UserID: int, data: models.ProfilePictureUpdate, user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return BaseDAO(db).update_record("Users", data, "UserID", UserID)
 
 
 @app.patch("/admin/food-items/{ItemID}/image")
-def update_food_image(ItemID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def update_food_image(ItemID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     return BaseDAO(db).update_record("Food_Items", data, "Item_ID", ItemID)
 
 
 @app.patch("/admin/ingredients/{IngredientID}/image")
-def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     return BaseDAO(db).update_record("Ingredients", data, "IngredientID", IngredientID)
 
 
