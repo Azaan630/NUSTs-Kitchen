@@ -170,7 +170,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
     ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
 
-    # ── Splash overlay (logo fullscreen, shrinks on load) ──
+    # ── Splash overlay (logo fullscreen, shrinks & slides to final position) ──
     logo_box = ft.Container(
         content=ft.Image(src="logo.png", width=ibox, height=ibox),
         bgcolor=ft.Colors.with_opacity(0.12, acc),
@@ -181,9 +181,11 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         content=logo_box,
         alignment=ft.Alignment(0, 0),
         expand=True,
-        animate_scale=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
-        animate_opacity=ft.Animation(800, ft.AnimationCurve.EASE_OUT),
         scale=3.0,
+        offset=ft.Offset(0, 0),
+        animate_scale=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
+        animate_offset=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
+        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
     )
 
     main_content = ft.Container(
@@ -235,7 +237,9 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         alignment=ft.Alignment(0, 0),
         expand=True,
         opacity=0,
-        animate_opacity=ft.Animation(800, ft.AnimationCurve.EASE_OUT),
+        offset=ft.Offset(0, 0.3),
+        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+        animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
     )
 
     result = ft.Container(
@@ -714,8 +718,17 @@ async def main(page: ft.Page):
             page.clean()
             page.bgcolor = SLATE_900
             page.theme_mode = ft.ThemeMode.DARK
-            page.add(build_landing(page, login_click, guest_login, show_register_page, show_landing))
+            landing = build_landing(page, login_click, guest_login, show_register_page, show_landing)
+            landing.animate_opacity = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
+            landing.opacity = 0
+            landing.scale = 0.92
+            landing.animate_scale = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
+            page.add(landing)
             page.update()
+            landing.opacity = 1
+            landing.scale = 1.0
+            page.update()
+            _run_landing_splash(landing)
 
         async def show_profile_popup(e):
             await _remove_overlay()
@@ -1002,6 +1015,27 @@ async def main(page: ft.Page):
 
     register_mode = {"v": False}
 
+    def _run_landing_splash(landing):
+        async def _anim():
+            await asyncio.sleep(0.3)
+            splash = getattr(landing, "_splash", None)
+            mc = getattr(landing, "_main", None)
+            if splash and mc:
+                splash.scale = 0.85
+                splash.offset = ft.Offset(0, -0.25)
+                splash.update()
+                await asyncio.sleep(0.1)
+                mc.opacity = 1
+                mc.offset = ft.Offset(0, 0)
+                mc.update()
+                await asyncio.sleep(0.7)
+                splash.opacity = 0
+                splash.update()
+                await asyncio.sleep(0.4)
+                splash.visible = False
+                splash.update()
+        asyncio.create_task(_anim())
+
     def show_landing():
         register_mode["v"] = False
         page.clean()
@@ -1018,23 +1052,7 @@ async def main(page: ft.Page):
         landing.opacity = 1
         landing.scale = 1.0
         page.update()
-        # ── Splash animation: logo fills screen then shrinks ──
-        async def _run_splash():
-            await asyncio.sleep(0.6)
-            splash = getattr(landing, "_splash", None)
-            mc = getattr(landing, "_main", None)
-            if splash and mc:
-                splash.scale = 1.0
-                splash.update()
-                await asyncio.sleep(0.6)
-                mc.opacity = 1
-                splash.opacity = 0
-                mc.update()
-                splash.update()
-                await asyncio.sleep(0.5)
-                splash.visible = False
-                splash.update()
-        asyncio.create_task(_run_splash())
+        _run_landing_splash(landing)
 
     def show_register_page():
         register_mode["v"] = True
