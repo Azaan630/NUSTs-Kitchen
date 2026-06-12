@@ -148,6 +148,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
 
     ibox  = 72 if m else 104
     tsize = 28 if m else 52
+    btn_txt_color = WHITE if not d else SLATE_900
 
     def _toggle_landing_theme(e):
         is_dark["v"] = not is_dark["v"]
@@ -178,7 +179,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                 content=ft.Column([
                     ft.Container(height=60 if m else 80),
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=ibox, height=ibox, fit=ft.ImageFit.CONTAIN),
+                        content=ft.Image(src="logo.png", width=ibox, height=ibox),
                         bgcolor=ft.Colors.with_opacity(0.1, acc),
                         width=ibox, height=ibox, border_radius=ibox//2,
                         alignment=ft.Alignment(0, 0),
@@ -191,8 +192,8 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                     ft.Container(height=36 if m else 48),
                     ft.FilledButton(
                         content=ft.Row([
-                            ft.Icon(ft.Icons.LOGIN_ROUNDED, color=SLATE_900, size=18),
-                            ft.Text("Continue with Google", color=SLATE_900,
+                            ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=18),
+                            ft.Text("Continue with Google", color=btn_txt_color,
                                     weight="bold", font_family="DM Sans", size=14),
                         ], spacing=10, tight=True),
                         on_click=login_click,
@@ -250,6 +251,7 @@ def build_register_form(page, on_submit, on_back):
     )
 
     fw = 320 if not m else None  # None = expand
+    btn_txt_color = WHITE if not d else SLATE_900
 
     role = {"v": None}
 
@@ -503,8 +505,8 @@ def build_register_form(page, on_submit, on_back):
             msg,
             ft.FilledButton(
                 content=ft.Row([
-                    ft.Icon(ft.Icons.SEND_ROUNDED, color=SLATE_900, size=16),
-                    ft.Text("Submit Request", color=SLATE_900, weight="bold",
+                    ft.Icon(ft.Icons.SEND_ROUNDED, color=btn_txt_color, size=16),
+                    ft.Text("Submit Request", color=btn_txt_color, weight="bold",
                             font_family="DM Sans", size=14),
                 ], spacing=8, tight=True),
                 on_click=submit,
@@ -538,64 +540,7 @@ def build_register_form(page, on_submit, on_back):
                 content=ft.Icon(ft.Icons.DINING_ROUNDED, size=60, opacity=0.03, color=acc),
                 right=130, top=120,
             ),
-            ft.Container(
-                content=ft.Column([
-                    ft.Container(height=60 if m else 80),
-                    ft.Container(
-                        content=ft.Image(src="logo.png", width=ibox, height=ibox, fit=ft.ImageFit.CONTAIN),
-                        bgcolor=ft.Colors.with_opacity(0.1, acc),
-                        width=ibox, height=ibox, border_radius=ibox//2,
-                        alignment=ft.Alignment(0, 0),
-                    ),
-                    ft.Container(height=16 if m else 20),
-                    ft.Text("NUST's Kitchen", size=tsize, weight="bold",
-                            font_family="Playfair", color=t["text"]),
-                    ft.Text("Mess Portal \u2022 SEECS", size=14 if m else 17, color=sub,
-                            font_family="DM Sans"),
-                    ft.Container(height=36 if m else 48),
-                    ft.FilledButton(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.LOGIN_ROUNDED, color=SLATE_900, size=18),
-                            ft.Text("Continue with Google", color=SLATE_900,
-                                    weight="bold", font_family="DM Sans", size=14),
-                        ], spacing=10, tight=True),
-                        on_click=login_click,
-                        style=ft.ButtonStyle(
-                            bgcolor=acc,
-                            padding=ft.Padding.symmetric(horizontal=36, vertical=16),
-                            shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
-                        ),
-                    ),
-                    ft.Container(height=16),
-                    ft.Row([
-                        ft.Container(height=1, bgcolor=sub, expand=True),
-                        ft.Container(
-                            content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
-                            padding=ft.Padding.symmetric(horizontal=12),
-                        ),
-                        ft.Container(height=1, bgcolor=sub, expand=True),
-                    ], alignment=ft.MainAxisAlignment.CENTER),
-                    ft.Container(height=16),
-                    guest_btns,
-                    ft.Container(height=24),
-                    ft.TextButton(
-                        content=ft.Text("New here? Register as Student / Staff",
-                                        color=acc, size=13, font_family="DM Sans"),
-                        on_click=lambda e: show_register(),
-                    ),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                alignment=ft.Alignment(0, 0),
-                expand=True,
-            ),
-            ft.Container(
-                content=ft.IconButton(
-                    icon=ft.Icons.DARK_MODE_OUTLINED if d else ft.Icons.LIGHT_MODE_OUTLINED,
-                    icon_color=sub, icon_size=22,
-                    tooltip="Toggle theme",
-                    on_click=_toggle_landing_theme,
-                ),
-                right=12, top=12,
-            ),
+            body,
         ]),
         expand=True,
     )
@@ -822,7 +767,7 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=18, height=18, fit=ft.ImageFit.CONTAIN),
+                        content=ft.Image(src="logo.png", width=18, height=18),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
                         width=32, height=32, border_radius=8, alignment=ft.Alignment(0, 0),
                     ),
