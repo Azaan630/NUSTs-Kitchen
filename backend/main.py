@@ -1,6 +1,8 @@
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File
+from fastapi.responses import FileResponse
 import os
+import uuid
 from io import BytesIO, StringIO
 import csv
 
@@ -23,6 +25,9 @@ from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
 )
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
@@ -93,6 +98,40 @@ def verify_registration(request: Request, email: str, db=Depends(get_db)):
     if not user_record:
         raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
     return {"status": "authorized", "user_details": user_record}
+
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    ext = file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "png"
+    name = f"{uuid.uuid4().hex}.{ext}"
+    path = os.path.join(UPLOAD_DIR, name)
+    content = await file.read()
+    with open(path, "wb") as f:
+        f.write(content)
+    return {"filename": name, "url": f"/uploads/{name}"}
+
+
+@app.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)
+
+
+@app.patch("/users/{UserID}/picture")
+def update_profile_picture(UserID: int, data: models.ProfilePictureUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BaseDAO(db).update_record("Users", data, "UserID", UserID)
+
+
+@app.patch("/admin/food-items/{ItemID}/image")
+def update_food_image(ItemID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BaseDAO(db).update_record("Food_Items", data, "Item_ID", ItemID)
+
+
+@app.patch("/admin/ingredients/{IngredientID}/image")
+def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return BaseDAO(db).update_record("Ingredients", data, "IngredientID", IngredientID)
 
 
 @app.get("/users/me")

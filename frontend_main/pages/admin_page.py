@@ -144,6 +144,8 @@ class AdminPage:
         ("Staff Types", ft.Icons.WORKSPACE_PREMIUM_ROUNDED),
     ]
 
+    PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+
     def __init__(self, page, user_data, theme):
         self.page = page
         self.user_data = user_data
@@ -155,6 +157,8 @@ class AdminPage:
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
         self.content.content = self._loading()
         self.proxy_rows = {}
+        self._pending_image_target = None
+        self._image_picker = None
 
     # ── helpers ─────────────────────────────────────────────────
 
@@ -353,6 +357,97 @@ class AdminPage:
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=12),
         )
+
+    def _img_url(self, path):
+        if not path: return None
+        if path.startswith(("http://", "https://", "data:")): return path
+        return f"{self.PUBLIC_BACKEND_URL}{path}"
+
+    def _food_thumb(self, item, size=48):
+        path = item.get("Image_Path")
+        if path:
+            return ft.Container(
+                content=ft.Image(src=self._img_url(path), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=10,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        return ft.Container(
+            content=ft.Icon(ft.Icons.FASTFOOD_ROUNDED, size=size*0.45, color=self._clr("sub")),
+            width=size, height=size, bgcolor=self._clr("card2"), border_radius=10,
+            alignment=ft.Alignment(0, 0),
+        )
+
+    def _ing_thumb(self, item, size=48):
+        path = item.get("Image_Path")
+        if path:
+            return ft.Container(
+                content=ft.Image(src=self._img_url(path), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=10,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        return ft.Container(
+            content=ft.Icon(ft.Icons.CATEGORY_ROUNDED, size=size*0.45, color=self._clr("sub")),
+            width=size, height=size, bgcolor=self._clr("card2"), border_radius=10,
+            alignment=ft.Alignment(0, 0),
+        )
+
+    def _setup_image_picker(self):
+        if self._image_picker:
+            return
+        def _on_picked(e):
+            if e.files and self._pending_image_target:
+                file = e.files[0]
+                asyncio.create_task(self._do_upload_item_image(file.path))
+        self._image_picker = ft.FilePicker(on_result=_on_picked)
+        self.page.overlay.append(self._image_picker)
+        self.page.update()
+
+    async def _do_upload_item_image(self, file_path):
+        target = self._pending_image_target
+        self._pending_image_target = None
+        if not target:
+            return
+        etype, eid = target
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            filename = os.path.basename(file_path)
+            async with httpx.AsyncClient() as client:
+                r = await client.post(
+                    f"{BASE_URL}/upload",
+                    files={"file": (filename, content, "image/jpeg")},
+                    timeout=30,
+                )
+            if r.status_code == 200:
+                url = r.json()["url"]
+                if self.is_guest:
+                    if etype == "food":
+                        mock_data.update_food(eid, {"Image_Path": url})
+                    elif etype == "ing":
+                        mock_data.update_ingredient(eid, {"Image_Path": url})
+                else:
+                    ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
+                    result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": url})
+                    if isinstance(result, dict) and "error" in result:
+                        self._snack(f"Update failed: {result['error']}", False)
+                        return
+                self._snack("Image updated")
+                asyncio.create_task(self._safe_render(self.RENDERERS[self.tab_idx["v"]], self.content))
+            else:
+                self._snack("Upload failed", False)
+        except Exception as ex:
+            self._snack(f"Upload error: {ex}", False)
+
+    def _upload_img_btn(self, etype, eid):
+        return self._icon_btn(
+            ft.Icons.IMAGE_ROUNDED, self._clr("accent"), "Upload Photo",
+            lambda e: self._trigger_upload(etype, eid),
+        )
+
+    def _trigger_upload(self, etype, eid):
+        self._setup_image_picker()
+        self._pending_image_target = (etype, eid)
+        self._image_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
 
     # ── Tab sidebar ────────────────────────────────────────────
 
@@ -1019,7 +1114,7 @@ class AdminPage:
                 qty = ing.get("Total_Quantity") or 0
                 unit = ing.get("Unit") or ""
                 ls_rows.append(ft.Row([
-                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=16, color=da),
+                    self._ing_thumb(ing, 28),
                     ft.Text(f"{nm}: {qty} {unit}", size=12, color=t.get("text"),
                             font_family="DM Sans", expand=True),
                 ], spacing=8))
@@ -1518,13 +1613,17 @@ class AdminPage:
                 sub = self._clr("sub")
                 food_rows.controls.append(ft.Container(
                     content=ft.Column([
-                        ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], spacing=2),
+                        ft.Row([
+                            self._food_thumb(item, 56),
+                            ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], expand=True, spacing=2),
+                        ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START),
                         ft.Row([
                             ft.Column([ft.Text("Price", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_price], expand=True, spacing=2),
                             ft.Column([ft.Text("Qty", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_qty], expand=True, spacing=2),
                         ], spacing=6),
                         ft.Row([
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                            self._upload_img_btn("food", iid),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
                         ], alignment=ft.MainAxisAlignment.END),
                     ], spacing=6),
@@ -1535,10 +1634,11 @@ class AdminPage:
                 ))
             else:
                 food_rows.controls.append(self._row_card([
-                    ef_name, ef_price,
-                    ef_qty,
+                    self._food_thumb(item, 44),
+                    ef_name, ef_price, ef_qty,
                 ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                self._upload_img_btn("food", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))
 
@@ -1730,7 +1830,10 @@ class AdminPage:
                 sub = self._clr("sub")
                 ing_rows.controls.append(ft.Container(
                     content=ft.Column([
-                        ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], spacing=2),
+                        ft.Row([
+                            self._ing_thumb(item, 56),
+                            ft.Column([ft.Text("Name", size=10, color=sub, font_family="DM Sans"), ef_name], expand=True, spacing=2),
+                        ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START),
                         ft.Row([
                             ft.Column([ft.Text("Qty", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_qty], expand=True, spacing=2),
                             ft.Column([ft.Text("Unit", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_unit], expand=True, spacing=2),
@@ -1738,6 +1841,7 @@ class AdminPage:
                         ], spacing=6),
                         ft.Row([
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                            self._upload_img_btn("ing", iid),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
                         ], alignment=ft.MainAxisAlignment.END),
                     ], spacing=6),
@@ -1748,9 +1852,11 @@ class AdminPage:
                 ))
             else:
                 ing_rows.controls.append(self._row_card([
+                    self._ing_thumb(item, 44),
                     ef_name, ef_qty, ef_unit, ef_cost,
                 ], actions=[
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
+                self._upload_img_btn("ing", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))
 

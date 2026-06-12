@@ -121,6 +121,14 @@ class RegistrationRequestCreate(BaseModel):
     Category: Optional[str] = None
 
 
+class ProfilePictureUpdate(BaseModel):
+    Profile_Picture: str
+
+
+class ImagePathUpdate(BaseModel):
+    Image_Path: str
+
+
 class RegistrationRequestUpdate(BaseModel):
     First_Name: Optional[str] = None
     Last_Name: Optional[str] = None

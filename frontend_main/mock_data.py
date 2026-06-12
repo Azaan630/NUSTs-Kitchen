@@ -11,12 +11,12 @@ def init_session():
     today = date.today()
     _db = {
         "food_items": [
-            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0},
-            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0},
-            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0},
-            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0},
-            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0},
-            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0},
+            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": "https://picsum.photos/seed/biryani/200/200"},
+            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": "https://picsum.photos/seed/daal/200/200"},
+            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": "https://picsum.photos/seed/karahi/200/200"},
+            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": "https://picsum.photos/seed/nihari/200/200"},
+            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": "https://picsum.photos/seed/pulao/200/200"},
+            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": "https://picsum.photos/seed/paratha/200/200"},
         ],
         "students": [
             {"UserID": 101, "First_Name": "Alice", "Last_Name": "Khan", "Email": "alice@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001234567", "Department": "CS", "Hostel_Name": "A1", "Room_Number": "101"},
@@ -35,12 +35,12 @@ def init_session():
             {"Schedule_ID": 5, "Item_ID": 3, "Date": (today + timedelta(days=1)).isoformat(), "meal_type": "Dinner", "Food_Item_Name": "Chicken Karahi", "Ratings_Average": 4.7},
         ],
         "ingredients": [
-            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0},
-            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0},
-            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0},
-            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0},
-            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0},
-            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0},
+            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0, "Image_Path": "https://picsum.photos/seed/rice/200/200"},
+            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0, "Image_Path": "https://picsum.photos/seed/chicken/200/200"},
+            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0, "Image_Path": "https://picsum.photos/seed/daal-ing/200/200"},
+            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0, "Image_Path": "https://picsum.photos/seed/onions/200/200"},
+            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0, "Image_Path": "https://picsum.photos/seed/tomatoes/200/200"},
+            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0, "Image_Path": "https://picsum.photos/seed/oil/200/200"},
         ],
         "recipes": [
             {"Item_ID": 1, "Name": "Rice", "Ingredient_Quantity": 0.5, "Unit": "kg"},

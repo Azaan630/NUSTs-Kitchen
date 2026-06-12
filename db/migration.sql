@@ -9,6 +9,18 @@ ALTER TABLE Registration_Requests
     ADD COLUMN Sex ENUM('Male', 'Female') DEFAULT NULL
     AFTER Account_Type;
 
+ALTER TABLE Users
+    ADD COLUMN Profile_Picture VARCHAR(500) DEFAULT NULL
+    AFTER Sex;
+
+ALTER TABLE Food_Items
+    ADD COLUMN Image_Path VARCHAR(500) DEFAULT NULL
+    AFTER Quantity;
+
+ALTER TABLE Ingredients
+    ADD COLUMN Image_Path VARCHAR(500) DEFAULT NULL
+    AFTER Total_Quantity;
+
 CREATE OR REPLACE VIEW vw_StaffDetails AS
 SELECT
     s.UserID,
@@ -16,6 +28,7 @@ SELECT
     u.Last_Name,
     u.Email,
     u.Sex,
+    u.Profile_Picture,
     s.Category,
     sc.Working_hours,
     sc.Salary
@@ -30,6 +43,7 @@ SELECT
     u.Last_Name,
     u.Email,
     u.Sex,
+    u.Profile_Picture,
     u.Account_Type,
     s.DoB,
     s.Department,

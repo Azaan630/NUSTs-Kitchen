@@ -21,6 +21,15 @@ async def _req(endpoint, params=None):
             return {"error": str(ex)}
 
 
+PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+
+
+def _img_url(path):
+    if not path: return None
+    if path.startswith(("http://", "https://", "data:")): return path
+    return f"{PUBLIC_BACKEND_URL}{path}"
+
+
 class StaffPage:
     SECTIONS = [
         ("Menu",        ft.Icons.RESTAURANT_MENU_ROUNDED),
@@ -93,6 +102,34 @@ class StaffPage:
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             border_radius=10, filled=True, fill_color=self._clr("card2"),
             cursor_color=self._clr("accent"),
+        )
+
+    def _food_thumb(self, item, size=44):
+        path = item.get("Image_Path")
+        if path:
+            return ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=10,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        return ft.Container(
+            content=ft.Icon(ft.Icons.FASTFOOD_ROUNDED, size=size*0.45, color=self._clr("sub")),
+            width=size, height=size, bgcolor=self._clr("card2"), border_radius=10,
+            alignment=ft.Alignment(0, 0),
+        )
+
+    def _ing_thumb(self, item, size=44):
+        path = item.get("Image_Path")
+        if path:
+            return ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=10,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        return ft.Container(
+            content=ft.Icon(ft.Icons.CATEGORY_ROUNDED, size=size*0.45, color=self._clr("sub")),
+            width=size, height=size, bgcolor=self._clr("card2"), border_radius=10,
+            alignment=ft.Alignment(0, 0),
         )
 
     def _guest_banner(self):
@@ -238,9 +275,12 @@ class StaffPage:
             price = item.get("Price", 0)
             label = f"{name} | {item.get('Item_ID','')}"
             food_rows.controls.append(self._row_card([
-                ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
-                ft.Text(f"PKR {price}", size=12, color=self._clr("accent"), font_family="DM Sans"),
-                ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                self._food_thumb(item, 44),
+                ft.Column([
+                    ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                    ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                ], expand=True, spacing=2),
+                ft.Text(f"PKR {price}", size=12, weight="bold", color=self._clr("accent"), font_family="DM Sans"),
             ], data=label))
 
         ref.content = ft.Column([
@@ -269,6 +309,7 @@ class StaffPage:
                         ft.Text(f"{len(low_stock)} low-stock ingredients", size=14, weight="bold",
                                 color=self._clr("danger"), font_family="DM Sans")], spacing=8),
                 *[self._row_card([
+                    self._ing_thumb(i, 36),
                     ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
                     ft.Text(f"Qty: {i.get('Total_Quantity', 0)} {i.get('Unit', '')}",
                             size=12, color=self._clr("danger"), font_family="DM Sans"),
@@ -278,9 +319,12 @@ class StaffPage:
         rows = ft.Column(spacing=4)
         for i in (ingredients if isinstance(ingredients, list) else []):
             rows.controls.append(self._row_card([
-                ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
-                ft.Text(f"{i.get('Total_Quantity', 0)} {i.get('Unit', '')}", size=12,
-                        color=self._clr("sub"), font_family="DM Sans"),
+                self._ing_thumb(i, 44),
+                ft.Column([
+                    ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                    ft.Text(f"{i.get('Total_Quantity', 0)} {i.get('Unit', '')}", size=12,
+                            color=self._clr("sub"), font_family="DM Sans"),
+                ], expand=True, spacing=2),
                 ft.Text(f"PKR {i.get('Unit_cost', 0)}/{i.get('Unit', '')}", size=11,
                         color=self._clr("sub"), font_family="DM Sans"),
             ]))

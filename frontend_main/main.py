@@ -14,6 +14,7 @@ import mock_data
 load_dotenv()
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
 
 # ══════════════════════════════════════════════════════════════════
 #  COLOUR PALETTE — dark default, minimalist modern
@@ -582,6 +583,11 @@ async def main(page: ft.Page):
         redirect_url=os.getenv("OAUTH_REDIRECT_URL", "http://localhost:8550/oauth_callback"),
     )
 
+    def img_url(path):
+        if not path: return None
+        if path.startswith(("http://", "https://", "data:")): return path
+        return f"{PUBLIC_BACKEND_URL}{path}"
+
     def get_val(key, default="N/A"):
         return getattr(page, "current_user_data", {}).get(key, default)
 
@@ -781,6 +787,8 @@ async def main(page: ft.Page):
             last_n = get_val("Last_Name", "")
             is_gst = page.current_user_data.get("is_guest", False) if hasattr(page, 'current_user_data') else False
             initials = (first_n[0] + (last_n[0] if last_n else "")).upper() or "U"
+            profile_pic = get_val("Profile_Picture", "")
+            has_pic = bool(profile_pic)
 
             pt = make_theme()
             acc = pt["accent"]
@@ -865,14 +873,70 @@ async def main(page: ft.Page):
                 role_section = _section(lbl, ico, extra_rows)
 
             sections = [s for s in [basic, role_section] if s is not None]
+
+            async def _upload_profile_pic():
+                def on_picked(e):
+                    if e.files:
+                        file = e.files[0]
+                        asyncio.create_task(_do_upload_profile(file.path))
+                profile_picker = ft.FilePicker(on_result=on_picked)
+                page.overlay.append(profile_picker)
+                page.update()
+                profile_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
+
+            async def _do_upload_profile(file_path):
+                try:
+                    with open(file_path, "rb") as f:
+                        content = f.read()
+                    filename = os.path.basename(file_path)
+                    async with httpx.AsyncClient() as client:
+                        r = await client.post(
+                            f"{BACKEND_URL}/upload",
+                            files={"file": (filename, content, "image/jpeg")},
+                            timeout=30,
+                        )
+                    if r.status_code == 200:
+                        url = r.json()["url"]
+                        if not is_gst:
+                            async with httpx.AsyncClient() as client:
+                                await client.patch(
+                                    f"{BACKEND_URL}/users/{uid}/picture",
+                                    json={"Profile_Picture": url},
+                                    params={"email": page.current_user_data.get("Email", "")},
+                                    timeout=10,
+                                )
+                        page.current_user_data["Profile_Picture"] = url
+                        await show_dashboard()
+                    else:
+                        page.snack_bar = ft.SnackBar(content=ft.Text("Upload failed", color="#FFF"),
+                            bgcolor=pt["danger"], duration=3000)
+                        page.snack_bar.open = True
+                        page.update()
+                except Exception as ex:
+                    page.snack_bar = ft.SnackBar(content=ft.Text(f"Error: {ex}", color="#FFF"),
+                        bgcolor=pt["danger"], duration=3000)
+                    page.snack_bar.open = True
+                    page.update()
+
             card = ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Container(
-                            content=ft.Text(initials, size=22, weight="bold", color="#FFF"),
-                            width=48, height=48, bgcolor=acc, border_radius=24,
-                            alignment=ft.Alignment(0, 0),
-                        ),
+                        ft.Stack([
+                            ft.Container(
+                                content=ft.Image(src=img_url(profile_pic), fit="cover", width=56, height=56) if has_pic
+                                         else ft.Text(initials, size=24, weight="bold", color="#FFF"),
+                                width=56, height=56, bgcolor=acc if not has_pic else None,
+                                border_radius=28, alignment=ft.Alignment(0, 0),
+                                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                            ),
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.CAMERA_ALT_ROUNDED, size=14, color="#FFF"),
+                                width=24, height=24, bgcolor=ft.Colors.with_opacity(0.7, "#000"),
+                                border_radius=12, alignment=ft.Alignment(0, 0),
+                                right=0, bottom=0,
+                                on_click=lambda e: asyncio.create_task(_upload_profile_pic()),
+                            ),
+                        ]),
                         ft.Column([
                             ft.Text(f"{first_n} {last_n}".strip(), size=17, weight="bold",
                                     color=txt, font_family="DM Sans"),
@@ -900,11 +964,15 @@ async def main(page: ft.Page):
         first = get_val("First_Name", "U")
         last  = get_val("Last_Name", "")
         initials = (first[0] + (last[0] if last else "")).upper()
+        profile_pic_url = get_val("Profile_Picture", "")
+        has_pic = bool(profile_pic_url)
 
         avatar = ft.Container(
-            content=ft.Text(initials, size=12, weight="bold", color=WHITE),
-            width=32, height=32, bgcolor=t["accent"], border_radius=16,
-            alignment=ft.Alignment(0, 0),
+            content=ft.Image(src=img_url(profile_pic_url), fit="cover", width=32, height=32) if has_pic
+                     else ft.Text(initials, size=12, weight="bold", color=WHITE),
+            width=32, height=32, bgcolor=t["accent"] if not has_pic else None,
+            border_radius=16, alignment=ft.Alignment(0, 0),
+            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
         )
 
         _mb = (page.width or 1200) < 720
