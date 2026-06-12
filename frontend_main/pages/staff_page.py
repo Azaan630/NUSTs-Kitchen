@@ -141,12 +141,43 @@ class StaffPage:
                 content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=6),
                 bgcolor=self._clr("card"), border_radius=14,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=6),
+                visible=False,
             )
         return ft.Container(
             content=ft.Column(items, spacing=4),
             bgcolor=self._clr("card"), border_radius=16,
             padding=ft.Padding.symmetric(horizontal=8, vertical=12),
             width=170,
+        )
+
+    def _bottom_nav(self, on_select):
+        items = []
+        for i, (label, icon) in enumerate(self.SECTIONS):
+            sel = self.section_idx["v"] == i
+            items.append(ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        content=ft.Icon(icon, size=20,
+                            color=self._clr("accent") if sel else self._clr("sub")),
+                        width=40, height=40,
+                        bgcolor=ft.Colors.with_opacity(0.12, self._clr("accent")) if sel else ft.Colors.TRANSPARENT,
+                        border_radius=12, alignment=ft.Alignment(0, 0),
+                        animate=ft.Animation(200, "easeOut"),
+                    ),
+                    ft.Text(label, size=8,
+                        color=self._clr("accent") if sel else self._clr("sub"),
+                        font_family="DM Sans", weight="bold" if sel else "normal"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                on_click=lambda e, idx=i: on_select(idx),
+                tooltip=label,
+            ))
+        return ft.Container(
+            content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=4,
+                           alignment=ft.MainAxisAlignment.CENTER),
+            bgcolor=self._clr("card"), border_radius=24,
+            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+            margin=ft.Margin.only(bottom=12),
         )
 
     # ── SECTION: Menu ──────────────────────────────────────────
@@ -321,7 +352,8 @@ class StaffPage:
 
         def select_section(idx):
             self.section_idx["v"] = idx
-            sidebar.controls[0] = self._sidebar(select_section)
+            if not mobile:
+                sidebar.controls[0] = self._sidebar(select_section)
             self.content.opacity = 0
             self.page.update()
             async def _do():
@@ -331,14 +363,16 @@ class StaffPage:
                 self.page.update()
             asyncio.create_task(_do())
 
-        sidebar = ft.Column([self._sidebar(select_section)])
         if mobile:
+            sidebar = ft.Column([self._sidebar(select_section)])
+            bn = self._bottom_nav(select_section)
             layout = ft.Column([
-                sidebar,
                 ft.Container(content=self.content, expand=True,
                     padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
+                bn,
             ], expand=True, spacing=6)
         else:
+            sidebar = ft.Column([self._sidebar(select_section)])
             layout = ft.Row([
                 sidebar,
                 ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.08, self._clr("text"))),

@@ -300,6 +300,8 @@ def build_register_form(page, on_submit, on_back):
         border_color=ft.Colors.with_opacity(0.3, t["text"]),
     )
     category_row = ft.Container(content=fields["category"], visible=role_dd.value == "Staff")
+    hostel_row = ft.Container(content=fields["hostel"], visible=role_dd.value == "Student")
+    room_row = ft.Container(content=fields["room"], visible=role_dd.value == "Student")
 
     async def _fetch_categories():
         try:
@@ -315,7 +317,10 @@ def build_register_form(page, on_submit, on_back):
     asyncio.create_task(_fetch_categories())
 
     def on_role_change(e):
-        category_row.visible = role_dd.value == "Staff"
+        is_staff = role_dd.value == "Staff"
+        category_row.visible = is_staff
+        hostel_row.visible = not is_staff
+        room_row.visible = not is_staff
         page.update()
     role_dd.on_change = on_role_change
 
@@ -347,11 +352,16 @@ def build_register_form(page, on_submit, on_back):
         fields["address"].error = err
         v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
         fields["father"].error = err
-        v_hostel, err = validate_hostel(fields["hostel"].value)
-        fields["hostel"].error = err
-        v_room, err = validate_room(fields["room"].value)
-        fields["room"].error = err
-        if category_row.visible:
+        is_staff = role_dd.value == "Staff"
+        if not is_staff:
+            v_hostel, err = validate_hostel(fields["hostel"].value)
+            fields["hostel"].error = err
+            v_room, err = validate_room(fields["room"].value)
+            fields["room"].error = err
+        else:
+            v_hostel = v_room = None
+            fields["hostel"].error = fields["room"].error = None
+        if is_staff:
             v_cat = fields["category"].value
             if not v_cat:
                 fields["category"].error = "Staff Category is required"
@@ -443,7 +453,8 @@ def build_register_form(page, on_submit, on_back):
                     sex_dd, ft.Container(height=4),
                     ft.Container(height=12),
                     category_row,
-                    *[fields[k] for k in ["dob", "dept", "phone", "address", "father", "hostel", "room"]],
+                    *[fields[k] for k in ["dob", "dept", "phone", "address", "father"]],
+                    hostel_row, room_row,
                     ft.Container(height=12),
                     msg,
                     ft.FilledButton(

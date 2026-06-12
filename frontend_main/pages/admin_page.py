@@ -99,6 +99,7 @@ def _api(table):
             "reject":  lambda e,i: _req("POST", f"/admin/registration-requests/{i}/reject", {"email": e}),
         },
         "poll": {
+            "active":  lambda e: _req("GET", "/poll/active", {"email": e}),
             "start":   lambda e,d: _req("POST", "/admin/poll/start", {"email": e}, d),
             "results": lambda e: _req("GET", "/admin/poll/results", {"email": e}),
             "end":     lambda e: _req("POST", "/admin/poll/end", {"email": e}),
@@ -324,7 +325,7 @@ class AdminPage:
             padding=ft.Padding.symmetric(horizontal=8, vertical=3),
         )
 
-    def _row_card(self, controls, actions=None, data=None):
+    def _row_card(self, controls, actions=None, data=None, on_click=None):
         row = list(controls)
         if actions:
             row.append(ft.Row(actions, spacing=2))
@@ -334,6 +335,7 @@ class AdminPage:
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=6),
             data=data,
+            on_click=on_click,
         )
 
     def _guest_banner(self):
@@ -384,12 +386,43 @@ class AdminPage:
                 content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=6),
                 bgcolor=self._clr("card"), border_radius=14,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=6),
+                visible=False,
             )
         return ft.Container(
             content=ft.Column(items, spacing=4),
             bgcolor=self._clr("card"), border_radius=16,
             padding=ft.Padding.symmetric(horizontal=8, vertical=12),
             width=170,
+        )
+
+    def _bottom_nav(self, on_select):
+        items = []
+        for i, (label, icon) in enumerate(self.TABS):
+            sel = self.tab_idx["v"] == i
+            items.append(ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        content=ft.Icon(icon, size=20,
+                            color=self._clr("accent") if sel else self._clr("sub")),
+                        width=40, height=40,
+                        bgcolor=ft.Colors.with_opacity(0.12, self._clr("accent")) if sel else ft.Colors.TRANSPARENT,
+                        border_radius=12, alignment=ft.Alignment(0, 0),
+                        animate=ft.Animation(200, "easeOut"),
+                    ),
+                    ft.Text(label, size=8,
+                        color=self._clr("accent") if sel else self._clr("sub"),
+                        font_family="DM Sans", weight="bold" if sel else "normal"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                padding=ft.Padding.symmetric(horizontal=6, vertical=4),
+                on_click=lambda e, idx=i: on_select(idx),
+                tooltip=label,
+            ))
+        return ft.Container(
+            content=ft.Row(items, scroll=ft.ScrollMode.AUTO, spacing=2,
+                           alignment=ft.MainAxisAlignment.CENTER),
+            bgcolor=self._clr("card"), border_radius=24,
+            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+            margin=ft.Margin.only(bottom=12),
         )
 
     # ════════════════════════════════════════════════════════════
@@ -1202,9 +1235,8 @@ class AdminPage:
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
-                self._icon_btn(ft.Icons.INFO_ROUNDED, self._clr("accent"), "Details", lambda e, u=s: _show_details(u)(e)),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label))
+            ], data=label, on_click=lambda e, u=s: asyncio.create_task(_show_details(u)(e))))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -1315,9 +1347,8 @@ class AdminPage:
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
-                self._icon_btn(ft.Icons.INFO_ROUNDED, self._clr("accent"), "Details", lambda e, u=s: _show_staff_details(u)(e)),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label))
+            ], data=label, on_click=lambda e, u=s: asyncio.create_task(_show_staff_details(u)(e))))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -2435,7 +2466,8 @@ class AdminPage:
 
         def select_tab(idx):
             self.tab_idx["v"] = idx
-            sidebar.controls[0] = self._sidebar(select_tab)
+            if not mobile:
+                sidebar.controls[0] = self._sidebar(select_tab)
             self.content.opacity = 0
             self.page.update()
             async def _do():
@@ -2445,14 +2477,16 @@ class AdminPage:
                 self.page.update()
             asyncio.create_task(_do())
 
-        sidebar = ft.Column([self._sidebar(select_tab)])
         if mobile:
+            sidebar = ft.Column([self._sidebar(select_tab)])
+            bn = self._bottom_nav(select_tab)
             layout = ft.Column([
-                sidebar,
                 ft.Container(content=self.content, expand=True,
                     padding=ft.Padding.symmetric(horizontal=12, vertical=8)),
+                bn,
             ], expand=True, spacing=6)
         else:
+            sidebar = ft.Column([self._sidebar(select_tab)])
             layout = ft.Row([
                 sidebar,
                 ft.VerticalDivider(width=1, color=ft.Colors.with_opacity(0.08, self._clr("text"))),
