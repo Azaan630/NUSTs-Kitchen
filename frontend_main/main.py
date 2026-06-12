@@ -146,7 +146,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
     )
 
-    ibox  = 120 if m else 180
+    ibox  = 150 if m else 220
     tsize = 32 if m else 56
     btn_txt_color = WHITE if not d else SLATE_900
 
@@ -172,7 +172,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
 
     # ── Logo (animates from centered scale 4 → final position) ──
     logo_box = ft.Container(
-        content=ft.Image(src="logo.png", width=ibox, height=ibox),
+        content=ft.Image(src="logo.png", width=ibox, height=ibox, fit="cover"),
         bgcolor=ft.Colors.with_opacity(0.1, acc),
         width=ibox, height=ibox, border_radius=ibox//2,
         alignment=ft.Alignment(0, 0),
@@ -796,7 +796,7 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=56, height=56),
+                        content=ft.Image(src="logo.png", width=60, height=60, fit="cover"),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
                         width=60, height=60, border_radius=16, alignment=ft.Alignment(0, 0),
                     ),
