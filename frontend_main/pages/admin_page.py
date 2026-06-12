@@ -49,12 +49,14 @@ def _api(table):
     return {
         "students": {
             "all":   lambda e: _req("GET", "/admin/students/all", {"email": e}),
+            "details": lambda e,i: _req("GET", f"/admin/students/details/{i}", {"email": e}),
             "register": lambda e,d: _req("POST", "/admin/students/register", {"email": e}, d),
             "update": lambda e,i,d: _req("PATCH", f"/admin/students/update/{i}", {"email": e}, d),
             "delete": lambda e,i: _req("DELETE", f"/admin/students/delete/{i}", {"email": e}),
         },
         "staff": {
             "all":   lambda e: _req("GET", "/admin/staff/all", {"email": e}),
+            "details": lambda e,i: _req("GET", f"/admin/staff/details/{i}", {"email": e}),
             "register": lambda e,d: _req("POST", "/admin/staff/register", {"email": e}, d),
             "update": lambda e,i,d: _req("PATCH", f"/admin/staff/update/{i}", {"email": e}, d),
             "delete": lambda e,i: _req("DELETE", f"/admin/staff/delete/{i}", {"email": e}),
@@ -193,6 +195,20 @@ class AdminPage:
         self._active_overlay = None
         if o:
             self.page.update()
+
+    def _show_overlay(self, card, width=380):
+        overlay = ft.Container(
+            content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+            alignment=ft.Alignment(0, 0), expand=True,
+            on_click=lambda e: asyncio.create_task(self._remove_overlay(fast=True)),
+            animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+            opacity=0,
+        )
+        self.page.add(overlay)
+        self._active_overlay = overlay
+        self.page.update()
+        overlay.opacity = 1
+        self.page.update()
 
     def _confirm(self, title, msg, on_delete):
         logger.error("_confirm: %s | %s", title, msg)
@@ -1030,36 +1046,36 @@ class AdminPage:
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Avg Ratings (top 8)", ratings_chart), 1),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Price vs Cost Trend", cost_chart), 2),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("Inventory & Menu", ft.Icons.INVENTORY_ROUNDED, 3),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Stock Levels (lowest 10)", stock_chart), 4),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Menu Ratings Trend", menu_ratings_chart), 5),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("People & Finance", ft.Icons.ACCOUNT_BALANCE_ROUNDED, 6),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Population Distribution", population_pie), 7),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Billing Trend (monthly)", billing_chart), 8),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             _section("Operational Trends", ft.Icons.TRENDING_UP_ROUNDED, 9),
             ft.Container(height=8),
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Daily Activity Trend", activity_chart), 10),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
                 ft.Container(_fade_wrap(self._dash_card("Ingredient Cost Profile", cost_profile_chart), 11),
-                             col={"xs": 6, "sm": 6, "md": 6}),
+                             col={"xs": 12, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
             ft.ResponsiveRow([
@@ -1105,6 +1121,66 @@ class AdminPage:
         async def refresh():
             await self._render_students(ref)
 
+        def _show_details(s):
+            uid = s.get("UserID")
+            name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
+            email = s.get("Email", "")
+            async def show_student_overlay(e):
+                details = [s]
+                if not self.is_guest and uid:
+                    r = await _api("students")["details"](self.email, uid)
+                    if isinstance(r, list) and len(r) > 0:
+                        details = r
+                d = details[0] if details else s
+                sex = d.get("Sex") or "-"
+                dob = d.get("DoB") or "-"
+                dept = d.get("Department") or "-"
+                phone = d.get("Contact_Number") or "-"
+                addr = d.get("Address") or "-"
+                father = d.get("Father_Name") or "-"
+                hostel = d.get("Hostel_Name") or "-"
+                room = d.get("Room_Number") or "-"
+                t = self.theme
+                acc = t.get("accent")
+                sub = t.get("sub")
+                card = ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("Student Details", size=18, weight="bold",
+                                    color=t.get("text"), font_family="DM Sans", expand=True),
+                            ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                          on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
+                        ft.Column([
+                            ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(f"{d.get('First_Name','')} {d.get('Last_Name','')}", size=13, weight="bold", color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Email", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(email, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Sex", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(sex, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Department", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(dept, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("DOB", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(dob, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Phone", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(phone, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Address", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(addr, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Father", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(father, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Hostel", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(hostel, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Room", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(room, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                        ], spacing=6),
+                    ], tight=True, spacing=4),
+                    bgcolor=t.get("card"), border_radius=18, padding=24, width=400,
+                    shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+                )
+                self._show_overlay(card)
+            return show_student_overlay
+
         for s in students:
             uid = s.get("UserID")
             name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
@@ -1126,6 +1202,7 @@ class AdminPage:
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
+                self._icon_btn(ft.Icons.INFO_ROUNDED, self._clr("accent"), "Details", lambda e, u=s: _show_details(u)(e)),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))
 
@@ -1170,6 +1247,53 @@ class AdminPage:
         async def refresh():
             await self._render_staff(ref)
 
+        def _show_staff_details(s):
+            uid = s.get("UserID")
+            name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
+            email = s.get("Email", "")
+            async def show_staff_overlay(e):
+                details = [s]
+                if not self.is_guest and uid:
+                    r = await _api("staff")["details"](self.email, uid)
+                    if isinstance(r, list) and len(r) > 0:
+                        details = r
+                d = details[0] if details else s
+                sex = d.get("Sex") or "-"
+                cat = d.get("Category") or d.get("Cat") or "-"
+                sal = d.get("Salary") or "-"
+                hrs = d.get("Working_hours") or "-"
+                t = self.theme
+                sub = t.get("sub")
+                card = ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("Staff Details", size=18, weight="bold",
+                                    color=t.get("text"), font_family="DM Sans", expand=True),
+                            ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                          on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
+                        ft.Column([
+                            ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(f"{d.get('First_Name','')} {d.get('Last_Name','')}", size=13, weight="bold", color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Email", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(email, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Sex", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(sex, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Category", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(cat, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Salary", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(f"Rs. {sal:,}" if isinstance(sal, (int, float)) else str(sal), size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                            ft.Row([ft.Text("Hours", size=11, color=sub, font_family="DM Sans", expand=1),
+                                    ft.Text(str(hrs), size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
+                        ], spacing=6),
+                    ], tight=True, spacing=4),
+                    bgcolor=t.get("card"), border_radius=18, padding=24, width=400,
+                    shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+                )
+                self._show_overlay(card)
+            return show_staff_overlay
+
         for s in staff_list:
             uid = s.get("UserID")
             name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
@@ -1191,6 +1315,7 @@ class AdminPage:
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
+                self._icon_btn(ft.Icons.INFO_ROUNDED, self._clr("accent"), "Details", lambda e, u=s: _show_staff_details(u)(e)),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
             ], data=label))
 

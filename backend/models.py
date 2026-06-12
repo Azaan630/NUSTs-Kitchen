@@ -9,6 +9,7 @@ class UserBase(BaseModel):
     Last_Name: str
     Email: str
     Account_Type: Optional[str] = None
+    Sex: Optional[str] = None
 
 
 class StudentBase(UserBase):
@@ -25,6 +26,7 @@ class StudentCreate(StudentBase):
 
 
 class StudentUpdate(BaseModel):
+    Sex: Optional[str] = None
     Department: Optional[str] = None
     Contact_Number: Optional[str] = None
     Address: Optional[str] = None
@@ -38,6 +40,7 @@ class Staff(UserBase):
 
 
 class StaffUpdate(BaseModel):
+    Sex: Optional[str] = None
     Category: str
 
 
@@ -107,6 +110,7 @@ class RegistrationRequestCreate(BaseModel):
     Last_Name: str = Field(min_length=1)
     Email: str = Field(min_length=5)
     Account_Type: str
+    Sex: Optional[str] = None
     DoB: Optional[date] = None
     Department: Optional[str] = None
     Contact_Number: Optional[str] = None
@@ -121,6 +125,7 @@ class RegistrationRequestUpdate(BaseModel):
     First_Name: Optional[str] = None
     Last_Name: Optional[str] = None
     Email: Optional[str] = None
+    Sex: Optional[str] = None
     DoB: Optional[date] = None
     Department: Optional[str] = None
     Contact_Number: Optional[str] = None

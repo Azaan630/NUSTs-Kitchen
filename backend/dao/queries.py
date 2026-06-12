@@ -35,8 +35,8 @@ getIngredients = ("""SELECT *
                      FROM Ingredients""")
 
 registerUser = ("""INSERT INTO Users
-                      (First_Name, Last_Name, Email, Account_Type)
-                      VALUES (%s, %s, %s, %s)""")
+                      (First_Name, Last_Name, Email, Account_Type, Sex)
+                      VALUES (%s, %s, %s, %s, %s)""")
 
 registerStudent = ("""INSERT INTO Student
                       (UserID, DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number)
@@ -60,6 +60,9 @@ registerStaff = ("""INSERT INTO Staff
 
 getStaffDetails = ("""SELECT *
                       FROM vw_StaffDetails WHERE UserID = %s""")
+
+getStudentDetails = ("""SELECT *
+                        FROM vw_StudentDetails WHERE UserID = %s""")
 
 AddStaffContactNumber = ("""INSERT INTO Staff_Contact_Numbers
                             (UserID, Contact_Number)

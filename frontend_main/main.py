@@ -266,6 +266,14 @@ def build_register_form(page, on_submit, on_back):
             cursor_color=acc, border_radius=10,
         )
 
+    sex_dd = ft.Dropdown(
+        label="Sex",
+        options=[ft.dropdown.Option("Male"), ft.dropdown.Option("Female")],
+        width=fw if not m else None, expand=m,
+        color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
+        border_color=ft.Colors.with_opacity(0.3, t["text"]),
+    )
+
     async def pick_date(e):
         dp = ft.DatePicker(
             on_change=lambda e: (
@@ -314,8 +322,8 @@ def build_register_form(page, on_submit, on_back):
     msg = ft.Text("", size=13, color=acc, font_family="DM Sans")
 
     async def submit(e):
-        for f in fields.values():
-            f.error = ""
+        for f in list(fields.values()) + [sex_dd]:
+            f.error = None
             f.update()
         from pages.validation import (
             validate_name, validate_email, validate_phone, validate_date_str,
@@ -332,22 +340,21 @@ def build_register_form(page, on_submit, on_back):
         if err and fields["dob"].value:
             fields["dob"].error = err
         v_dept, err = validate_department(fields["dept"].value)
-        if err: fields["dept"].error = err
+        fields["dept"].error = err
         v_phone, err = validate_phone(fields["phone"].value)
-        if err: fields["phone"].error = err
+        fields["phone"].error = err
         v_addr, err = validate_address(fields["address"].value)
-        if err: fields["address"].error = err
+        fields["address"].error = err
         v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
-        if err: fields["father"].error = err
+        fields["father"].error = err
         v_hostel, err = validate_hostel(fields["hostel"].value)
-        if err: fields["hostel"].error = err
+        fields["hostel"].error = err
         v_room, err = validate_room(fields["room"].value)
-        if err: fields["room"].error = err
+        fields["room"].error = err
         if category_row.visible:
             v_cat = fields["category"].value
             if not v_cat:
                 fields["category"].error = "Staff Category is required"
-                fields["category"].update()
                 first_err = "Staff Category is required"
                 page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
                     bgcolor=t["danger"], duration=4000)
@@ -358,11 +365,10 @@ def build_register_form(page, on_submit, on_back):
             v_cat = None
 
         first_err = None
-        for f in fields.values():
-            if f.error:
-                f.update()
-                if not first_err:
-                    first_err = f.error
+        for f in list(fields.values()) + [sex_dd]:
+            f.update()
+            if f.error and not first_err:
+                first_err = f.error
         if first_err:
             page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
                 bgcolor=t["danger"], duration=4000)
@@ -374,6 +380,7 @@ def build_register_form(page, on_submit, on_back):
             "Last_Name": v_last,
             "Email": v_email,
             "Account_Type": role_dd.value,
+            "Sex": sex_dd.value or None,
             "DoB": str(v_dob) if v_dob else None,
             "Department": v_dept,
             "Contact_Number": v_phone,
@@ -433,6 +440,7 @@ def build_register_form(page, on_submit, on_back):
                     ft.Container(height=20),
                     role_dd, ft.Container(height=4),
                     *[fields[k] for k in ["first", "last", "email"]],
+                    sex_dd, ft.Container(height=4),
                     ft.Container(height=12),
                     category_row,
                     *[fields[k] for k in ["dob", "dept", "phone", "address", "father", "hostel", "room"]],
@@ -812,8 +820,54 @@ async def main(page: ft.Page):
                     raise KeyError("user_details missing")
             else:
                 page.clean()
-                page.add(ft.Icon(ft.Icons.GPP_BAD, color=ROSE_400, size=50),
-                         ft.Text("Unauthorized NUST Entity"))
+                t = make_theme()
+                acc = t["accent"]
+                sub = t["sub"]
+                card = ft.Container(
+                    content=ft.Column([
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.GPP_BAD, color=ROSE_400, size=48),
+                            margin=ft.Margin.only(bottom=12),
+                            alignment=ft.Alignment(0, 0),
+                        ),
+                        ft.Text("Email Not Registered", size=20, weight="bold",
+                                font_family="Playfair", color=t["text"]),
+                        ft.Container(height=8),
+                        ft.Text(f"{email} is not registered in our system.",
+                                size=13, color=sub, font_family="DM Sans",
+                                text_align=ft.TextAlign.CENTER),
+                        ft.Text("Please register first or try a different email.",
+                                size=13, color=sub, font_family="DM Sans",
+                                text_align=ft.TextAlign.CENTER),
+                        ft.Container(height=20),
+                        ft.FilledButton(
+                            content=ft.Row([
+                                ft.Icon(ft.Icons.REFRESH_ROUNDED, color=SLATE_900, size=16),
+                                ft.Text("Try Again", color=SLATE_900, weight="bold",
+                                        font_family="DM Sans", size=14),
+                            ], spacing=8, tight=True),
+                            on_click=lambda e: show_landing(),
+                            style=ft.ButtonStyle(bgcolor=acc,
+                                shape=ft.RoundedRectangleBorder(radius=10),
+                                padding=ft.Padding.symmetric(horizontal=32, vertical=14), elevation=0),
+                        ),
+                        ft.Container(height=8),
+                        ft.TextButton(
+                            content=ft.Row([
+                                ft.Icon(ft.Icons.PERSON_ADD_ALT_1_ROUNDED, color=acc, size=16),
+                                ft.Text("Register New Account", color=acc, size=13, font_family="DM Sans"),
+                            ], spacing=4, tight=True),
+                            on_click=lambda e: show_register_page(),
+                        ),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    bgcolor=t["card"], border_radius=20, padding=32, width=360,
+                    shadow=ft.BoxShadow(blur_radius=30, color="#00000066"),
+                )
+                page.add(ft.Container(
+                    content=card,
+                    alignment=ft.Alignment(0, 0), expand=True,
+                    bgcolor=ft.Colors.with_opacity(0.5, "#000"),
+                ))
         except (httpx.ConnectError, httpx.TimeoutException):
             page.clean()
             page.add(ft.Text("Cannot reach backend. Please try again later.", color=ROSE_400))

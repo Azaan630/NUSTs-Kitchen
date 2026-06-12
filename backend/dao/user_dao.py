@@ -4,7 +4,8 @@ from fastapi import HTTPException
 from dao.base import BaseDAO
 from dao.queries import (
     findUserByEmail, registerUser, registerStudent,
-    registerStaff, getStaffDetails, AddStaffContactNumber, addStaffCategory,
+    registerStaff, getStaffDetails, getStudentDetails,
+    AddStaffContactNumber, addStaffCategory,
     getAllStaffCategories, deleteStaffCategory,
 )
 
@@ -22,8 +23,11 @@ class UserDAO(BaseDAO):
     def get_staff_details(self, user_id):
         return self._fetchall(getStaffDetails, (user_id,))
 
-    def register_user(self, first_name, last_name, email, account_type):
-        return self._execute(registerUser, (first_name, last_name, email, account_type))
+    def get_student_details(self, user_id):
+        return self._fetchall(getStudentDetails, (user_id,))
+
+    def register_user(self, first_name, last_name, email, account_type, sex=None):
+        return self._execute(registerUser, (first_name, last_name, email, account_type, sex))
 
     def register_student(self, user_id, dob, department, contact, address, father, hostel, room):
         return self._execute(registerStudent, (user_id, dob, department, contact, address, father, hostel, room))

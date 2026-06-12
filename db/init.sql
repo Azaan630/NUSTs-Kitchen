@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS Users (
     First_Name  VARCHAR(50) NOT NULL,
     Last_Name   VARCHAR(50) NOT NULL,
     Email       VARCHAR(100) UNIQUE NOT NULL,
-    Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL
+    Account_Type ENUM('Student', 'Staff', 'Admin') NOT NULL,
+    Sex         ENUM('Male', 'Female') DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Student (
@@ -146,6 +147,7 @@ CREATE TABLE IF NOT EXISTS Registration_Requests (
     Last_Name      VARCHAR(50) NOT NULL,
     Email          VARCHAR(100) NOT NULL,
     Account_Type   ENUM('Student', 'Staff') NOT NULL,
+    Sex            ENUM('Male', 'Female') DEFAULT NULL,
     DoB            DATE,
     Department     VARCHAR(100),
     Contact_Number VARCHAR(20),
@@ -221,12 +223,32 @@ SELECT
     s.UserID,
     u.First_Name,
     u.Last_Name,
+    u.Email,
+    u.Sex,
     s.Category,
     sc.Working_hours,
     sc.Salary
 FROM Staff s
 JOIN Users u ON s.UserID = u.UserID
 JOIN Staff_Category sc ON s.Category = sc.Category;
+
+CREATE OR REPLACE VIEW vw_StudentDetails AS
+SELECT
+    u.UserID,
+    u.First_Name,
+    u.Last_Name,
+    u.Email,
+    u.Sex,
+    u.Account_Type,
+    s.DoB,
+    s.Department,
+    s.Contact_Number,
+    s.Address,
+    s.Father_Name,
+    s.Hostel_Name,
+    s.Room_Number
+FROM Users u
+JOIN Student s ON u.UserID = s.UserID;
 
 # --- STORED PROCEDURES ---
 

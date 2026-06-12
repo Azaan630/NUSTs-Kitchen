@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS Registration_Requests (
     Last_Name      VARCHAR(50) NOT NULL,
     Email          VARCHAR(100) NOT NULL,
     Account_Type   ENUM('Student', 'Staff') NOT NULL,
+    Sex            ENUM('Male', 'Female') DEFAULT NULL,
     DoB            DATE,
     Department     VARCHAR(100),
     Contact_Number VARCHAR(20),
@@ -16,14 +17,14 @@ CREATE TABLE IF NOT EXISTS Registration_Requests (
     Created_At     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT IGNORE INTO Users (UserID, First_Name, Last_Name, Email, Account_Type) VALUES
-(1, 'Muhammad', 'Azaan', 'zainif63@gmail.com', 'Admin'),
-(2, 'Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student'),
-(3, 'Jane', 'Smith', 'jane.student@seecs.edu.pk', 'Student'),
-(4, 'Muhammad', 'Azaan', 'zainif630@gmail.com', 'Staff'),
-(5, 'Bob', 'Jones', 'bob.student@seecs.edu.pk', 'Student'),
-(6, 'Alice', 'Staff', 'alice.staff@seecs.edu.pk', 'Staff'),
-(7, 'Charlie', 'Chef', 'charlie.chef@seecs.edu.pk', 'Staff');
+INSERT IGNORE INTO Users (UserID, First_Name, Last_Name, Email, Account_Type, Sex) VALUES
+(1, 'Muhammad', 'Azaan', 'zainif63@gmail.com', 'Admin', 'Male'),
+(2, 'Muhammad', 'Azaan', 'mazaan.bscs25seecs@seecs.edu.pk', 'Student', 'Male'),
+(3, 'Jane', 'Smith', 'jane.student@seecs.edu.pk', 'Student', 'Female'),
+(4, 'Muhammad', 'Azaan', 'zainif630@gmail.com', 'Staff', 'Male'),
+(5, 'Bob', 'Jones', 'bob.student@seecs.edu.pk', 'Student', 'Male'),
+(6, 'Alice', 'Staff', 'alice.staff@seecs.edu.pk', 'Staff', 'Female'),
+(7, 'Charlie', 'Chef', 'charlie.chef@seecs.edu.pk', 'Staff', 'Male');
 
 INSERT IGNORE INTO Student (UserID, DoB, Department, Contact_Number, Address, Father_Name, Hostel_Name, Room_Number) VALUES
 (2, '2004-05-15', 'CS', '0300-1234567', 'H-12 NUST', 'John Smith', 'Ghazali', '101'),

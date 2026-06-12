@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS Registration_Requests (
     Last_Name      VARCHAR(50) NOT NULL,
     Email          VARCHAR(100) NOT NULL,
     Account_Type   ENUM('Student', 'Staff') NOT NULL,
+    Sex            ENUM('Male', 'Female') DEFAULT NULL,
     DoB            DATE,
     Department     VARCHAR(100),
     Contact_Number VARCHAR(20),
@@ -40,13 +41,13 @@ class RegistrationDAO(BaseDAO):
             raise HTTPException(status_code=400, detail="Email already registered")
         self._execute(
             """INSERT INTO Registration_Requests
-            (First_Name, Last_Name, Email, Account_Type, DoB, Department,
+            (First_Name, Last_Name, Email, Account_Type, Sex, DoB, Department,
              Contact_Number, Address, Father_Name, Hostel_Name, Room_Number,
              Category, Status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending')""",
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending')""",
             (
                 data.First_Name, data.Last_Name, data.Email, data.Account_Type,
-                data.DoB, data.Department, data.Contact_Number, data.Address,
+                data.Sex, data.DoB, data.Department, data.Contact_Number, data.Address,
                 data.Father_Name, data.Hostel_Name, data.Room_Number, data.Category,
             )
         )
@@ -80,9 +81,10 @@ class RegistrationDAO(BaseDAO):
         first = data.First_Name if data and data.First_Name else req["First_Name"]
         last  = data.Last_Name  if data and data.Last_Name  else req["Last_Name"]
         email = data.Email       if data and data.Email       else req["Email"]
+        sex   = data.Sex         if data and data.Sex         else req.get("Sex")
         role  = req["Account_Type"]
 
-        user_cur = self._execute(registerUser, (first, last, email, role))
+        user_cur = self._execute(registerUser, (first, last, email, role, sex))
         new_user_id = user_cur.lastrowid
 
         if role == "Student":

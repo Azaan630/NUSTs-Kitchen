@@ -116,6 +116,11 @@ def get_staff_details(UserID: int, user=Depends(permission_checker(["Admin"])), 
     return UserDAO(db).get_staff_details(UserID)
 
 
+@app.get("/admin/students/details/{UserID}")
+def get_student_details(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    return UserDAO(db).get_student_details(UserID)
+
+
 @app.get("/admin/food/costs")
 def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     return FoodDAO(db).get_all_food_costs()
@@ -198,7 +203,7 @@ def reject_registration(RequestID: int, user=Depends(permission_checker(["Admin"
 @app.post("/admin/students/register")
 def register_student(data: models.StudentCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = UserDAO(db)
-    user_cur = dao.register_user(data.First_Name, data.Last_Name, data.Email, "Student")
+    user_cur = dao.register_user(data.First_Name, data.Last_Name, data.Email, "Student", data.Sex)
     new_user_id = user_cur.lastrowid
     dao.register_student(new_user_id, data.DoB, data.Department, data.Contact_Number,
                          data.Address, data.Father_Name, data.Hostel_Name, data.Room_Number)
@@ -220,7 +225,7 @@ def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=
 @app.post("/admin/staff/register")
 def register_staff(data: models.Staff, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = UserDAO(db)
-    user_cur = dao.register_user(data.First_Name, data.Last_Name, data.Email, "Staff")
+    user_cur = dao.register_user(data.First_Name, data.Last_Name, data.Email, "Staff", data.Sex)
     new_user_id = user_cur.lastrowid
     dao.register_staff(new_user_id, data.Category)
     return {"message": "User and Staff registered successfully", "UserID": new_user_id}
