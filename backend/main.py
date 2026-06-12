@@ -248,6 +248,18 @@ def add_staff_category(data: models.StaffCategory, db=Depends(get_db), user=Depe
     return {"message": "Category created", "id": cursor.lastrowid}
 
 
+@app.get("/admin/staff/category")
+def list_staff_categories(db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    categories = UserDAO(db).get_all_staff_categories()
+    return categories
+
+
+@app.delete("/admin/staff/category/{category}")
+def delete_staff_category(category: str, db=Depends(get_db), user=Depends(permission_checker(["Admin"]))):
+    UserDAO(db).delete_staff_category(category)
+    return {"message": "Category deleted"}
+
+
 # ── Bills ──────────────────────────────────────────────────────
 
 @app.post("/admin/bills/create")

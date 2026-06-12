@@ -5,6 +5,7 @@ from dao.base import BaseDAO
 from dao.queries import (
     findUserByEmail, registerUser, registerStudent,
     registerStaff, getStaffDetails, AddStaffContactNumber, addStaffCategory,
+    getAllStaffCategories, deleteStaffCategory,
 )
 
 
@@ -35,6 +36,12 @@ class UserDAO(BaseDAO):
 
     def add_staff_category(self, category, working_hours, salary):
         return self._execute(addStaffCategory, (category, working_hours, salary))
+
+    def get_all_staff_categories(self):
+        return self._fetchall(getAllStaffCategories)
+
+    def delete_staff_category(self, category):
+        return self._execute(deleteStaffCategory, (category,))
 
     def search_users(self, query, limit=20):
         pattern = f"%{query}%"

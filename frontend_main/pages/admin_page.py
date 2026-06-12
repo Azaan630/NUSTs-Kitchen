@@ -100,7 +100,11 @@ def _api(table):
             "start":   lambda e,d: _req("POST", "/admin/poll/start", {"email": e}, d),
             "results": lambda e: _req("GET", "/admin/poll/results", {"email": e}),
             "end":     lambda e: _req("POST", "/admin/poll/end", {"email": e}),
-            "active":  lambda e: _req("GET", "/poll/active", {"email": e}),
+        },
+        "staff_categories": {
+            "all":    lambda e: _req("GET", "/admin/staff/category", {"email": e}),
+            "create": lambda e,d: _req("POST", "/admin/staff/category", {"email": e}, d),
+            "delete": lambda e,c: _req("DELETE", f"/admin/staff/category/{c}", {"email": e}),
         },
         "analytics": {
             "ratings":   lambda e: _req("GET", "/menu/ratings-summary", {"email": e}),
@@ -134,6 +138,7 @@ class AdminPage:
         ("Menu",      ft.Icons.RESTAURANT_MENU_ROUNDED),
         ("Polls",     ft.Icons.POLL_ROUNDED),
         ("Requests",  ft.Icons.PERSON_ADD_ALT_1_ROUNDED),
+        ("Staff Types", ft.Icons.WORKSPACE_PREMIUM_ROUNDED),
     ]
 
     def __init__(self, page, user_data, theme):
@@ -176,14 +181,15 @@ class AdminPage:
         task.add_done_callback(lambda t: self._snack(str(t.exception()), False) if t.exception() else None)
         return task
 
-    async def _remove_overlay(self, animate=True, fast=False):
+    async def _remove_overlay(self, animate=True, fast=False, instant=False):
         o = getattr(self, '_active_overlay', None)
         if o and animate and o in self.page.controls:
-            o.opacity = 0
-            self.page.update()
-            await asyncio.sleep(0.08 if fast else 0.2)
-        if o and o in self.page.controls:
-            self.page.remove(o)
+            if not instant:
+                o.opacity = 0
+                self.page.update()
+                await asyncio.sleep(0.08 if fast else 0.2)
+            if o in self.page.controls:
+                self.page.remove(o)
         self._active_overlay = None
         if o:
             self.page.update()
@@ -196,7 +202,7 @@ class AdminPage:
             await self._remove_overlay(fast=True)
 
         async def do_confirm(e):
-            await self._remove_overlay(fast=True)
+            await self._remove_overlay(instant=True)
             on_delete()
 
         card = ft.Container(
@@ -1262,14 +1268,14 @@ class AdminPage:
 
         async def do_add_food(e):
             for fld in [add_f_name, add_f_price, add_f_qty]:
-                fld.error_text = ""; fld.update()
+                fld.error = ""; fld.update()
             from pages.validation import validate_name, validate_positive_number
             v_name, err = validate_name(add_f_name.value, "Name")
-            if err: add_f_name.error_text = err; add_f_name.update(); self._snack(err, False); return
+            if err: add_f_name.error = err; add_f_name.update(); self._snack(err, False); return
             v_price, err = validate_positive_number(add_f_price.value, "Price")
-            if err: add_f_price.error_text = err; add_f_price.update(); self._snack(err, False); return
+            if err: add_f_price.error = err; add_f_price.update(); self._snack(err, False); return
             v_qty, err = validate_positive_number(add_f_qty.value, "Quantity")
-            if err: add_f_qty.error_text = err; add_f_qty.update(); self._snack(err, False); return
+            if err: add_f_qty.error = err; add_f_qty.update(); self._snack(err, False); return
             data = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
             if self.is_guest:
                 mock_data.create_food(data)
@@ -1333,14 +1339,14 @@ class AdminPage:
             def do_upd(e, i=iid, nf=ef_name, pf=ef_price, qf=ef_qty):
                 from pages.validation import validate_name, validate_positive_number
                 v_name, err = validate_name(nf.value, "Name")
-                if err: self._snack(err, False); nf.error_text = err; nf.update(); return
-                nf.error_text = ""; nf.update()
+                if err: self._snack(err, False); nf.error = err; nf.update(); return
+                nf.error = ""; nf.update()
                 v_price, err = validate_positive_number(pf.value, "Price")
-                if err: self._snack(err, False); pf.error_text = err; pf.update(); return
-                pf.error_text = ""; pf.update()
+                if err: self._snack(err, False); pf.error = err; pf.update(); return
+                pf.error = ""; pf.update()
                 v_qty, err = validate_positive_number(qf.value, "Quantity")
-                if err: self._snack(err, False); qf.error_text = err; qf.update(); return
-                qf.error_text = ""; qf.update()
+                if err: self._snack(err, False); qf.error = err; qf.update(); return
+                qf.error = ""; qf.update()
                 p = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
                 if self.is_guest:
                     mock_data.update_food(i, p)
@@ -1473,16 +1479,16 @@ class AdminPage:
 
         async def do_save_add(e):
             for fld in [add_name, add_qty, add_unit, add_cost]:
-                fld.error_text = ""; fld.update()
+                fld.error = ""; fld.update()
             from pages.validation import validate_name, validate_required, validate_positive_number
             v_name, err = validate_name(add_name.value, "Name")
-            if err: add_name.error_text = err; add_name.update(); self._snack(err, False); return
+            if err: add_name.error = err; add_name.update(); self._snack(err, False); return
             v_qty, err = validate_positive_number(add_qty.value, "Quantity")
-            if err: add_qty.error_text = err; add_qty.update(); self._snack(err, False); return
+            if err: add_qty.error = err; add_qty.update(); self._snack(err, False); return
             v_unit, err = validate_required(add_unit.value, "Unit")
-            if err: add_unit.error_text = err; add_unit.update(); self._snack(err, False); return
+            if err: add_unit.error = err; add_unit.update(); self._snack(err, False); return
             v_cost, err = validate_positive_number(add_cost.value, "Cost/unit")
-            if err: add_cost.error_text = err; add_cost.update(); self._snack(err, False); return
+            if err: add_cost.error = err; add_cost.update(); self._snack(err, False); return
             data = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
             if self.is_guest:
                 mock_data.create_ingredient(data)
@@ -1553,17 +1559,17 @@ class AdminPage:
             def do_upd(e, i=iid, nf=ef_name, qf=ef_qty, uf=ef_unit, cf=ef_cost):
                 from pages.validation import validate_name, validate_required, validate_positive_number
                 v_name, err = validate_name(nf.value, "Name")
-                if err: self._snack(err, False); nf.error_text = err; nf.update(); return
-                nf.error_text = ""; nf.update()
+                if err: self._snack(err, False); nf.error = err; nf.update(); return
+                nf.error = ""; nf.update()
                 v_qty, err = validate_positive_number(qf.value, "Quantity")
-                if err: self._snack(err, False); qf.error_text = err; qf.update(); return
-                qf.error_text = ""; qf.update()
+                if err: self._snack(err, False); qf.error = err; qf.update(); return
+                qf.error = ""; qf.update()
                 v_unit, err = validate_required(uf.value, "Unit")
-                if err: self._snack(err, False); uf.error_text = err; uf.update(); return
-                uf.error_text = ""; uf.update()
+                if err: self._snack(err, False); uf.error = err; uf.update(); return
+                uf.error = ""; uf.update()
                 v_cost, err = validate_positive_number(cf.value, "Cost/unit")
-                if err: self._snack(err, False); cf.error_text = err; cf.update(); return
-                cf.error_text = ""; cf.update()
+                if err: self._snack(err, False); cf.error = err; cf.update(); return
+                cf.error = ""; cf.update()
                 d = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
                 if self.is_guest:
                     mock_data.update_ingredient(i, d)
@@ -1811,7 +1817,109 @@ class AdminPage:
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
-    #  TAB 6 — MENU
+    #  TAB — STAFF TYPES
+    # ════════════════════════════════════════════════════════════
+
+    async def _render_staff_types(self, ref):
+        ref.content = self._loading(); self.page.update()
+        cats = _ensure_list([] if self.is_guest else (await _api("staff_categories")["all"](self.email)))
+
+        add_name  = ft.TextField(hint_text="Category Name", dense=True, expand=True,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_hours = ft.TextField(hint_text="Working Hours", dense=True, expand=True,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_salary= ft.TextField(hint_text="Salary", dense=True, expand=True,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),)
+        add_form = ft.Container(
+            content=ft.Column([
+                ft.Row([add_name, add_hours, add_salary], spacing=8),
+                ft.Row([
+                    self._btn("Save", ft.Icons.SAVE_ROUNDED, lambda e: asyncio.create_task(_do_add(e))),
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=8), visible=False, margin=ft.Margin.only(bottom=6),
+        )
+
+        async def refresh():
+            await self._render_staff_types(ref)
+
+        async def _do_add(e):
+            for f in [add_name, add_hours, add_salary]:
+                f.error = ""; f.update()
+            nm = add_name.value.strip() if add_name.value else ""
+            hr = add_hours.value.strip() if add_hours.value else ""
+            sl = add_salary.value.strip() if add_salary.value else ""
+            if not nm:
+                add_name.error = "Required"; add_name.update(); self._snack("Name is required", False); return
+            if not hr:
+                add_hours.error = "Required"; add_hours.update(); self._snack("Hours required", False); return
+            if not sl:
+                add_salary.error = "Required"; add_salary.update(); self._snack("Salary required", False); return
+            try:
+                hrs = float(hr)
+                sal = float(sl)
+            except ValueError:
+                self._snack("Hours and Salary must be numbers", False); return
+            if self.is_guest:
+                self._snack("Guest mode — not saved", True)
+            else:
+                r = await _api("staff_categories")["create"](self.email, {"Category": nm, "WorkingHours": hrs, "Salary": sal})
+                if "error" in (r or {}):
+                    logger.error("add_staff_type: %s", r["error"]); self._snack(r["error"], False); return
+                self._snack("Created", True)
+            add_name.value = add_hours.value = add_salary.value = ""
+            add_form.visible = False
+            await refresh()
+
+        def toggle_form(e):
+            add_form.visible = not add_form.visible
+            self.page.update()
+
+        rows = []
+        for c in cats:
+            nm = c.get("Category", "")
+            hr = c.get("Working_hours") or c.get("WorkingHours") or ""
+            sl = c.get("Salary") or ""
+            rows.append(ft.Container(
+                content=ft.Row([
+                    ft.Text(nm, size=13, color=self._clr("text"), font_family="DM Sans", expand=True),
+                    ft.Text(f"{hr}h", size=12, color=self._clr("sub"), font_family="DM Sans", width=80, text_align=ft.TextAlign.CENTER),
+                    ft.Text(f"Rs.{sl}", size=12, color=self._clr("sub"), font_family="DM Sans", width=100, text_align=ft.TextAlign.CENTER),
+                    self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete",
+                        lambda e, cn=nm: self._confirm("Delete Staff Type", f"Remove '{cn}'?", lambda: self._run(_del_type(cn)))),
+                ], spacing=8),
+                bgcolor=self._clr("card"), border_radius=12,
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                margin=ft.Margin.only(bottom=4),
+            ))
+        async def _del_type(cn):
+            if self.is_guest:
+                self._snack("Guest mode")
+            else:
+                r = await _api("staff_categories")["delete"](self.email, cn)
+                if "error" in (r or {}): logger.error("del_staff_type: %s", r["error"]); self._snack(r["error"], False); return
+                self._snack("Deleted", True)
+            await refresh()
+
+        ref.content = ft.Column([
+            self._guest_banner(),
+            ft.Row([
+                ft.Text("Staff Types", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                self._btn("Add Type", ft.Icons.ADD_ROUNDED, toggle_form),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=8),
+            add_form,
+            ft.Column(rows, spacing=4) if rows else ft.Text("No staff types defined", color=self._clr("sub"), font_family="DM Sans"),
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        self.page.update()
+
+    # ════════════════════════════════════════════════════════════
+    #  TAB 9 — MENU
     # ════════════════════════════════════════════════════════════
 
     async def _render_menu(self, ref):
@@ -1900,9 +2008,9 @@ class AdminPage:
         async def do_add_menu(e):
             from pages.validation import validate_date_str
             iid = add_m_food.value
-            add_m_date.error_text = ""; add_m_date.update()
+            add_m_date.error = ""; add_m_date.update()
             dt, err = validate_date_str(add_m_date.value, "Date")
-            if err: add_m_date.error_text = err; add_m_date.update(); self._snack(err, False); return
+            if err: add_m_date.error = err; add_m_date.update(); self._snack(err, False); return
             d = str(dt)
             t = add_m_meal.value
             if not iid or not t:
@@ -2194,7 +2302,7 @@ class AdminPage:
         "_render_dashboard", "_render_students", "_render_staff",
         "_render_food", "_render_ingredients", "_render_mess_off",
         "_render_bills", "_render_menu", "_render_polls",
-        "_render_requests",
+        "_render_requests", "_render_staff_types",
     ]
 
     def build(self):

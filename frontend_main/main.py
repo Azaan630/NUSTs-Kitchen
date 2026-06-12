@@ -283,13 +283,28 @@ def build_register_form(page, on_submit, on_back):
         suffix=ft.IconButton(ft.Icons.CALENDAR_MONTH, on_click=pick_date),
     )
 
-    fields["category"] = ft.TextField(
-        label="Staff Category", hint_text="Chef / Server", width=fw, expand=m,
+    DEFAULT_CATEGORIES = ["Chef", "Server", "Cleaner", "Security", "Administrator"]
+    fields["category"] = ft.Dropdown(
+        label="Staff Category",
+        options=[ft.dropdown.Option(c) for c in DEFAULT_CATEGORIES],
+        width=fw if not m else None, expand=m,
         color=t["text"], label_style=ft.TextStyle(color=sub, size=13),
         border_color=ft.Colors.with_opacity(0.3, t["text"]),
-        cursor_color=acc, border_radius=10,
     )
     category_row = ft.Container(content=fields["category"], visible=role_dd.value == "Staff")
+
+    async def _fetch_categories():
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{BACKEND_URL}/admin/staff/category", timeout=5)
+                if resp.status_code == 200:
+                    cats = resp.json()
+                    if cats:
+                        fields["category"].options = [ft.dropdown.Option(c["Category"]) for c in cats]
+                        fields["category"].update()
+        except Exception:
+            pass
+    asyncio.create_task(_fetch_categories())
 
     def on_role_change(e):
         category_row.visible = role_dd.value == "Staff"
@@ -300,7 +315,7 @@ def build_register_form(page, on_submit, on_back):
 
     async def submit(e):
         for f in fields.values():
-            f.error_text = ""
+            f.error = ""
             f.update()
         from pages.validation import (
             validate_name, validate_email, validate_phone, validate_date_str,
@@ -308,38 +323,46 @@ def build_register_form(page, on_submit, on_back):
             validate_department, validate_category,
         )
         v_first, err = validate_name(fields["first"].value, "First Name")
-        fields["first"].error_text = err
+        fields["first"].error = err
         v_last, err = validate_name(fields["last"].value, "Last Name")
-        fields["last"].error_text = err
+        fields["last"].error = err
         v_email, err = validate_email(fields["email"].value)
-        fields["email"].error_text = err
+        fields["email"].error = err
         v_dob, err = validate_date_str(fields["dob"].value, "Date of Birth") if fields["dob"].value else (None, None)
         if err and fields["dob"].value:
-            fields["dob"].error_text = err
+            fields["dob"].error = err
         v_dept, err = validate_department(fields["dept"].value)
-        if err: fields["dept"].error_text = err
+        if err: fields["dept"].error = err
         v_phone, err = validate_phone(fields["phone"].value)
-        if err: fields["phone"].error_text = err
+        if err: fields["phone"].error = err
         v_addr, err = validate_address(fields["address"].value)
-        if err: fields["address"].error_text = err
+        if err: fields["address"].error = err
         v_father, err = validate_name(fields["father"].value, "Father's Name") if fields["father"].value else (None, None)
-        if err: fields["father"].error_text = err
+        if err: fields["father"].error = err
         v_hostel, err = validate_hostel(fields["hostel"].value)
-        if err: fields["hostel"].error_text = err
+        if err: fields["hostel"].error = err
         v_room, err = validate_room(fields["room"].value)
-        if err: fields["room"].error_text = err
+        if err: fields["room"].error = err
         if category_row.visible:
-            v_cat, err = validate_category(fields["category"].value)
-            if err: fields["category"].error_text = err
+            v_cat = fields["category"].value
+            if not v_cat:
+                fields["category"].error = "Staff Category is required"
+                fields["category"].update()
+                first_err = "Staff Category is required"
+                page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
+                    bgcolor=t["danger"], duration=4000)
+                page.snack_bar.open = True
+                page.update()
+                return
         else:
             v_cat = None
 
         first_err = None
         for f in fields.values():
-            if f.error_text:
+            if f.error:
                 f.update()
                 if not first_err:
-                    first_err = f.error_text
+                    first_err = f.error
         if first_err:
             page.snack_bar = ft.SnackBar(content=ft.Text(first_err, color="#FFF"),
                 bgcolor=t["danger"], duration=4000)
@@ -518,12 +541,13 @@ async def main(page: ft.Page):
         # ── Overlay helpers (toggle-based, no stacking) ──
         _active_overlay = [None]
 
-        async def _remove_overlay(fast=False):
+        async def _remove_overlay(fast=False, instant=False):
             o = _active_overlay[0]
             if o and o in page.controls:
-                o.opacity = 0
-                page.update()
-                await asyncio.sleep(0.08 if fast else 0.2)
+                if not instant:
+                    o.opacity = 0
+                    page.update()
+                    await asyncio.sleep(0.08 if fast else 0.2)
                 if o in page.controls:
                     page.remove(o)
             _active_overlay[0] = None
@@ -549,7 +573,7 @@ async def main(page: ft.Page):
             async def do_cancel(e):
                 await _remove_overlay(fast=True)
             async def do_confirm(e):
-                await _remove_overlay(fast=True)
+                await _remove_overlay(instant=True)
                 on_confirm()
             card = ft.Container(
                 content=ft.Column([
@@ -615,13 +639,13 @@ async def main(page: ft.Page):
                         on_click=lambda e: asyncio.create_task(_do_logout()),
                     ),
                 ], tight=True, spacing=4),
-                bgcolor=t["card"], border_radius=18, padding=20, width=280,
+                bgcolor=t["card"], border_radius=18, padding=20, width=380,
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
             _show_overlay(card, 380)
 
         async def _do_logout():
-            await _remove_overlay()
+            await _remove_overlay(instant=True)
             _confirm_dialog(
                 "Logout", "Are you sure you want to log out?",
                 lambda: asyncio.create_task(logout_click(None)),

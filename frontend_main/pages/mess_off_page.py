@@ -244,19 +244,19 @@ class StudentMessOffPage:
             from pages.validation import validate_date_str
             start_dt, err = validate_date_str(start_field.value, "Start Date")
             if err:
-                start_field.error_text = err; start_field.update()
+                start_field.error = err; start_field.update()
                 return
-            start_field.error_text = ""
+            start_field.error = ""
             end_dt, err = validate_date_str(end_field.value, "End Date")
             if err:
-                end_field.error_text = err; end_field.update()
+                end_field.error = err; end_field.update()
                 return
-            end_field.error_text = ""
+            end_field.error = ""
             start = start_dt
             end   = end_dt
             if start > end:
-                start_field.error_text = "Start date must be before end date"
-                end_field.error_text = "End date must be after start date"
+                start_field.error = "Start date must be before end date"
+                end_field.error = "End date must be after start date"
                 start_field.update(); end_field.update()
                 return
 

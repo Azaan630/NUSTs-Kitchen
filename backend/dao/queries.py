@@ -79,6 +79,10 @@ addStaffCategory = """INSERT INTO Staff_Category
                       (Category, Working_hours, Salary)
                       VALUES (%s, %s, %s)"""
 
+getAllStaffCategories = """SELECT * FROM Staff_Category"""
+
+deleteStaffCategory = """DELETE FROM Staff_Category WHERE Category = %s"""
+
 
 addMenuItem = """INSERT INTO Menu_Food_Items
                  (Schedule_ID, Item_ID)
