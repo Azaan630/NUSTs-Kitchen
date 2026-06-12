@@ -146,7 +146,6 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
     )
 
-    isize = 40 if m else 64
     ibox  = 72 if m else 104
     tsize = 28 if m else 52
 
@@ -179,7 +178,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                 content=ft.Column([
                     ft.Container(height=60 if m else 80),
                     ft.Container(
-                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=isize, color=acc),
+                        content=ft.Image(src="logo.png", width=ibox, height=ibox, fit=ft.ImageFit.CONTAIN),
                         bgcolor=ft.Colors.with_opacity(0.1, acc),
                         width=ibox, height=ibox, border_radius=ibox//2,
                         alignment=ft.Alignment(0, 0),
@@ -543,7 +542,7 @@ def build_register_form(page, on_submit, on_back):
                 content=ft.Column([
                     ft.Container(height=60 if m else 80),
                     ft.Container(
-                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=isize, color=acc),
+                        content=ft.Image(src="logo.png", width=ibox, height=ibox, fit=ft.ImageFit.CONTAIN),
                         bgcolor=ft.Colors.with_opacity(0.1, acc),
                         width=ibox, height=ibox, border_radius=ibox//2,
                         alignment=ft.Alignment(0, 0),
@@ -604,6 +603,7 @@ def build_register_form(page, on_submit, on_back):
 
 async def main(page: ft.Page):
     page.title = "NUST\u2019s Kitchen"
+    page.icon = "logo.png"
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.spacing = 0
@@ -822,7 +822,7 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Icon(ft.Icons.RESTAURANT_ROUNDED, size=18, color=t["accent"]),
+                        content=ft.Image(src="logo.png", width=18, height=18, fit=ft.ImageFit.CONTAIN),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
                         width=32, height=32, border_radius=8, alignment=ft.Alignment(0, 0),
                     ),
@@ -1074,4 +1074,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.run(main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550)
+    ft.run(main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550, assets_dir="assets")
