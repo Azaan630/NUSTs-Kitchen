@@ -568,7 +568,6 @@ def build_register_form(page, on_submit, on_back):
 
 async def main(page: ft.Page):
     page.title = "NUST\u2019s Kitchen"
-    page.icon = "logo.png"
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.spacing = 0
