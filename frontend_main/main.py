@@ -804,7 +804,7 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=44, height=44),
+                        content=ft.Image(src="logo.png", width=56, height=56),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
                         width=60, height=60, border_radius=16, alignment=ft.Alignment(0, 0),
                     ),
@@ -1021,19 +1021,15 @@ async def main(page: ft.Page):
             splash = getattr(landing, "_splash", None)
             mc = getattr(landing, "_main", None)
             if splash and mc:
-                splash.scale = 0.85
-                splash.offset = ft.Offset(0, -0.25)
+                splash.scale = 0.8
+                splash.offset = ft.Offset(0, -0.45)
                 splash.update()
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.65)
+                splash.visible = False
+                splash.update()
                 mc.opacity = 1
                 mc.offset = ft.Offset(0, 0)
                 mc.update()
-                await asyncio.sleep(0.7)
-                splash.opacity = 0
-                splash.update()
-                await asyncio.sleep(0.4)
-                splash.visible = False
-                splash.update()
         asyncio.create_task(_anim())
 
     def show_landing():
