@@ -1062,23 +1062,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    app = ft.run(
-        main,
-        view=ft.AppView.WEB_BROWSER,
-        host="0.0.0.0",
-        port=8550,
-        assets_dir="assets",
-        export_asgi_app=True,
-    )
-
-    import pathlib
-    from starlette.responses import FileResponse
-
-    logo_path = pathlib.Path("assets") / "logo.png"
-
-    @app.get("/favicon.ico")
-    async def favicon():
-        return FileResponse(str(logo_path), media_type="image/x-icon")
-
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8550, log_level="info")
+    ft.run(main, view=ft.AppView.WEB_BROWSER, host="0.0.0.0", port=8550, assets_dir="assets")
