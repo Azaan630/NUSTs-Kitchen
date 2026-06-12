@@ -170,76 +170,61 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
     ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
 
-    # ── Splash overlay (logo fullscreen, shrinks & slides to final position) ──
+    # ── Logo (animates from full-screen scale 3 → final position) ──
     logo_box = ft.Container(
         content=ft.Image(src="logo.png", width=ibox, height=ibox),
-        bgcolor=ft.Colors.with_opacity(0.12, acc),
-        width=ibox + 20, height=ibox + 20, border_radius=(ibox + 20)//2,
+        bgcolor=ft.Colors.with_opacity(0.1, acc),
+        width=ibox, height=ibox, border_radius=ibox//2,
         alignment=ft.Alignment(0, 0),
-    )
-    splash = ft.Container(
-        content=logo_box,
-        alignment=ft.Alignment(0, 0),
-        expand=True,
         scale=3.0,
-        offset=ft.Offset(0, 0),
+        offset=ft.Offset(0, 0.08),
         animate_scale=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
         animate_offset=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
-        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
     )
 
-    main_content = ft.Container(
-        content=ft.Column([
-            ft.Container(height=60 if m else 80),
+    # ── Content below logo (slides up) ──
+    below_logo = ft.Column([
+        ft.Container(height=16 if m else 20),
+        ft.Text("NUST's Kitchen", size=tsize, weight="bold",
+                font_family="Playfair", color=t["text"]),
+        ft.Text("Mess Portal \u2022 SEECS", size=14 if m else 17, color=sub,
+                font_family="DM Sans"),
+        ft.Container(height=36 if m else 48),
+        ft.FilledButton(
+            content=ft.Row([
+                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=18),
+                ft.Text("Continue with Google", color=btn_txt_color,
+                        weight="bold", font_family="DM Sans", size=14),
+            ], spacing=10, tight=True),
+            on_click=login_click,
+            style=ft.ButtonStyle(
+                bgcolor=acc,
+                padding=ft.Padding.symmetric(horizontal=36, vertical=16),
+                shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
+            ),
+        ),
+        ft.Container(height=16),
+        ft.Row([
+            ft.Container(height=1, bgcolor=sub, expand=True),
             ft.Container(
-                content=ft.Image(src="logo.png", width=ibox, height=ibox),
-                bgcolor=ft.Colors.with_opacity(0.1, acc),
-                width=ibox, height=ibox, border_radius=ibox//2,
-                alignment=ft.Alignment(0, 0),
+                content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
+                padding=ft.Padding.symmetric(horizontal=12),
             ),
-            ft.Container(height=16 if m else 20),
-            ft.Text("NUST's Kitchen", size=tsize, weight="bold",
-                    font_family="Playfair", color=t["text"]),
-            ft.Text("Mess Portal \u2022 SEECS", size=14 if m else 17, color=sub,
-                    font_family="DM Sans"),
-            ft.Container(height=36 if m else 48),
-            ft.FilledButton(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=18),
-                    ft.Text("Continue with Google", color=btn_txt_color,
-                            weight="bold", font_family="DM Sans", size=14),
-                ], spacing=10, tight=True),
-                on_click=login_click,
-                style=ft.ButtonStyle(
-                    bgcolor=acc,
-                    padding=ft.Padding.symmetric(horizontal=36, vertical=16),
-                    shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
-                ),
-            ),
-            ft.Container(height=16),
-            ft.Row([
-                ft.Container(height=1, bgcolor=sub, expand=True),
-                ft.Container(
-                    content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
-                    padding=ft.Padding.symmetric(horizontal=12),
-                ),
-                ft.Container(height=1, bgcolor=sub, expand=True),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-            ft.Container(height=16),
-            guest_btns,
-            ft.Container(height=24),
-            ft.TextButton(
-                content=ft.Text("New here? Register as Student / Staff",
-                                color=acc, size=13, font_family="DM Sans"),
-                on_click=lambda e: show_register(),
-            ),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        alignment=ft.Alignment(0, 0),
-        expand=True,
-        opacity=0,
-        offset=ft.Offset(0, 0.3),
-        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
-        animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+            ft.Container(height=1, bgcolor=sub, expand=True),
+        ], alignment=ft.MainAxisAlignment.CENTER),
+        ft.Container(height=16),
+        guest_btns,
+        ft.Container(height=24),
+        ft.TextButton(
+            content=ft.Text("New here? Register as Student / Staff",
+                            color=acc, size=13, font_family="DM Sans"),
+            on_click=lambda e: show_register(),
+        ),
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+       opacity=0,
+       offset=ft.Offset(0, 0.25),
+       animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+       animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
     )
 
     result = ft.Container(
@@ -247,7 +232,15 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         content=ft.Stack([
             ft.Container(expand=True),
             *_food_decos(acc),
-            main_content,
+            ft.Container(
+                content=ft.Column([
+                    ft.Container(height=60 if m else 80),
+                    logo_box,
+                    below_logo,
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.Alignment(0, 0),
+                expand=True,
+            ),
             ft.Container(
                 content=ft.IconButton(
                     icon=ft.Icons.DARK_MODE_OUTLINED if d else ft.Icons.LIGHT_MODE_OUTLINED,
@@ -257,12 +250,11 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                 ),
                 right=12, top=12,
             ),
-            splash,
         ]),
         expand=True,
     )
-    result._splash = splash
-    result._main = main_content
+    result._logo_box = logo_box
+    result._below_logo = below_logo
     return result
 
 
@@ -1018,18 +1010,15 @@ async def main(page: ft.Page):
     def _run_landing_splash(landing):
         async def _anim():
             await asyncio.sleep(0.3)
-            splash = getattr(landing, "_splash", None)
-            mc = getattr(landing, "_main", None)
-            if splash and mc:
-                splash.scale = 0.8
-                splash.offset = ft.Offset(0, -0.45)
-                splash.update()
-                await asyncio.sleep(0.65)
-                splash.visible = False
-                splash.update()
-                mc.opacity = 1
-                mc.offset = ft.Offset(0, 0)
-                mc.update()
+            lb = getattr(landing, "_logo_box", None)
+            bl = getattr(landing, "_below_logo", None)
+            if lb and bl:
+                lb.scale = 1.0
+                lb.offset = ft.Offset(0, 0)
+                lb.update()
+                bl.opacity = 1
+                bl.offset = ft.Offset(0, 0)
+                bl.update()
         asyncio.create_task(_anim())
 
     def show_landing():
