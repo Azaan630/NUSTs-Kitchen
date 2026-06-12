@@ -1248,10 +1248,8 @@ class AdminPage:
             ft.Container(height=4),
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             ft.Container(height=4),
-            ft.Column([
-                student_rows if student_rows.controls else ft.Text("No students found", color=self._clr("sub"), font_family="DM Sans"),
-            ], expand=True, scroll=ft.ScrollMode.ADAPTIVE),
-        ], alignment=ft.MainAxisAlignment.START, expand=True)
+            student_rows if student_rows.controls else ft.Text("No students found", color=self._clr("sub"), font_family="DM Sans"),
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
@@ -1361,10 +1359,8 @@ class AdminPage:
             ft.Row([search_bar], spacing=8),
             ft.Row([self._btn("Refresh", ft.Icons.REFRESH_ROUNDED, lambda e: asyncio.create_task(refresh()))], alignment=ft.MainAxisAlignment.END),
             ft.Container(height=4),
-            ft.Column([
-                staff_rows if staff_rows.controls else ft.Text("No staff found", color=self._clr("sub"), font_family="DM Sans"),
-            ], expand=True, scroll=ft.ScrollMode.ADAPTIVE),
-        ], alignment=ft.MainAxisAlignment.START, expand=True)
+            staff_rows if staff_rows.controls else ft.Text("No staff found", color=self._clr("sub"), font_family="DM Sans"),
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
     # ════════════════════════════════════════════════════════════

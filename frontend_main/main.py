@@ -146,7 +146,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
     )
 
-    ibox  = 72 if m else 104
+    ibox  = 96 if m else 140
     tsize = 28 if m else 52
     btn_txt_color = WHITE if not d else SLATE_900
 
@@ -767,15 +767,15 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=28, height=28),
+                        content=ft.Image(src="logo.png", width=36, height=36),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
-                        width=40, height=40, border_radius=10, alignment=ft.Alignment(0, 0),
+                        width=52, height=52, border_radius=14, alignment=ft.Alignment(0, 0),
                     ),
                     title_text,
                 ], spacing=10),
                 ft.Row([name_chip, dark_btn], spacing=2),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=20, vertical=8),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=12),
             bgcolor=t["card"],
         )
 
