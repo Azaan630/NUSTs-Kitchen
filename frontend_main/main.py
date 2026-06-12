@@ -748,6 +748,16 @@ async def main(page: ft.Page):
                     ft.Divider(height=12, color=ft.Colors.with_opacity(0.1, pt["text"])),
                     ft.Container(
                         content=ft.Row([
+                            ft.Icon(ft.Icons.PERSON_ROUNDED, size=16, color=pt["accent"]),
+                            ft.Text("Profile Details", size=13, weight="bold", color=pt["accent"],
+                                    font_family="DM Sans"),
+                        ], spacing=8),
+                        padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+                        border_radius=10,
+                        on_click=lambda e: asyncio.create_task(show_full_profile()),
+                    ),
+                    ft.Container(
+                        content=ft.Row([
                             ft.Icon(ft.Icons.LOGOUT_ROUNDED, size=16, color=pt["danger"]),
                             ft.Text("Logout", size=13, weight="bold", color=pt["danger"],
                                     font_family="DM Sans"),
@@ -761,6 +771,124 @@ async def main(page: ft.Page):
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
             _show_overlay(card, 380)
+
+        async def show_full_profile():
+            await _remove_overlay(instant=True)
+            role = get_val("Account_Type", "Student")
+            uid = get_val("UserID", 0)
+            email = get_val("Email", "")
+            first_n = get_val("First_Name", "")
+            last_n = get_val("Last_Name", "")
+            is_gst = page.current_user_data.get("is_guest", False) if hasattr(page, 'current_user_data') else False
+            initials = (first_n[0] + (last_n[0] if last_n else "")).upper() or "U"
+
+            pt = make_theme()
+            acc = pt["accent"]
+            sub = pt["sub"]
+            txt = pt["text"]
+            card_bg = pt["card"]
+
+            # Try to fetch extra details
+            extra = {}
+            if is_gst:
+                if role == "Student":
+                    for s in mock_data.get_students():
+                        if s.get("UserID") == uid:
+                            extra = s
+                            break
+                elif role == "Staff":
+                    for s in mock_data.get_staff():
+                        if s.get("UserID") == uid:
+                            extra = s
+                            break
+            elif role in ("Student", "Staff"):
+                ep = f"/admin/{role.lower()}s/details/{uid}"
+                try:
+                    async with httpx.AsyncClient() as client:
+                        r = await client.get(f"{BACKEND_URL}{ep}", params={"email": email}, timeout=8)
+                        if r.status_code == 200:
+                            data = r.json()
+                            if isinstance(data, list) and data:
+                                extra = data[0]
+                except Exception:
+                    pass
+
+            def _row(label, value):
+                if not value or value == "-":
+                    return None
+                return ft.Row([
+                    ft.Text(label, size=12, color=sub, font_family="DM Sans", expand=1),
+                    ft.Text(str(value), size=13, weight="bold", color=txt, font_family="DM Sans", expand=2),
+                ], spacing=8)
+
+            def _section(title, icon, rows):
+                visible = [r for r in rows if r is not None]
+                if not visible:
+                    return None
+                return ft.Column([
+                    ft.Row([
+                        ft.Icon(icon, size=18, color=acc),
+                        ft.Text(title, size=15, weight="bold", color=txt, font_family="DM Sans"),
+                    ], spacing=8),
+                    ft.Divider(height=6, color=ft.Colors.with_opacity(0.1, txt)),
+                    ft.Column(visible, spacing=4),
+                    ft.Container(height=12),
+                ], spacing=6)
+
+            rows = []
+            rows.append(_row("User ID", uid if uid != -1 else "Guest"))
+            rows.append(_row("First Name", first_n))
+            rows.append(_row("Last Name", last_n))
+            rows.append(_row("Email", email))
+            rows.append(_row("Account Type", role))
+            rows.append(_row("Sex", extra.get("Sex") or get_val("Sex", "")))
+            basic = _section("Basic Information", ft.Icons.INFO_ROUNDED, rows)
+
+            extra_rows = []
+            if role == "Student":
+                extra_rows.append(_row("Department", extra.get("Department")))
+                extra_rows.append(_row("Contact Number", extra.get("Contact_Number")))
+                extra_rows.append(_row("Date of Birth", extra.get("DoB")))
+                extra_rows.append(_row("Address", extra.get("Address")))
+                extra_rows.append(_row("Father's Name", extra.get("Father_Name")))
+                extra_rows.append(_row("Hostel", extra.get("Hostel_Name")))
+                extra_rows.append(_row("Room", extra.get("Room_Number")))
+            elif role == "Staff":
+                extra_rows.append(_row("Category", extra.get("Category") or extra.get("Cat")))
+                extra_rows.append(_row("Salary", f"Rs. {extra['Salary']:,.0f}" if extra.get("Salary") else None))
+                extra_rows.append(_row("Working Hours", extra.get("Working_hours")))
+
+            role_section = None
+            if extra_rows:
+                lbl = role + " Details"
+                ico = ft.Icons.SCHOOL_ROUNDED if role == "Student" else ft.Icons.BADGE_ROUNDED
+                role_section = _section(lbl, ico, extra_rows)
+
+            sections = [s for s in [basic, role_section] if s is not None]
+            card = ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Text(initials, size=22, weight="bold", color="#FFF"),
+                            width=48, height=48, bgcolor=acc, border_radius=24,
+                            alignment=ft.Alignment(0, 0),
+                        ),
+                        ft.Column([
+                            ft.Text(f"{first_n} {last_n}".strip(), size=17, weight="bold",
+                                    color=txt, font_family="DM Sans"),
+                            ft.Text(role, size=12, color=sub, font_family="DM Sans"),
+                        ], spacing=2, expand=True),
+                        ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                      on_click=lambda e: asyncio.create_task(_remove_overlay())),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)),
+                    ft.Column(sections, scroll=ft.ScrollMode.ADAPTIVE, spacing=4),
+                ], tight=True, spacing=4),
+                bgcolor=card_bg, border_radius=18, padding=24,
+                width=400,
+                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            )
+            _show_overlay(card)
 
         async def _do_logout():
             await _remove_overlay(instant=True)
@@ -788,22 +916,25 @@ async def main(page: ft.Page):
             on_click=show_profile_popup,
         )
 
-        title_text = ft.Text("NUST's Kitchen\u2122", size=20, weight="bold",
+        _mb = (page.width or 1200) < 720
+        logo_sz = 44 if _mb else 60
+        title_text = ft.Text("NUST's Kitchen\u2122", size=16 if _mb else 20, weight="bold",
                 font_family="Playfair", color=t["accent"])
 
         top_bar = ft.Container(
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=60, height=60, fit="cover"),
+                        content=ft.Image(src="logo.png", width=logo_sz, height=logo_sz, fit="cover"),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
-                        width=60, height=60, border_radius=16, alignment=ft.Alignment(0, 0),
+                        width=logo_sz, height=logo_sz, border_radius=14 if _mb else 16,
+                        alignment=ft.Alignment(0, 0),
                     ),
                     title_text,
-                ], spacing=10),
+                ], spacing=8 if _mb else 10),
                 ft.Row([name_chip, dark_btn], spacing=2),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.Padding.symmetric(horizontal=20, vertical=12),
+            padding=ft.Padding.symmetric(horizontal=12 if _mb else 20, vertical=10 if _mb else 12),
             bgcolor=t["card"],
         )
 
