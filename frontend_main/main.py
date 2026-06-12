@@ -80,14 +80,14 @@ def make_theme():
         "card2":   "#EBE7E0",
         "text":    "#1A1A2E",
         "sub":     "#8E8E98",
-        "accent":  "#5B5FEF",
+        "accent":  "#1D4ED8",
         "accent2": "#FF6B6B",
         "success": "#2ED573",
         "danger":  "#FF4757",
         "warn":    "#FFA502",
         # backward-compat aliases
         "NAVY":       "#1A1A2E",
-        "AMBER":      "#5B5FEF",
+        "AMBER":      "#1D4ED8",
         "CREAM":      "#F5F2ED",
         "WHITE":      "#FFFFFF",
         "GREY":       "#8E8E98",
@@ -95,7 +95,7 @@ def make_theme():
         "DARK_CARD":  "#FFFFFF",
         "DARK_CARD2": "#EBE7E0",
         "NAVY_LIGHT": "#E3DFD8",
-        "AMBER_DIM":  "#4A4ED6",
+        "AMBER_DIM":  "#1E40AF",
         "CREAM2":     "#EBE7E0",
         # gradients
         "bg_gradient": ft.LinearGradient(
@@ -134,7 +134,7 @@ def _food_decos(accent, opacity=0.05):
         ))
     return icons
 
-def build_landing(page, login_click, guest_login, show_register):
+def build_landing(page, login_click, guest_login, show_register, show_landing):
     t = make_theme()
     acc = t["accent"]
     sub = t["sub"]
@@ -149,6 +149,10 @@ def build_landing(page, login_click, guest_login, show_register):
     isize = 40 if m else 64
     ibox  = 72 if m else 104
     tsize = 28 if m else 52
+
+    def _toggle_landing_theme(e):
+        is_dark["v"] = not is_dark["v"]
+        show_landing()
 
     def _toggle_landing_theme(e):
         is_dark["v"] = not is_dark["v"]
@@ -550,7 +554,7 @@ def build_register_form(page, on_submit, on_back):
 
 
 async def main(page: ft.Page):
-    page.title = "RotiRouter | NUST SEECS"
+    page.title = "NUST\u2019s Kitchen"
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.spacing = 0
@@ -665,22 +669,23 @@ async def main(page: ft.Page):
             async def do_confirm(e):
                 await _remove_overlay(instant=True)
                 on_confirm()
+            ct = make_theme()
             card = ft.Container(
                 content=ft.Column([
-                    ft.Text(title, weight="bold", size=17, color=t["text"],
+                    ft.Text(title, weight="bold", size=17, color=ct["text"],
                             font_family="DM Sans"),
                     ft.Container(height=6),
-                    ft.Text(msg, size=13, color=t["sub"], font_family="DM Sans"),
+                    ft.Text(msg, size=13, color=ct["sub"], font_family="DM Sans"),
                     ft.Container(height=16),
                     ft.Row([
                         ft.TextButton("Cancel", on_click=do_cancel,
-                            style=ft.ButtonStyle(color=t["sub"])),
+                            style=ft.ButtonStyle(color=ct["sub"])),
                         ft.FilledButton("Confirm",
-                            style=ft.ButtonStyle(bgcolor=t["danger"]),
+                            style=ft.ButtonStyle(bgcolor=ct["danger"]),
                             on_click=do_confirm),
                     ], alignment=ft.MainAxisAlignment.END, spacing=8),
                 ], tight=True, spacing=4),
-                bgcolor=t["card"], border_radius=18, padding=24, width=340,
+                bgcolor=ct["card"], border_radius=18, padding=24, width=340,
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
             _show_overlay(card)
@@ -691,12 +696,13 @@ async def main(page: ft.Page):
             page.clean()
             page.bgcolor = SLATE_900
             page.theme_mode = ft.ThemeMode.DARK
-            page.add(build_landing(page, login_click, guest_login, show_register_page))
+            page.add(build_landing(page, login_click, guest_login, show_register_page, show_landing))
             page.update()
 
         async def show_profile_popup(e):
             await _remove_overlay()
             email = get_val("Email", "")
+            pt = make_theme()
             card = ft.Container(
                 content=ft.Column([
                     ft.Row([
@@ -705,23 +711,23 @@ async def main(page: ft.Page):
                                 avatar,
                                 ft.Column([
                                     ft.Text(f"{first} {last}".strip(), weight="bold", size=15,
-                                            color=t["text"], font_family="DM Sans"),
-                                    ft.Text(email, size=12, color=t["sub"], font_family="DM Sans"),
+                                            color=pt["text"], font_family="DM Sans"),
+                                    ft.Text(email, size=12, color=pt["sub"], font_family="DM Sans"),
                                 ], spacing=0, tight=True),
                             ], spacing=10),
                             expand=True,
                         ),
                         ft.Container(
-                            content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=18, color=t["sub"]),
+                            content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=18, color=pt["sub"]),
                             on_click=lambda e: asyncio.create_task(_remove_overlay()),
                             padding=4, border_radius=8,
                         ),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Divider(height=12, color=ft.Colors.with_opacity(0.1, t["text"])),
+                    ft.Divider(height=12, color=ft.Colors.with_opacity(0.1, pt["text"])),
                     ft.Container(
                         content=ft.Row([
-                            ft.Icon(ft.Icons.LOGOUT_ROUNDED, size=16, color=t["danger"]),
-                            ft.Text("Logout", size=13, weight="bold", color=t["danger"],
+                            ft.Icon(ft.Icons.LOGOUT_ROUNDED, size=16, color=pt["danger"]),
+                            ft.Text("Logout", size=13, weight="bold", color=pt["danger"],
                                     font_family="DM Sans"),
                         ], spacing=8),
                         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
@@ -729,7 +735,7 @@ async def main(page: ft.Page):
                         on_click=lambda e: asyncio.create_task(_do_logout()),
                     ),
                 ], tight=True, spacing=4),
-                bgcolor=t["card"], border_radius=18, padding=20, width=380,
+                bgcolor=pt["card"], border_radius=18, padding=20, width=380,
                 shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
             )
             _show_overlay(card, 380)
@@ -760,7 +766,7 @@ async def main(page: ft.Page):
             on_click=show_profile_popup,
         )
 
-        title_text = ft.Text("RotiRouter", size=20, weight="bold",
+        title_text = ft.Text("NUST's Kitchen\u2122", size=20, weight="bold",
                 font_family="Playfair", color=t["accent"])
 
         top_bar = ft.Container(
@@ -984,7 +990,7 @@ async def main(page: ft.Page):
         t = make_theme()
         page.bgcolor = t["bg"]
         page.theme_mode = ft.ThemeMode.LIGHT if not t["is_dark"] else ft.ThemeMode.DARK
-        landing = build_landing(page, login_click, guest_login, show_register_page)
+        landing = build_landing(page, login_click, guest_login, show_register_page, show_landing)
         landing.animate_opacity = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
         landing.opacity = 0
         landing.scale = 0.92
