@@ -150,6 +150,10 @@ def build_landing(page, login_click, guest_login, show_register):
     ibox  = 72 if m else 104
     tsize = 28 if m else 52
 
+    def _toggle_landing_theme(e):
+        is_dark["v"] = not is_dark["v"]
+        show_landing()
+
     guest_btns = ft.Column([
         ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
             style=ft.ButtonStyle(color=t["text"],
@@ -170,6 +174,15 @@ def build_landing(page, login_click, guest_login, show_register):
         gradient=grad,
         content=ft.Stack([
             ft.Container(expand=True),
+            ft.Container(
+                content=ft.IconButton(
+                    icon=ft.Icons.DARK_MODE_OUTLINED if d else ft.Icons.LIGHT_MODE_OUTLINED,
+                    icon_color=sub, icon_size=22,
+                    tooltip="Toggle theme",
+                    on_click=_toggle_landing_theme,
+                ),
+                right=12, top=12,
+            ),
             *_food_decos(acc),
             ft.Container(
                 content=ft.Column([
@@ -597,7 +610,13 @@ async def main(page: ft.Page):
             is_dark["v"] = not is_dark["v"]
             t = make_theme()
             page.bgcolor = t["bg"]
+            page.theme_mode = ft.ThemeMode.LIGHT if not t["is_dark"] else ft.ThemeMode.DARK
             top_bar.bgcolor = t["card"]
+            title_text.color = t["accent"]
+            name_chip_txt.color = t["text"]
+            name_chip.bgcolor = ft.Colors.with_opacity(0.08, t["accent"])
+            dark_btn.icon_color = t["text"]
+            avatar.bgcolor = t["accent"]
             dock_container.bgcolor = t["card"]
             _page_bg.gradient = t["bg_gradient"]
             load_page(current_index["v"])
@@ -732,13 +751,17 @@ async def main(page: ft.Page):
             alignment=ft.Alignment(0, 0),
         )
 
+        name_chip_txt = ft.Text(f"{first} {last}".strip(), size=13,
+            weight="bold", color=t["text"], font_family="DM Sans")
         name_chip = ft.Container(
-            content=ft.Row([avatar, ft.Text(f"{first} {last}".strip(), size=13,
-                weight="bold", color=t["text"], font_family="DM Sans")], spacing=8),
+            content=ft.Row([avatar, name_chip_txt], spacing=8),
             padding=ft.Padding.symmetric(horizontal=10, vertical=4),
             bgcolor=ft.Colors.with_opacity(0.08, t["accent"]), border_radius=16,
             on_click=show_profile_popup,
         )
+
+        title_text = ft.Text("RotiRouter", size=20, weight="bold",
+                font_family="Playfair", color=t["accent"])
 
         top_bar = ft.Container(
             content=ft.Row([
@@ -748,8 +771,7 @@ async def main(page: ft.Page):
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
                         width=32, height=32, border_radius=8, alignment=ft.Alignment(0, 0),
                     ),
-                    ft.Text("RotiRouter", size=20, weight="bold",
-                            font_family="Playfair", color=t["accent"]),
+                    title_text,
                 ], spacing=10),
                 ft.Row([name_chip, dark_btn], spacing=2),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -959,7 +981,9 @@ async def main(page: ft.Page):
     def show_landing():
         register_mode["v"] = False
         page.clean()
-        page.bgcolor = SLATE_900
+        t = make_theme()
+        page.bgcolor = t["bg"]
+        page.theme_mode = ft.ThemeMode.LIGHT if not t["is_dark"] else ft.ThemeMode.DARK
         landing = build_landing(page, login_click, guest_login, show_register_page)
         landing.animate_opacity = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
         landing.opacity = 0
