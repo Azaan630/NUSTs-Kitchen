@@ -75,33 +75,33 @@ def make_theme():
     return {
         "is_dark":  False,
         "is_guest": False,
-        "bg":      "#FAF8F5",
+        "bg":      "#F5F2ED",
         "card":    "#FFFFFF",
-        "card2":   "#F0EDEA",
-        "text":    "#1C1C1E",
-        "sub":     "#8E8E93",
-        "accent":  "#007AFF",
-        "accent2": "#AF52DE",
-        "success": "#34C759",
-        "danger":  "#FF3B30",
-        "warn":    "#FF9F0A",
+        "card2":   "#EBE7E0",
+        "text":    "#1A1A2E",
+        "sub":     "#8E8E98",
+        "accent":  "#5B5FEF",
+        "accent2": "#FF6B6B",
+        "success": "#2ED573",
+        "danger":  "#FF4757",
+        "warn":    "#FFA502",
         # backward-compat aliases
-        "NAVY":       "#1C1C1E",
-        "AMBER":      "#007AFF",
-        "CREAM":      "#FAF8F5",
+        "NAVY":       "#1A1A2E",
+        "AMBER":      "#5B5FEF",
+        "CREAM":      "#F5F2ED",
         "WHITE":      "#FFFFFF",
-        "GREY":       "#8E8E93",
-        "DARK_BG":    "#FAF8F5",
+        "GREY":       "#8E8E98",
+        "DARK_BG":    "#F5F2ED",
         "DARK_CARD":  "#FFFFFF",
-        "DARK_CARD2": "#F0EDEA",
-        "NAVY_LIGHT": "#E8E8E8",
-        "AMBER_DIM":  "#0056B3",
-        "CREAM2":     "#F0EDEA",
+        "DARK_CARD2": "#EBE7E0",
+        "NAVY_LIGHT": "#E3DFD8",
+        "AMBER_DIM":  "#4A4ED6",
+        "CREAM2":     "#EBE7E0",
         # gradients
         "bg_gradient": ft.LinearGradient(
             begin=ft.Alignment(-0.3, -0.3),
             end=ft.Alignment(0.7, 0.7),
-            colors=["#FAF8F5", "#F5F0EB", "#FAF8F5"],
+            colors=["#F5F2ED", "#F0EBE3", "#F5F2ED"],
         ),
     }
 
@@ -626,8 +626,9 @@ async def main(page: ft.Page):
         def _show_overlay(content, open_ms=250):
             async def close_overlay(e):
                 await _remove_overlay()
+            dim = ft.Colors.with_opacity(0.5 if is_dark["v"] else 0.25, "#000")
             o = ft.Container(
-                content=content, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+                content=content, bgcolor=dim,
                 alignment=ft.Alignment(0, 0), expand=True,
                 on_click=close_overlay,
                 animate_opacity=ft.Animation(open_ms, ft.AnimationCurve.EASE_OUT),

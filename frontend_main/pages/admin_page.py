@@ -198,8 +198,9 @@ class AdminPage:
             self.page.update()
 
     def _show_overlay(self, card, width=380):
+        dim = ft.Colors.with_opacity(0.5 if self.theme.get("is_dark") else 0.25, "#000")
         overlay = ft.Container(
-            content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+            content=card, bgcolor=dim,
             alignment=ft.Alignment(0, 0), expand=True,
             on_click=lambda e: asyncio.create_task(self._remove_overlay(fast=True)),
             animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
@@ -243,8 +244,9 @@ class AdminPage:
             animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
             opacity=0,
         )
+        dim = ft.Colors.with_opacity(0.5 if self.theme.get("is_dark") else 0.25, "#000")
         overlay = ft.Container(
-            content=card, bgcolor=ft.Colors.with_opacity(0.4, "#000"),
+            content=card, bgcolor=dim,
             alignment=ft.Alignment(0, 0), expand=True,
             on_click=do_cancel,
             animate_opacity=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
@@ -1456,20 +1458,6 @@ class AdminPage:
         )
 
         mobile_header = ft.Container()
-        if mobile:
-            mobile_header = ft.Container(
-                content=ft.Column([
-                    ft.Container(
-                        ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
-                        margin=ft.Margin.only(bottom=2),
-                    ),
-                    ft.Row([
-                        ft.Text("Price", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
-                        ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
-                    ], spacing=6),
-                ], spacing=3),
-                margin=ft.Margin.only(bottom=2, top=4),
-            )
 
         for item in items:
             iid = item.get("Item_ID")
@@ -1675,21 +1663,6 @@ class AdminPage:
 
         mobile = self._is_mobile()
         mobile_header = ft.Container()
-        if mobile:
-            mobile_header = ft.Container(
-                content=ft.Column([
-                    ft.Container(
-                        ft.Text("Name", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans"),
-                        margin=ft.Margin.only(bottom=2),
-                    ),
-                    ft.Row([
-                        ft.Text("Qty", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
-                        ft.Text("Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
-                        ft.Text("Cost/Unit", size=10, weight="bold", color=self._clr("sub"), font_family="DM Sans", expand=True, text_align=ft.TextAlign.CENTER),
-                    ], spacing=6),
-                ], spacing=3),
-                margin=ft.Margin.only(bottom=2, top=4),
-            )
 
         for item in items:
             iid = item.get("Ingredient_ID")
