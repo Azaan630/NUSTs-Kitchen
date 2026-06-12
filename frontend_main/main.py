@@ -170,16 +170,16 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
     ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
 
-    # ── Logo (animates from full-screen scale 3 → final position) ──
+    # ── Logo (animates from centered scale 4 → final position) ──
     logo_box = ft.Container(
         content=ft.Image(src="logo.png", width=ibox, height=ibox),
         bgcolor=ft.Colors.with_opacity(0.1, acc),
         width=ibox, height=ibox, border_radius=ibox//2,
         alignment=ft.Alignment(0, 0),
-        scale=3.0,
-        offset=ft.Offset(0, 0.08),
-        animate_scale=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
-        animate_offset=ft.Animation(900, ft.AnimationCurve.EASE_OUT),
+        scale=4.0,
+        offset=ft.Offset(0, 0.65 if not m else 0.85),
+        animate_scale=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
+        animate_offset=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
     )
 
     # ── Content below logo (slides up) ──
