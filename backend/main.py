@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 import os
 from io import BytesIO, StringIO
 import csv
@@ -10,6 +10,10 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 from database import get_db, run_db_seeder
 from datetime import date
 import models
@@ -19,6 +23,8 @@ from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
 )
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 def run_startup_tasks():
     """Idempotent startup routine: seed DB + pre-generate menu schedule."""
@@ -57,6 +63,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SlowAPIMiddleware)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def permission_checker(allowed_roles: list):
     def mapper(email: str, db=Depends(get_db)):
@@ -78,7 +87,8 @@ def read_root():
 
 
 @app.get("/users/verify")
-def verify_registration(email: str, db=Depends(get_db)):
+@limiter.limit("20/minute")
+def verify_registration(request: Request, email: str, db=Depends(get_db)):
     user_record = UserDAO(db).find_by_email(email)
     if not user_record:
         raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
