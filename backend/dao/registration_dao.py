@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS Registration_Requests (
     Hostel_Name    VARCHAR(100),
     Room_Number    VARCHAR(20),
     Category       VARCHAR(30),
+    Profile_Picture VARCHAR(500) DEFAULT NULL,
     Status         ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
     Created_At     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
@@ -43,12 +44,13 @@ class RegistrationDAO(BaseDAO):
             """INSERT INTO Registration_Requests
             (First_Name, Last_Name, Email, Account_Type, Sex, DoB, Department,
              Contact_Number, Address, Father_Name, Hostel_Name, Room_Number,
-             Category, Status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending')""",
+             Category, Profile_Picture, Status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Pending')""",
             (
                 data.First_Name, data.Last_Name, data.Email, data.Account_Type,
                 data.Sex, data.DoB, data.Department, data.Contact_Number, data.Address,
                 data.Father_Name, data.Hostel_Name, data.Room_Number, data.Category,
+                data.Profile_Picture,
             )
         )
         return {"message": "Registration request submitted for admin approval"}
@@ -82,9 +84,10 @@ class RegistrationDAO(BaseDAO):
         last  = data.Last_Name  if data and data.Last_Name  else req["Last_Name"]
         email = data.Email       if data and data.Email       else req["Email"]
         sex   = data.Sex         if data and data.Sex         else req.get("Sex")
+        pp    = req.get("Profile_Picture") or (data.Profile_Picture if data else None)
         role  = req["Account_Type"]
 
-        user_cur = self._execute(registerUser, (first, last, email, role, sex))
+        user_cur = self._execute(registerUser, (first, last, email, role, sex, pp))
         new_user_id = user_cur.lastrowid
 
         if role == "Student":

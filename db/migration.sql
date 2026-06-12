@@ -1,4 +1,4 @@
--- Migration: Add Sex column + Student Details view
+-- Migration: Add Sex column + Student Details view + Picture columns
 -- Run against the deployed Aiven database.
 
 ALTER TABLE Users
@@ -20,6 +20,10 @@ ALTER TABLE Food_Items
 ALTER TABLE Ingredients
     ADD COLUMN Image_Path VARCHAR(500) DEFAULT NULL
     AFTER Total_Quantity;
+
+ALTER TABLE Registration_Requests
+    ADD COLUMN Profile_Picture VARCHAR(500) DEFAULT NULL
+    AFTER Category;
 
 CREATE OR REPLACE VIEW vw_StaffDetails AS
 SELECT

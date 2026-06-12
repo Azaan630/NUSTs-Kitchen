@@ -391,6 +391,155 @@ class AdminPage:
             alignment=ft.Alignment(0, 0),
         )
 
+    def _pfp_thumb(self, person, size=32):
+        pic = person.get("Profile_Picture", "") or ""
+        if pic:
+            return ft.Container(
+                content=ft.Image(src=self._img_url(pic), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=size/2,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        first = person.get("First_Name", "")
+        last = person.get("Last_Name", "")
+        initials = ((first[0] if first else "") + (last[0] if last else "")).upper() or "U"
+        return ft.Container(
+            content=ft.Text(initials, size=int(size*0.42), weight="bold", color="#FFF"),
+            width=size, height=size, bgcolor=self._clr("accent"), border_radius=size/2,
+            alignment=ft.Alignment(0, 0),
+        )
+
+    def _show_food_detail(self, item, include_cost=True):
+        t = self.theme
+        sub = t.get("sub")
+        txt = t.get("text")
+        card_bg = t.get("card")
+
+        name = item.get("Name", "Unknown")
+        price = item.get("Price", 0)
+        cost = item.get("Estimated_Cost", 0)
+        qty = item.get("Quantity", 0)
+        path = item.get("Image_Path")
+
+        rows = []
+
+        # Image
+        if path:
+            rows.append(ft.Container(
+                content=ft.Image(src=self._img_url(path), fit="cover", width=200, height=150),
+                border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                alignment=ft.Alignment(0, 0),
+            ))
+
+        rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)))
+
+        # Name
+        rows.append(ft.Row([
+            ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(name, size=14, weight="bold", color=txt, font_family="DM Sans", expand=2),
+        ]))
+        # Price
+        rows.append(ft.Row([
+            ft.Text("Price", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {price:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+        # Cost (only for admin/staff)
+        if include_cost:
+            rows.append(ft.Row([
+                ft.Text("Estimated Cost", size=11, color=sub, font_family="DM Sans", expand=1),
+                ft.Text(f"Rs. {cost:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
+            ]))
+        # Quantity
+        rows.append(ft.Row([
+            ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(str(qty), size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+
+        # Ingredients (fetch recipes)
+        iid = item.get("Item_ID")
+        if iid:
+            recipes = []
+            if self.is_guest:
+                recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+            else:
+                try:
+                    r = _ensure_list(_req("GET", "/recipes", {"email": self.email}))
+                    recipes = [r for r in r if r.get("Item_ID") == iid]
+                except:
+                    pass
+            if recipes:
+                ing_names = []
+                for r in recipes[:6]:
+                    ing_names.append(f"{r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})")
+                rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
+                rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
+                for ing in ing_names:
+                    rows.append(ft.Text(f"\u2022 {ing}", size=12, color=sub, font_family="DM Sans"))
+
+        card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Food Details", size=18, weight="bold",
+                            color=txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                  on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                *rows,
+            ], tight=True, spacing=8),
+            bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        self._show_overlay(card)
+
+    def _show_ingredient_detail(self, item):
+        t = self.theme
+        sub = t.get("sub")
+        txt = t.get("text")
+        card_bg = t.get("card")
+
+        name = item.get("Name", "Unknown")
+        qty = item.get("Total_Quantity", 0)
+        unit = item.get("Unit", "")
+        cost = item.get("Unit_cost", 0)
+        path = item.get("Image_Path")
+
+        rows = []
+        if path:
+            rows.append(ft.Container(
+                content=ft.Image(src=self._img_url(path), fit="cover", width=200, height=150),
+                border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                alignment=ft.Alignment(0, 0),
+            ))
+
+        rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)))
+
+        rows.append(ft.Row([
+            ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(name, size=14, weight="bold", color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"{qty} {unit}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Unit Cost", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {cost:,.2f}/{unit}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+
+        card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Ingredient Details", size=18, weight="bold",
+                            color=txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                  on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                *rows,
+            ], tight=True, spacing=8),
+            bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        self._show_overlay(card)
+
     def _setup_image_picker(self):
         if self._image_picker:
             return
@@ -1327,6 +1476,7 @@ class AdminPage:
                 if "error" in (r or {}): logger.error("del_student %s: %s", u, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
             student_rows.controls.append(self._row_card([
+                self._pfp_thumb(s),
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
@@ -1439,6 +1589,7 @@ class AdminPage:
                 if "error" in (r or {}): logger.error("del_staff %s: %s", u, r["error"]); self._snack(r["error"], False); return
                 self._snack("Deleted"); await refresh()
             staff_rows.controls.append(self._row_card([
+                self._pfp_thumb(s),
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(email, size=11, color=self._clr("sub"), font_family="DM Sans"),
@@ -1622,6 +1773,7 @@ class AdminPage:
                             ft.Column([ft.Text("Qty", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_qty], expand=True, spacing=2),
                         ], spacing=6),
                         ft.Row([
+                            self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_food_detail(it)),
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                             self._upload_img_btn("food", iid),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -1637,6 +1789,7 @@ class AdminPage:
                     self._food_thumb(item, 44),
                     ef_name, ef_price, ef_qty,
                 ], actions=[
+                self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_food_detail(it)),
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("food", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -1840,6 +1993,7 @@ class AdminPage:
                             ft.Column([ft.Text("Cost/Unit", size=10, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER), ef_cost], expand=True, spacing=2),
                         ], spacing=6),
                         ft.Row([
+                            self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_ingredient_detail(it)),
                             self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                             self._upload_img_btn("ing", iid),
                             self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -1855,6 +2009,7 @@ class AdminPage:
                     self._ing_thumb(item, 44),
                     ef_name, ef_qty, ef_unit, ef_cost,
                 ], actions=[
+                self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_ingredient_detail(it)),
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("ing", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
@@ -2511,6 +2666,7 @@ class AdminPage:
                 acts = [self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Approve", do_app),
                         self._icon_btn(ft.Icons.CANCEL_ROUNDED, self._clr("danger"), "Reject", do_rej)]
             cards.append(self._row_card([
+                self._pfp_thumb(r),
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                     ft.Text(info, size=11, color=self._clr("sub"), font_family="DM Sans"),

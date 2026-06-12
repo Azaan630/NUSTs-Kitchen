@@ -1,8 +1,16 @@
 import flet as ft
 import asyncio
 from datetime import date, timedelta
-from pages.api_client import get_todays_menu, get_weekly_menu, rate_food_item
+from pages.api_client import get_todays_menu, get_weekly_menu, rate_food_item, BASE_URL
 import mock_data
+
+PUBLIC_BACKEND_URL = "http://localhost:8000"
+
+
+def _img_url(path):
+    if not path: return None
+    if path.startswith(("http://", "https://", "data:")): return path
+    return f"{PUBLIC_BACKEND_URL}{path}"
 
 
 class StudentHomePage:
@@ -24,6 +32,7 @@ class StudentHomePage:
         self.navy    = t["NAVY"]
 
         self._view = {"weekly": False}
+        self._food_cache = {}
         self.main_container = ft.Container(expand=True,
             animate_opacity=ft.Animation(350, ft.AnimationCurve.EASE_OUT))
 
@@ -94,6 +103,91 @@ class StudentHomePage:
         if "salad" in n:       return ft.Icons.ECO_ROUNDED
         if "soup" in n:        return ft.Icons.SOUP_KITCHEN_ROUNDED
         return ft.Icons.RESTAURANT_ROUNDED
+
+    def _food_thumb(self, item, size=44):
+        cached = self._food_cache.get(item.get("Item_ID") or item.get("ItemID") or 0, {})
+        path = cached.get("Image_Path") or item.get("Image_Path")
+        if path:
+            return ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=size, height=size),
+                width=size, height=size, border_radius=10,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+        return ft.Container(
+            content=ft.Icon(self._food_icon(item.get("Food_Item_Name") or item.get("Name","")),
+                            size=size*0.45, color=self.sub),
+            width=size, height=size, bgcolor=self.card2, border_radius=10,
+            alignment=ft.Alignment(0, 0),
+        )
+
+    async def _show_food_detail(self, item):
+        iid = item.get("Item_ID") or item.get("ItemID") or 0
+        cached = self._food_cache.get(iid, {})
+        name = cached.get("Name") or item.get("Food_Item_Name") or item.get("Name", "Unknown")
+        price = cached.get("Price", 0)
+        qty = cached.get("Quantity", 0)
+        path = cached.get("Image_Path") or item.get("Image_Path")
+
+        rows = []
+        if path:
+            rows.append(ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=200, height=150),
+                border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                alignment=ft.Alignment(0, 0),
+            ))
+        rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, self.txt)))
+        rows.append(ft.Row([
+            ft.Text("Name", size=11, color=self.sub, font_family="DM Sans", expand=1),
+            ft.Text(name, size=14, weight="bold", color=self.txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Price", size=11, color=self.sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {price:,.2f}", size=13, color=self.txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Quantity", size=11, color=self.sub, font_family="DM Sans", expand=1),
+            ft.Text(str(qty), size=13, color=self.txt, font_family="DM Sans", expand=2),
+        ]))
+
+        recipes = []
+        if self.is_guest:
+            recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+        if recipes:
+            rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, self.txt)))
+            rows.append(ft.Text("Ingredients", size=12, weight="bold", color=self.txt, font_family="DM Sans"))
+            for r in recipes[:6]:
+                rows.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
+                                    size=12, color=self.sub, font_family="DM Sans"))
+
+        async def close(e):
+            o = getattr(self, '_detail_overlay', None)
+            if o and o in self.page.controls:
+                self.page.remove(o)
+                self._detail_overlay = None
+                self.page.update()
+
+        card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(name, size=18, weight="bold",
+                            color=self.txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=self.sub,
+                                  on_click=close),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                *rows,
+            ], tight=True, spacing=8),
+            bgcolor=self.card, border_radius=18, padding=24, width=400,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        dim = ft.Colors.with_opacity(0.5 if self.theme.get("is_dark") else 0.25, "#000")
+        overlay = ft.Container(
+            content=card, bgcolor=dim,
+            alignment=ft.Alignment(0, 0), expand=True,
+            on_click=close,
+        )
+        self.page.add(overlay)
+        self._detail_overlay = overlay
+        self.page.update()
 
     def _meal_color(self, meal_type: str):
         mt = (meal_type or "").lower()
@@ -199,6 +293,9 @@ class StudentHomePage:
         avg      = self._item_rating(item)
         meal_col = self._item_meal_type(item)
         meal_c   = self._meal_color(meal_col)
+        iid = item.get("Item_ID") or item.get("ItemID") or 0
+        cached = self._food_cache.get(iid, {})
+        price = cached.get("Price", 0)
 
         avg_stars = ft.Row([
             ft.Icon(ft.Icons.STAR_ROUNDED, size=13, color=self.amber),
@@ -211,7 +308,7 @@ class StudentHomePage:
         existing_rating    = item.get("user_rating")
 
         star_row = self._build_stars(
-            item_id=item.get("Item_ID") or item.get("ItemID") or 0,
+            item_id=iid,
             schedule_id=schedule_id,
             existing_rating=existing_rating,
             meal_date=date_for_rating,
@@ -228,31 +325,29 @@ class StudentHomePage:
                 border_radius=8,
             )
 
+        price_row = ft.Row([
+            ft.Text(f"PKR {price:.0f}", size=12, weight="bold",
+                    color=self.amber, font_family="DM Sans"),
+        ], spacing=2) if price else ft.Container()
+
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
-                    ft.Container(
-                        content=ft.Icon(self._food_icon(name), size=20, color=meal_c),
-                        width=40, height=40,
-                        bgcolor=ft.Colors.with_opacity(0.12, meal_c),
-                        border_radius=12,
-                        alignment=ft.Alignment(0, 0),
-                    ),
+                    self._food_thumb(item, 44),
                     ft.Column([
-                        ft.Text(
-                            name,
-                            size=14,
-                            weight="bold",
-                            color=self.txt,
-                            font_family="DM Sans",
-                            max_lines=1,
-                            overflow=ft.TextOverflow.ELLIPSIS,
-                        ),
+                        ft.Row([
+                            ft.Text(
+                                name, size=14, weight="bold",
+                                color=self.txt, font_family="DM Sans",
+                                max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True,
+                            ),
+                            date_badge,
+                        ], spacing=8),
                         avg_stars,
+                        price_row,
                     ], spacing=2, expand=True),
-                    date_badge,
-                ], spacing=12),
-                ft.Container(height=8),
+                ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START),
+                ft.Container(height=6),
                 star_row,
             ], spacing=0),
             bgcolor=self.card,
@@ -266,6 +361,8 @@ class StudentHomePage:
             ),
             border=ft.Border.all(1, ft.Colors.with_opacity(0.06, "#000")),
             animate=ft.Animation(200, "easeOut"),
+            on_click=lambda e, it=iid: asyncio.create_task(self._show_food_detail(item)),
+            ink=True,
         )
         return card
 
@@ -449,6 +546,24 @@ class StudentHomePage:
         self.main_container.content = self._loading()
         self.main_container.opacity = 0
         self.page.update()
+
+        # Pre-fetch food items for image/price lookups
+        self._food_cache = {}
+        if self.is_guest:
+            for f in mock_data.get_food_costs():
+                self._food_cache[f["Item_ID"]] = f
+        else:
+            try:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    r = await client.get(f"{BASE_URL}/admin/food-items/all", params={"email": self.email}, timeout=8)
+                    if r.status_code == 200:
+                        data = r.json()
+                        if isinstance(data, list):
+                            for f in data:
+                                self._food_cache[f["Item_ID"]] = f
+            except:
+                pass
 
         uid = self.user_id if not self.is_guest else None
 

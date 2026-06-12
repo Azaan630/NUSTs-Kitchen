@@ -11,12 +11,12 @@ def init_session():
     today = date.today()
     _db = {
         "food_items": [
-            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": "https://picsum.photos/seed/biryani/200/200"},
-            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": "https://picsum.photos/seed/daal/200/200"},
-            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": "https://picsum.photos/seed/karahi/200/200"},
-            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": "https://picsum.photos/seed/nihari/200/200"},
-            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": "https://picsum.photos/seed/pulao/200/200"},
-            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": "https://picsum.photos/seed/paratha/200/200"},
+            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": "https://placehold.co/200x200/E8D5B7/8B5E3C?text=Biryani"},
+            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": "https://placehold.co/200x200/FEF3C7/92400E?text=Daal"},
+            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": "https://placehold.co/200x200/FEE2E2/991B1B?text=Karahi"},
+            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": "https://placehold.co/200x200/FED7AA/7C2D12?text=Nihari"},
+            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": "https://placehold.co/200x200/D1FAE5/064E3B?text=Pulao"},
+            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": "https://placehold.co/200x200/FEF9C3/713F12?text=Paratha"},
         ],
         "students": [
             {"UserID": 101, "First_Name": "Alice", "Last_Name": "Khan", "Email": "alice@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001234567", "Department": "CS", "Hostel_Name": "A1", "Room_Number": "101"},
@@ -35,12 +35,12 @@ def init_session():
             {"Schedule_ID": 5, "Item_ID": 3, "Date": (today + timedelta(days=1)).isoformat(), "meal_type": "Dinner", "Food_Item_Name": "Chicken Karahi", "Ratings_Average": 4.7},
         ],
         "ingredients": [
-            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0, "Image_Path": "https://picsum.photos/seed/rice/200/200"},
-            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0, "Image_Path": "https://picsum.photos/seed/chicken/200/200"},
-            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0, "Image_Path": "https://picsum.photos/seed/daal-ing/200/200"},
-            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0, "Image_Path": "https://picsum.photos/seed/onions/200/200"},
-            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0, "Image_Path": "https://picsum.photos/seed/tomatoes/200/200"},
-            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0, "Image_Path": "https://picsum.photos/seed/oil/200/200"},
+            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0, "Image_Path": "https://placehold.co/200x200/F3F4F6/374151?text=Rice"},
+            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0, "Image_Path": "https://placehold.co/200x200/FEE2E2/991B1B?text=Chicken"},
+            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0, "Image_Path": "https://placehold.co/200x200/FEF3C7/92400E?text=Daal"},
+            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0, "Image_Path": "https://placehold.co/200x200/FED7AA/7C2D12?text=Onion"},
+            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0, "Image_Path": "https://placehold.co/200x200/FEE2E2/991B1B?text=Tomato"},
+            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0, "Image_Path": "https://placehold.co/200x200/FEF3C7/92400E?text=Oil"},
         ],
         "recipes": [
             {"Item_ID": 1, "Name": "Rice", "Ingredient_Quantity": 0.5, "Unit": "kg"},
@@ -72,7 +72,7 @@ def init_session():
              "Account_Type": "Student", "Department": "CS", "Contact_Number": "03001112233",
              "DoB": "2004-01-15", "Address": "H-12 NUST", "Father_Name": "Mr. Student",
              "Hostel_Name": "Ghazali", "Room_Number": "105", "Status": "Pending",
-             "Created_At": date.today().isoformat()},
+             "Profile_Picture": None, "Created_At": date.today().isoformat()},
         ],
     }
 
@@ -364,7 +364,7 @@ def get_registration_requests(status="Pending"):
 
 def submit_registration_request(data):
     rid = len(_db.get("registration_requests", [])) + 1
-    entry = {"RequestID": rid, **data, "Status": "Pending", "Created_At": date.today().isoformat()}
+    entry = {"RequestID": rid, **data, "Status": "Pending", "Profile_Picture": data.get("Profile_Picture"), "Created_At": date.today().isoformat()}
     _db.setdefault("registration_requests", []).append(entry)
     return {"message": "Request submitted"}
 
@@ -380,7 +380,7 @@ def approve_registration(rid, data=None):
                 sid = len(_db["students"]) + 101
                 _db["students"].append({
                     "UserID": sid, "First_Name": r["First_Name"], "Last_Name": r["Last_Name"],
-                    "Email": r["Email"], "Account_Type": "Student",
+                    "Email": r["Email"], "Account_Type": "Student", "Profile_Picture": r.get("Profile_Picture"),
                     "Department": r.get("Department", ""), "Contact_Number": r.get("Contact_Number", ""),
                     "Hostel_Name": r.get("Hostel_Name", ""), "Room_Number": r.get("Room_Number", ""),
                 })
@@ -388,7 +388,7 @@ def approve_registration(rid, data=None):
                 sid = len(_db["staff"]) + 201
                 _db["staff"].append({
                     "UserID": sid, "First_Name": r["First_Name"], "Last_Name": r["Last_Name"],
-                    "Email": r["Email"], "Account_Type": "Staff",
+                    "Email": r["Email"], "Account_Type": "Staff", "Profile_Picture": r.get("Profile_Picture"),
                     "Category": r.get("Category", ""),
                 })
     return {"message": "Approved"}

@@ -75,7 +75,7 @@ class StaffPage:
             bgcolor=self._clr("card"), border_radius=14, padding=14,
         )
 
-    def _row_card(self, controls, actions=None, data=None):
+    def _row_card(self, controls, actions=None, data=None, on_click=None):
         row = list(controls)
         if actions: row.append(ft.Row(actions, spacing=2))
         return ft.Container(
@@ -83,7 +83,7 @@ class StaffPage:
             bgcolor=self._clr("card"), border_radius=12,
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=6),
-            data=data,
+            data=data, on_click=on_click, ink=on_click is not None,
         )
 
     def _chip(self, label, fg, bg):
@@ -131,6 +131,140 @@ class StaffPage:
             width=size, height=size, bgcolor=self._clr("card2"), border_radius=10,
             alignment=ft.Alignment(0, 0),
         )
+
+    def _show_food_detail(self, item):
+        t = self.theme
+        sub = t.get("sub")
+        txt = t.get("text")
+        card_bg = t.get("card")
+        name = item.get("Name", "Unknown")
+        price = item.get("Price", 0)
+        cost = item.get("Estimated_Cost", 0)
+        qty = item.get("Quantity", 0)
+        path = item.get("Image_Path")
+
+        rows = []
+        if path:
+            rows.append(ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=200, height=150),
+                border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                alignment=ft.Alignment(0, 0),
+            ))
+        rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)))
+        rows.append(ft.Row([
+            ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(name, size=14, weight="bold", color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Price", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {price:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Estimated Cost", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {cost:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(str(qty), size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+
+        iid = item.get("Item_ID")
+        if iid:
+            recipes = []
+            if self.is_guest:
+                recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+            else:
+                import asyncio
+                try:
+                    r = asyncio.run(_req("/recipes", {"email": self.email}))
+                    recipes = [r for r in (r if isinstance(r, list) else []) if r.get("Item_ID") == iid]
+                except: pass
+            if recipes:
+                rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
+                rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
+                for r in recipes[:6]:
+                    rows.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
+                                        size=12, color=sub, font_family="DM Sans"))
+
+        card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Food Details", size=18, weight="bold",
+                            color=txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                  on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                *rows,
+            ], tight=True, spacing=8),
+            bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        self._show_overlay(card)
+
+    def _show_ingredient_detail(self, item):
+        t = self.theme
+        sub = t.get("sub")
+        txt = t.get("text")
+        card_bg = t.get("card")
+        name = item.get("Name", "Unknown")
+        qty = item.get("Total_Quantity", 0)
+        unit = item.get("Unit", "")
+        cost = item.get("Unit_cost", 0)
+        path = item.get("Image_Path")
+
+        rows = []
+        if path:
+            rows.append(ft.Container(
+                content=ft.Image(src=_img_url(path), fit="cover", width=200, height=150),
+                border_radius=12, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                alignment=ft.Alignment(0, 0),
+            ))
+        rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)))
+        rows.append(ft.Row([
+            ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(name, size=14, weight="bold", color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"{qty} {unit}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+        rows.append(ft.Row([
+            ft.Text("Unit Cost", size=11, color=sub, font_family="DM Sans", expand=1),
+            ft.Text(f"Rs. {cost:,.2f}/{unit}", size=13, color=txt, font_family="DM Sans", expand=2),
+        ]))
+
+        card = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Ingredient Details", size=18, weight="bold",
+                            color=txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
+                                  on_click=lambda e: asyncio.create_task(self._remove_overlay())),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                *rows,
+            ], tight=True, spacing=8),
+            bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+        self._show_overlay(card)
+
+    def _remove_overlay(self):
+        o = getattr(self, '_active_overlay', None)
+        if o and o in self.page.controls:
+            self.page.remove(o)
+            self._active_overlay = None
+            self.page.update()
+
+    def _show_overlay(self, card):
+        dim = ft.Colors.with_opacity(0.5 if self.theme.get("is_dark") else 0.25, "#000")
+        overlay = ft.Container(
+            content=card, bgcolor=dim,
+            alignment=ft.Alignment(0, 0), expand=True,
+            on_click=lambda e: self._remove_overlay(),
+        )
+        self.page.add(overlay)
+        self._active_overlay = overlay
+        self.page.update()
 
     def _guest_banner(self):
         if not self.is_guest: return ft.Container()
@@ -281,7 +415,7 @@ class StaffPage:
                     ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {price}", size=12, weight="bold", color=self._clr("accent"), font_family="DM Sans"),
-            ], data=label))
+            ], data=label, on_click=lambda e, it=item: self._show_food_detail(it)))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -313,7 +447,7 @@ class StaffPage:
                     ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
                     ft.Text(f"Qty: {i.get('Total_Quantity', 0)} {i.get('Unit', '')}",
                             size=12, color=self._clr("danger"), font_family="DM Sans"),
-                ], data=i.get("Name")) for i in low_stock]
+                ], data=i.get("Name"), on_click=lambda e, it=i: self._show_ingredient_detail(it)) for i in low_stock]
             )
 
         rows = ft.Column(spacing=4)
@@ -327,7 +461,7 @@ class StaffPage:
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {i.get('Unit_cost', 0)}/{i.get('Unit', '')}", size=11,
                         color=self._clr("sub"), font_family="DM Sans"),
-            ]))
+            ], on_click=lambda e, it=i: self._show_ingredient_detail(it)))
 
         ref.content = ft.Column([
             self._guest_banner(),

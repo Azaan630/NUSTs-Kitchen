@@ -119,6 +119,7 @@ class RegistrationRequestCreate(BaseModel):
     Hostel_Name: Optional[str] = None
     Room_Number: Optional[str] = None
     Category: Optional[str] = None
+    Profile_Picture: Optional[str] = None
 
 
 class ProfilePictureUpdate(BaseModel):
@@ -142,3 +143,4 @@ class RegistrationRequestUpdate(BaseModel):
     Hostel_Name: Optional[str] = None
     Room_Number: Optional[str] = None
     Category: Optional[str] = None
+    Profile_Picture: Optional[str] = None

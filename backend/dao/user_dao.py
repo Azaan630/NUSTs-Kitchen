@@ -26,8 +26,8 @@ class UserDAO(BaseDAO):
     def get_student_details(self, user_id):
         return self._fetchall(getStudentDetails, (user_id,))
 
-    def register_user(self, first_name, last_name, email, account_type, sex=None):
-        return self._execute(registerUser, (first_name, last_name, email, account_type, sex))
+    def register_user(self, first_name, last_name, email, account_type, sex=None, profile_picture=None):
+        return self._execute(registerUser, (first_name, last_name, email, account_type, sex, profile_picture))
 
     def register_student(self, user_id, dob, department, contact, address, father, hostel, room):
         return self._execute(registerStudent, (user_id, dob, department, contact, address, father, hostel, room))

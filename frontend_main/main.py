@@ -490,6 +490,7 @@ def build_register_form(page, on_submit, on_back):
                 "Hostel_Name": v_hostel,
                 "Room_Number": v_room,
                 "Category": v_cat,
+                "Profile_Picture": _reg_pfp_url["v"],
             }
             try:
                 async with httpx.AsyncClient() as client:
@@ -507,6 +508,56 @@ def build_register_form(page, on_submit, on_back):
             msg.update()
 
         common_fields = [fields[k] for k in ["first", "last", "email", "dob", "dept", "phone", "address", "father"]]
+
+        # ── Profile picture upload for registration ────
+        _reg_pfp_url = {"v": None}
+        _reg_pfp_state = {"picker": None}
+
+        def _trigger_reg_pfp_upload(e):
+            p = _reg_pfp_state["picker"]
+            if p is None:
+                def _on_picked(ev):
+                    if ev.files:
+                        asyncio.create_task(_do_reg_pfp_upload(ev.files[0].path))
+                p = ft.FilePicker(on_result=_on_picked)
+                _reg_pfp_state["picker"] = p
+                page.overlay.append(p)
+            p.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
+
+        async def _do_reg_pfp_upload(file_path):
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read()
+                filename = os.path.basename(file_path)
+                async with httpx.AsyncClient() as client:
+                    r = await client.post(
+                        f"{BACKEND_URL}/upload",
+                        files={"file": (filename, content, "image/jpeg")},
+                        timeout=30,
+                    )
+                if r.status_code == 200:
+                    _reg_pfp_url["v"] = r.json()["url"]
+                    _reg_pfp_btn.text = "Photo selected"
+                    _reg_pfp_btn.update()
+                else:
+                    page.snack_bar = ft.SnackBar(content=ft.Text("Upload failed", color="#FFF"),
+                        bgcolor=t["danger"], duration=3000)
+                    page.snack_bar.open = True
+                    page.update()
+            except Exception as ex:
+                page.snack_bar = ft.SnackBar(content=ft.Text(f"Error: {ex}", color="#FFF"),
+                    bgcolor=t["danger"], duration=3000)
+                page.snack_bar.open = True
+                page.update()
+
+        _reg_pfp_btn = ft.TextButton(
+            content=ft.Row([
+                ft.Icon(ft.Icons.CAMERA_ALT_ROUNDED, size=16, color=acc),
+                ft.Text("Add Photo", size=12, color=acc, font_family="DM Sans"),
+            ], spacing=4, tight=True),
+            on_click=_trigger_reg_pfp_upload,
+        )
+
         body.controls.clear()
         body.controls.extend([
             ft.Container(height=20),
@@ -517,7 +568,8 @@ def build_register_form(page, on_submit, on_back):
                         font_family="Playfair", color=t["text"], expand=True),
             ], alignment=ft.MainAxisAlignment.START),
             ft.Text(f"Registering as {selected_role}", size=13, color=sub, font_family="DM Sans"),
-            ft.Container(height=12),
+            ft.Row([_reg_pfp_btn], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=8),
             *common_fields,
             sex_dd, ft.Container(height=4),
             cat_dd if is_staff else ft.Container(),
