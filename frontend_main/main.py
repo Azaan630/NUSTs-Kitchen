@@ -907,16 +907,17 @@ async def main(page: ft.Page):
             alignment=ft.Alignment(0, 0),
         )
 
+        _mb = (page.width or 1200) < 720
         name_chip_txt = ft.Text(f"{first} {last}".strip(), size=13,
-            weight="bold", color=t["text"], font_family="DM Sans")
+            weight="bold", color=t["text"], font_family="DM Sans",
+            visible=not _mb)
         name_chip = ft.Container(
-            content=ft.Row([avatar, name_chip_txt], spacing=8),
-            padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+            content=ft.Row([avatar, name_chip_txt], spacing=6),
+            padding=ft.Padding.symmetric(horizontal=6 if _mb else 10, vertical=4),
             bgcolor=ft.Colors.with_opacity(0.08, t["accent"]), border_radius=16,
             on_click=show_profile_popup,
         )
 
-        _mb = (page.width or 1200) < 720
         logo_sz = 44 if _mb else 60
         title_text = ft.Text("NUST's Kitchen\u2122", size=16 if _mb else 20, weight="bold",
                 font_family="Playfair", color=t["accent"])
