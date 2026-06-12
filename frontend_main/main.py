@@ -767,9 +767,9 @@ async def main(page: ft.Page):
             content=ft.Row([
                 ft.Row([
                     ft.Container(
-                        content=ft.Image(src="logo.png", width=18, height=18),
+                        content=ft.Image(src="logo.png", width=28, height=28),
                         bgcolor=ft.Colors.with_opacity(0.12, t["accent"]),
-                        width=32, height=32, border_radius=8, alignment=ft.Alignment(0, 0),
+                        width=40, height=40, border_radius=10, alignment=ft.Alignment(0, 0),
                     ),
                     title_text,
                 ], spacing=10),
