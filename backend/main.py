@@ -228,57 +228,57 @@ const API_KEY = '{API_KEY}';
 const TOKEN = '{TOKEN}';
 const BASE = window.location.origin;
 let accessToken = null;
-function connect(){{
+function connect() {
 document.getElementById('connectBtn').disabled=true;
 document.getElementById('connectBtn').textContent='Connecting...';
-const client=google.accounts.oauth2.initTokenClient({{
+const client=google.accounts.oauth2.initTokenClient({
 client_id:CLIENT_ID,
 scope:'https://www.googleapis.com/auth/drive.readonly',
-callback:(r)=>{{
-if(r.access_token){{
+callback: (r) => {
+if (r.access_token) {
 accessToken=r.access_token;
 document.getElementById('status').innerHTML='<div class="spinner"></div><p>Loading Google Drive...</p>';
-gapi.load('picker',{{callback:onPickerReady}});
-}}else{{
+gapi.load('picker', {callback: onPickerReady});
+} else {
 document.getElementById('status').innerHTML='<div class="error">Authentication failed'+(r.error?': '+r.error:'')+'</div><br><button class="btn" onclick="connect()">Try Again</button>';
 document.getElementById('connectBtn').disabled=false;
-}}
-}},
-error_callback:(err)=>{{
+}
+},
+error_callback: (err) => {
 document.getElementById('status').innerHTML='<div class="error">Error: '+err+'</div>';
 document.getElementById('connectBtn').disabled=false;
-}}
-}});
+}
+});
 client.requestAccessToken();
-}}
-function onPickerReady(){{
+}
+function onPickerReady() {
 const picker=new google.picker.PickerBuilder()
 .addView(google.picker.ViewId.IMAGES)
 .addView(google.picker.ViewId.DOCS_IMAGES)
 .setOAuthToken(accessToken)
 .setDeveloperKey(API_KEY)
 .setTitle('Select a profile picture')
-.setCallback(function(data){{
-if(data.action==google.picker.Action.PICKED){{
+.setCallback(function(data) {
+if (data.action==google.picker.Action.PICKED) {
 const fileId=data.docs[0].id;
 const name=data.docs[0].name;
 fetch(BASE+'/picker-callback?token='+TOKEN+'&file_id='+encodeURIComponent(fileId)+'&name='+encodeURIComponent(name))
 .then(r=>r.json())
-.then(d=>{{
-if(d.status==='ok'){{
+.then(d => {
+if (d.status==='ok') {
 document.getElementById('status').innerHTML='<div class="success">\\u2713 '+name+' selected!<br><br>You can close this tab.</div>';
-}}
-}});
-}}else if(data.action==google.picker.Action.CANCEL){{
+}
+});
+} else if (data.action==google.picker.Action.CANCEL) {
 document.getElementById('status').innerHTML='<div class="info">Selection cancelled. Close this tab.</div>';
-}}
-}})
+}
+})
 .build();
 picker.setVisible(true);
-}}
-if(!CLIENT_ID||!API_KEY){{
+}
+if (!CLIENT_ID||!API_KEY) {
 document.getElementById('status').innerHTML='<div class="error">Google Drive picker is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_API_KEY.</div>';
-}}
+}
 </script>
 </body>
 </html>"""
