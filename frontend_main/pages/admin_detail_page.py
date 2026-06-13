@@ -205,7 +205,7 @@ class AdminDetailPage:
         if extra_rows:
             icon = ft.Icons.SCHOOL_ROUNDED if self.role == "student" else ft.Icons.BADGE_ROUNDED
             role_section = _section(icon, f"{role_label} Details", extra_rows)
-        elif not self.is_guest and self.role == "staff":
+        if not role_section and not self.is_guest and self.role == "staff":
             role_section = _section(ft.Icons.BADGE_ROUNDED, f"{role_label} Details", [
                 ft.Container(
                     content=ft.Row([
