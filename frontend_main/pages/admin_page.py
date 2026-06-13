@@ -1848,7 +1848,7 @@ class AdminPage:
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("food", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label, on_click=lambda e, it=item: asyncio.create_task(self._show_food_detail(it))))
+            ], data=label, on_click=lambda e, it=item: self._show_food_detail(it)))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -2067,7 +2067,7 @@ class AdminPage:
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("ing", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label, on_click=lambda e, it=item: asyncio.create_task(self._show_ingredient_detail(it))))
+            ], data=label, on_click=lambda e, it=item: self._show_ingredient_detail(it)))
 
         ref.content = ft.Column([
             self._guest_banner(),

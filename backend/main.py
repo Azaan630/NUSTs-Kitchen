@@ -211,32 +211,7 @@ async def download_from_drive(data: dict):
             break
     if not fid:
         raise HTTPException(status_code=400, detail="Could not extract file ID from URL")
-    import urllib.request
-    urls_to_try = [
-        f"https://drive.google.com/thumbnail?id={fid}&sz=w800",
-        f"https://drive.google.com/uc?export=download&confirm=t&id={fid}",
-    ]
-    content = None
-    content_type = None
-    for url in urls_to_try:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "NUSTsKitchen/1.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                content = resp.read()
-                content_type = resp.headers.get("Content-Type", "")
-                if content and len(content) > 100:
-                    break
-        except Exception:
-            continue
-    if not content:
-        raise HTTPException(status_code=502, detail="Failed to download image from Google Drive")
-    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
-    ext = ext_map.get(content_type, "png")
-    name = f"{uuid.uuid4().hex}.{ext}"
-    path = os.path.join(UPLOAD_DIR, name)
-    with open(path, "wb") as f:
-        f.write(content)
-    url = f"/uploads/{name}"
+    url = f"https://lh3.googleusercontent.com/d/{fid}"
     if token:
         UPLOAD_TOKENS[token] = url
     return {"url": url}
