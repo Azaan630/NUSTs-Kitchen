@@ -1,7 +1,6 @@
 import flet as ft
 import asyncio
 import os
-import uuid
 import httpx
 import re
 import mock_data
@@ -233,16 +232,18 @@ class ProfileDetailsPage:
                         size=13, color=self.sub, font_family="DM Sans",
                     ),
                     ft.Container(height=12),
-                    ft.Row([
-                        ft.Container(
-                            content=ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=16, color=self.acc),
-                            padding=6,
-                        ),
-                        ft.Text("Set link sharing to 'Anyone with the link' in Google Drive",
-                                size=11, color=self.acc, font_family="DM Sans", expand=True),
-                    ], spacing=6,
+                    ft.Container(
+                        content=ft.Row([
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=16, color=self.acc),
+                                padding=6,
+                            ),
+                            ft.Text("Set link sharing to 'Anyone with the link' in Google Drive",
+                                    size=11, color=self.acc, font_family="DM Sans", expand=True),
+                        ], spacing=6),
                         bgcolor=ft.Colors.with_opacity(0.08, self.acc),
-                        border_radius=10, padding=10),
+                        border_radius=10, padding=ft.Padding.all(10),
+                    ),
                     ft.Container(height=8),
                     link_input,
                     ft.Container(height=8),
