@@ -3,6 +3,7 @@ import asyncio
 import httpx
 import os
 import uuid
+import re
 import logging
 from datetime import date, datetime
 import mock_data
@@ -545,6 +546,19 @@ class AdminPage:
         )
         self._show_overlay(card)
 
+    def _extract_drive_id(self, url: str) -> str | None:
+        patterns = [
+            r"/file/d/([a-zA-Z0-9_-]+)",
+            r"id=([a-zA-Z0-9_-]+)",
+            r"drive\.google\.com/uc\?.*id=([a-zA-Z0-9_-]+)",
+            r"^(1[0-9A-Za-z_-]{10,})$",
+        ]
+        for p in patterns:
+            m = re.search(p, url.strip())
+            if m:
+                return m.group(1)
+        return None
+
     async def _do_update_item_image(self, url, etype, eid):
         if self.is_guest:
             if etype == "food":
@@ -565,47 +579,72 @@ class AdminPage:
             icon=ft.Icons.IMAGE_ROUNDED,
             icon_color=self._clr("accent"),
             tooltip="Upload Photo",
-            on_click=lambda e: asyncio.create_task(self._trigger_upload(etype, eid)),
+            on_click=lambda e: asyncio.create_task(self._show_paste_link_dialog(etype, eid)),
         )
 
-    async def _trigger_upload(self, etype, eid):
-        token = uuid.uuid4().hex
-        upload_url = f"{self.PUBLIC_BACKEND_URL}/upload-ui?token={token}"
-        status_text = ft.Text("", size=12, color=self._clr("sub"))
-        async def check(_):
-            try:
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BASE_URL}/upload-status/{token}", timeout=10)
-                    data = r.json()
-                if data.get("status") == "done":
-                    status_text.value = "Complete!"
-                    status_text.color = ft.Colors.GREEN
-                    dlg.open = False
-                    self.page.update()
-                    await self._do_update_item_image(data.get("url", ""), etype, eid)
-                elif data.get("status") == "pending":
-                    status_text.value = "Not yet uploaded. Open the link, upload, then Check."
-                    status_text.color = ft.Colors.AMBER
-                    self.page.update()
-                else:
-                    status_text.value = "Unexpected response from server. Please ensure the backend is updated and try again."
-                    status_text.color = ft.Colors.RED
-                    self.page.update()
-            except Exception as ex:
-                status_text.value = f"Error: {ex}"
+    async def _show_paste_link_dialog(self, etype, eid):
+        link_input = ft.TextField(
+            label="Google Drive shareable link",
+            hint_text="https://drive.google.com/file/d/...",
+            border_color=ft.Colors.with_opacity(0.3, self._clr("text")),
+            border_radius=10, text_size=14, expand=True,
+        )
+        status = ft.Text("", size=12, color=self._clr("sub"))
+
+        async def _do_set():
+            drive_url = link_input.value or ""
+            fid = self._extract_drive_id(drive_url)
+            if not fid:
+                status.value = "Could not recognise a Google Drive link."
+                status.color = self._clr("danger")
                 self.page.update()
-        def close(_):
-            dlg.open = False
+                return
+            status.value = "Downloading from Google Drive..."
             self.page.update()
+            try:
+                if self.is_guest:
+                    saved_url = drive_url
+                else:
+                    async with httpx.AsyncClient() as client:
+                        r = await client.post(
+                            f"{BASE_URL}/drive-download",
+                            json={"drive_url": drive_url},
+                            timeout=20,
+                        )
+                        data = r.json()
+                        saved_url = data.get("url", drive_url)
+                dlg.open = False
+                self.page.update()
+                await self._do_update_item_image(saved_url, etype, eid)
+            except Exception as ex:
+                status.value = f"Error: {ex}"
+                status.color = self._clr("danger")
+                self.page.update()
+
         dlg = ft.AlertDialog(
-            title=ft.Text("Upload Image", color=self._clr("text")),
+            modal=True,
+            title=ft.Row([
+                ft.Icon(ft.Icons.IMAGE_ROUNDED, size=20, color=self._clr("accent")),
+                ft.Text("Upload Image", size=18, weight="bold", color=self._clr("text")),
+            ], spacing=8),
             content=ft.Column([
-                ft.Text("Open the link in a new tab, upload your image, then click Check:", size=13, color=self._clr("text")),
-                ft.TextField(value=upload_url, read_only=True, expand=True),
-                ft.ElevatedButton("Check Upload", on_click=check, style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF")),
-                status_text,
-            ], tight=True, spacing=10, width=380),
-            actions=[ft.TextButton("Cancel", on_click=close)],
+                ft.Text(
+                    "Upload an image to Google Drive, get a shareable link "
+                    "(Anyone with the link), and paste it below:",
+                    size=13, color=self._clr("sub"),
+                ),
+                ft.Container(height=8),
+                link_input,
+                status,
+            ], tight=True, spacing=8, width=400),
+            actions=[
+                ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                    on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                ft.FilledButton("Set Image",
+                    style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                    on_click=lambda e: asyncio.create_task(_do_set())),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
         )
         self.page.show_dialog(dlg)
 
