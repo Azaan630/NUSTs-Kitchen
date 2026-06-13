@@ -30,6 +30,9 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 UPLOAD_TOKENS: dict[str, str] = {}
+PICKER_TOKENS: dict[str, str] = {}
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
@@ -182,6 +185,136 @@ document.getElementById('form').onsubmit = async function(e) {{
 @app.get("/upload-status/{token}")
 async def upload_status(token: str):
     url = UPLOAD_TOKENS.get(token)
+    if url:
+        return {"status": "done", "url": url}
+    return {"status": "pending", "url": None}
+
+
+PICKER_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Drive Picker</title>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.card{background:white;border-radius:20px;padding:40px;width:420px;max-width:90vw;box-shadow:0 8px 40px #00000012;text-align:center}
+h2{font-size:22px;margin-bottom:8px;color:#1a1a1a}
+p{font-size:14px;color:#666;margin-bottom:24px;line-height:1.5}
+.btn{background:#1a73e8;color:white;border:none;border-radius:40px;padding:14px 32px;font-size:15px;font-weight:500;cursor:pointer;transition:background .2s}
+.btn:hover{background:#1557b0}
+.btn:disabled{opacity:.6;cursor:default}
+.success{color:#1e7e34;font-weight:500;font-size:15px}
+.error{color:#d93025;font-size:14px}
+.info{color:#666;font-size:14px}
+.spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#1a73e8;border-radius:50%;animation:spin .8s linear infinite;margin:16px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.icon-drive{width:48px;height:48px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="card">
+<svg class="icon-drive" viewBox="0 0 48 48"><path d="M24 4L8 28l8 16h16l8-16L24 4z" fill="#1a73e8"/><path d="M24 4L16 20h16L24 4z" fill="#34a853"/><path d="M32 20l8 16H8l8-16h16z" fill="#fbbc04"/><path d="M16 36l4-8h8l4 8H16z" fill="#ea4335"/></svg>
+<h2>Select from Google Drive</h2>
+<p>Choose an image from your Google Drive to use as your profile picture.</p>
+<div id="status"><button class="btn" id="connectBtn" onclick="connect()">Connect to Google Drive</button></div>
+</div>
+<script>
+const CLIENT_ID = '{CLIENT_ID}';
+const API_KEY = '{API_KEY}';
+const TOKEN = '{TOKEN}';
+const BASE = window.location.origin;
+let accessToken = null;
+function connect(){{
+document.getElementById('connectBtn').disabled=true;
+document.getElementById('connectBtn').textContent='Connecting...';
+const client=google.accounts.oauth2.initTokenClient({{
+client_id:CLIENT_ID,
+scope:'https://www.googleapis.com/auth/drive.readonly',
+callback:(r)=>{{
+if(r.access_token){{
+accessToken=r.access_token;
+document.getElementById('status').innerHTML='<div class="spinner"></div><p>Loading Google Drive...</p>';
+gapi.load('picker',{{callback:onPickerReady}});
+}}else{{
+document.getElementById('status').innerHTML='<div class="error">Authentication failed'+(r.error?': '+r.error:'')+'</div><br><button class="btn" onclick="connect()">Try Again</button>';
+document.getElementById('connectBtn').disabled=false;
+}}
+}},
+error_callback:(err)=>{{
+document.getElementById('status').innerHTML='<div class="error">Error: '+err+'</div>';
+document.getElementById('connectBtn').disabled=false;
+}}
+}});
+client.requestAccessToken();
+}}
+function onPickerReady(){{
+const picker=new google.picker.PickerBuilder()
+.addView(google.picker.ViewId.IMAGES)
+.addView(google.picker.ViewId.DOCS_IMAGES)
+.setOAuthToken(accessToken)
+.setDeveloperKey(API_KEY)
+.setTitle('Select a profile picture')
+.setCallback(function(data){{
+if(data.action==google.picker.Action.PICKED){{
+const fileId=data.docs[0].id;
+const name=data.docs[0].name;
+fetch(BASE+'/picker-callback?token='+TOKEN+'&file_id='+encodeURIComponent(fileId)+'&name='+encodeURIComponent(name))
+.then(r=>r.json())
+.then(d=>{{
+if(d.status==='ok'){{
+document.getElementById('status').innerHTML='<div class="success">\\u2713 '+name+' selected!<br><br>You can close this tab.</div>';
+}}
+}});
+}}else if(data.action==google.picker.Action.CANCEL){{
+document.getElementById('status').innerHTML='<div class="info">Selection cancelled. Close this tab.</div>';
+}}
+}})
+.build();
+picker.setVisible(true);
+}}
+if(!CLIENT_ID||!API_KEY){{
+document.getElementById('status').innerHTML='<div class="error">Google Drive picker is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_API_KEY.</div>';
+}}
+</script>
+</body>
+</html>"""
+
+
+@app.get("/google-picker-ui")
+async def google_picker_ui(token: str = Query(default="")):
+    if not GOOGLE_CLIENT_ID or not GOOGLE_API_KEY:
+        return HTMLResponse("""<html><body style="font-family:sans-serif;padding:40px;text-align:center">
+            <h2 style="color:#d93025">Google Drive Picker not configured</h2>
+            <p style="color:#666;margin-top:16px">Set the following environment variables on the backend:</p>
+            <pre style="background:#f5f5f5;padding:12px;border-radius:8px;display:inline-block;text-align:left;margin-top:12px">
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_API_KEY=your-api-key</pre>
+            <p style="color:#666;margin-top:16px;font-size:13px">
+            Also add <code>{base}/google-picker-ui</code> as an authorized redirect URI
+            in your Google Cloud Console OAuth client ID settings.
+            </p>
+        </body></html>""".format(base=os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))))
+    return HTMLResponse(
+        PICKER_HTML.replace("{CLIENT_ID}", GOOGLE_CLIENT_ID)
+        .replace("{API_KEY}", GOOGLE_API_KEY)
+        .replace("{TOKEN}", token or "")
+    )
+
+
+@app.post("/picker-callback")
+async def picker_callback(token: str = Query(...), file_id: str = Query(...), name: str = Query("")):
+    url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+    PICKER_TOKENS[token] = url
+    return {"status": "ok", "url": url}
+
+
+@app.get("/picker-status/{token}")
+async def picker_status(token: str):
+    url = PICKER_TOKENS.get(token)
     if url:
         return {"status": "done", "url": url}
     return {"status": "pending", "url": None}

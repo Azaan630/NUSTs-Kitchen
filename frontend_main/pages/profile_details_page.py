@@ -1,7 +1,7 @@
 import flet as ft
 import asyncio
-import re
 import os
+import uuid
 import httpx
 import mock_data
 
@@ -16,20 +16,6 @@ def _img_url(path):
     if path.startswith(("http://", "https://", "data:")):
         return path
     return f"{PUBLIC_BACKEND_URL}{path}"
-
-
-def _extract_drive_id(url: str) -> str | None:
-    patterns = [
-        r"/file/d/([a-zA-Z0-9_-]+)",
-        r"id=([a-zA-Z0-9_-]+)",
-        r"drive\.google\.com/uc\?.*id=([a-zA-Z0-9_-]+)",
-        r"^(1[0-9A-Za-z_-]{10,})$",
-    ]
-    for p in patterns:
-        m = re.search(p, url.strip())
-        if m:
-            return m.group(1)
-    return None
 
 
 class ProfileDetailsPage:
@@ -98,13 +84,15 @@ class ProfileDetailsPage:
         def _info_row(label, value):
             if not value or str(value).strip() in ("", "-", "N/A"):
                 return None
+            mb = (self.page.width or 1200) < 720
             return ft.Container(
                 content=ft.Row([
-                    ft.Text(label, size=13, color=self.sub, font_family="DM Sans", expand=1),
+                    ft.Text(label, size=13, color=self.sub, font_family="DM Sans",
+                            width=100 if not mb else 80),
                     ft.Text(str(value), size=14, weight="bold", color=self.txt, font_family="DM Sans",
-                            text_align=ft.TextAlign.END, expand=1),
-                ], spacing=8),
-                padding=ft.Padding.symmetric(vertical=8),
+                            expand=True),
+                ], spacing=6),
+                padding=ft.Padding.symmetric(vertical=7),
             )
 
         def _section(icon, title, rows):
@@ -139,92 +127,76 @@ class ProfileDetailsPage:
         def _on_pfp_click(e):
             if self.is_guest:
                 return
-            drive_url = ft.TextField(
-                label="Google Drive link",
-                hint_text="https://drive.google.com/file/d/...",
-                border_color=ft.Colors.with_opacity(0.3, self.txt),
-                border_radius=10,
-                text_size=13,
-                text_style=ft.TextStyle(font_family="DM Sans"),
-                expand=True,
-            )
-            status = ft.Text("", size=12, color=self.txt, font_family="DM Sans")
-            preview_img = ft.Container()
+            token = uuid.uuid4().hex
+            picker_url = f"{PUBLIC_BACKEND_URL}/google-picker-ui?token={token}"
+            status_text = ft.Text("", size=12)
 
-            def _preview(e):
-                fid = _extract_drive_id(drive_url.value or "")
-                if fid:
-                    direct = f"https://drive.google.com/uc?export=view&id={fid}"
-                    preview_img.content = ft.Image(
-                        src=direct, fit="cover", width=120, height=120,
-                        border_radius=60,
-                        error_content=ft.Text("Preview unavailable", size=11, color=self.sub),
-                    )
-                else:
-                    preview_img.content = ft.Container(
-                        content=ft.Text("Invalid link", size=11, color=self.danger),
-                        alignment=ft.Alignment(0, 0),
-                        width=120, height=120,
-                    )
-                self.page.update()
-
-            def _save(e):
-                asyncio.create_task(_do_save())
-
-            async def _do_save():
-                fid = _extract_drive_id(drive_url.value or "")
-                if not fid:
-                    status.value = "Could not recognise a Google Drive link. Try again."
-                    status.color = self.danger
-                    self.page.update()
-                    return
-                direct_url = f"https://drive.google.com/uc?export=view&id={fid}"
-                status.value = "Saving..."
-                status.color = self.sub
-                self.page.update()
+            async def _check(e):
                 try:
-                    if not self.is_guest:
-                        async with httpx.AsyncClient() as client:
-                            await client.patch(
-                                f"{BACKEND_URL}/users/{uid}/picture",
-                                json={"Profile_Picture": direct_url},
-                                params={"email": email},
-                                timeout=10,
-                            )
-                    self.user_data["Profile_Picture"] = direct_url
-                    dlgo.open = False
-                    self.page.update()
-                    await self._render()
+                    async with httpx.AsyncClient() as client:
+                        r = await client.get(f"{BACKEND_URL}/picker-status/{token}", timeout=10)
+                        data = r.json()
+                    if data.get("status") == "done":
+                        url = data.get("url", "")
+                        dlgo.open = False
+                        self.page.update()
+                        try:
+                            if not self.is_guest:
+                                async with httpx.AsyncClient() as client2:
+                                    await client2.patch(
+                                        f"{BACKEND_URL}/users/{uid}/picture",
+                                        json={"Profile_Picture": url},
+                                        params={"email": email},
+                                        timeout=10,
+                                    )
+                            self.user_data["Profile_Picture"] = url
+                        except Exception:
+                            pass
+                        await self._render()
+                    elif data.get("status") == "pending":
+                        status_text.value = "Waiting for you to select an image in the Google Drive tab..."
+                        status_text.color = self.warn
+                        self.page.update()
+                    else:
+                        status_text.value = "Unexpected response. Try again."
+                        status_text.color = self.danger
+                        self.page.update()
                 except Exception as ex:
-                    status.value = f"Error: {ex}"
-                    status.color = self.danger
+                    status_text.value = f"Error: {ex}"
+                    status_text.color = self.danger
                     self.page.update()
+
+            def _open_tab(e):
+                asyncio.create_task(self.page.launch_url(picker_url))
 
             dlgo = ft.AlertDialog(
                 modal=True,
-                title=ft.Text("Upload Profile Picture", color=self.txt, font_family="DM Sans"),
+                title=ft.Text("Profile Picture", color=self.txt, font_family="DM Sans"),
                 content=ft.Column([
                     ft.Text(
-                        "Upload your image to Google Drive, get a shareable link, then paste it below:",
+                        "Click below to open Google Drive and select an image:",
                         size=13, color=self.sub, font_family="DM Sans",
                     ),
-                    ft.Container(height=6),
-                    drive_url,
+                    ft.Container(height=8),
+                    ft.ElevatedButton(
+                        "Open Google Drive Picker",
+                        icon=ft.Icons.FOLDER_OPEN_ROUNDED,
+                        on_click=_open_tab,
+                        style=ft.ButtonStyle(bgcolor=self.acc, color="#FFF", padding=ft.Padding.symmetric(horizontal=20, vertical=12)),
+                    ),
+                    ft.Container(height=4),
+                    ft.Text("A new tab will open. Choose an image, then click Check below.",
+                            size=12, color=self.sub, font_family="DM Sans"),
+                    ft.Container(height=12),
                     ft.Row([
-                        ft.ElevatedButton(
-                            "Preview",
-                            on_click=_preview,
-                            style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, self.acc), color=self.acc),
-                        ),
-                        preview_img,
-                    ], spacing=10),
-                    status,
-                ], tight=True, spacing=10, width=400, scroll=ft.ScrollMode.ADAPTIVE),
+                        ft.ElevatedButton("Check", on_click=_check,
+                            style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, self.acc), color=self.acc)),
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    status_text,
+                ], tight=True, spacing=4, width=380),
                 actions=[
                     ft.TextButton("Cancel", on_click=lambda _: setattr(dlgo, 'open', False) or self.page.update()),
-                    ft.FilledButton("Save Picture", on_click=_save),
                 ],
-                actions_alignment=ft.MainAxisAlignment.END,
             )
             self.page.show_dialog(dlgo)
 
