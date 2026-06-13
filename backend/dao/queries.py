@@ -27,8 +27,16 @@ getMyBills = ("""SELECT *
                  WHERE Email = %s
                  ORDER BY Issue_Date""")
 
-getStudentBillDetails = ("""SELECT Users.First_Name, Users.Last_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Status
-                            FROM Bills JOIN Users ON Users.UserID = Bills.User_ID
+getStudentBillDetails = ("""SELECT Users.First_Name, Users.Last_Name, Bills.User_ID, Bills.Billing_ID, Bills.Month, Bills.Amount, Bills.Due_Date, Bills.Status,
+                                   COALESCE(t.Total_Paid, 0) AS Total_Collected
+                            FROM Bills
+                            JOIN Users ON Users.UserID = Bills.User_ID
+                            LEFT JOIN (
+                                SELECT Billing_ID, SUM(Amount_Paid) AS Total_Paid
+                                FROM Transactions
+                                WHERE Transaction_Status = 'Success'
+                                GROUP BY Billing_ID
+                            ) t ON Bills.Billing_ID = t.Billing_ID
                             WHERE Bills.User_ID = %s""")
 
 getIngredients = ("""SELECT *

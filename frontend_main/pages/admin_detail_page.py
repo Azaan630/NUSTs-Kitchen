@@ -181,20 +181,23 @@ class AdminDetailPage:
         basic_rows.append(_info_row("Sex", self._extra.get("Sex") or d.get("Sex", "")))
         basic_section = _section(ft.Icons.INFO_ROUNDED, "Basic Information", basic_rows)
 
-        # Role-specific rows
+        # Role-specific rows (fall back to self.person if _fetch_details didn't return extra data)
         extra_rows = []
         if self.role == "student":
-            extra_rows.append(_info_row("Department", self._extra.get("Department")))
-            extra_rows.append(_info_row("Contact Number", self._extra.get("Contact_Number")))
-            extra_rows.append(_info_row("Date of Birth", self._extra.get("DoB")))
-            extra_rows.append(_info_row("Address", self._extra.get("Address")))
-            extra_rows.append(_info_row("Father's Name", self._extra.get("Father_Name")))
-            extra_rows.append(_info_row("Hostel", self._extra.get("Hostel_Name")))
-            extra_rows.append(_info_row("Room Number", self._extra.get("Room_Number")))
+            extra_rows.append(_info_row("Department", self._extra.get("Department") or d.get("Department")))
+            extra_rows.append(_info_row("Contact Number", self._extra.get("Contact_Number") or d.get("Contact_Number")))
+            extra_rows.append(_info_row("Date of Birth", self._extra.get("DoB") or d.get("DoB")))
+            extra_rows.append(_info_row("Address", self._extra.get("Address") or d.get("Address")))
+            extra_rows.append(_info_row("Father's Name", self._extra.get("Father_Name") or d.get("Father_Name")))
+            extra_rows.append(_info_row("Hostel", self._extra.get("Hostel_Name") or d.get("Hostel_Name")))
+            extra_rows.append(_info_row("Room Number", self._extra.get("Room_Number") or d.get("Room_Number")))
         elif self.role == "staff":
-            extra_rows.append(_info_row("Category", self._extra.get("Category") or self._extra.get("Cat")))
-            extra_rows.append(_info_row("Salary", f"Rs. {self._extra['Salary']:,.0f}" if self._extra.get("Salary") else None))
-            extra_rows.append(_info_row("Working Hours", self._extra.get("Working_hours")))
+            cat = self._extra.get("Category") or self._extra.get("Cat") or d.get("Category") or d.get("Cat")
+            sal = self._extra.get("Salary") or d.get("Salary")
+            hrs = self._extra.get("Working_hours") or d.get("Working_hours")
+            extra_rows.append(_info_row("Category", cat))
+            extra_rows.append(_info_row("Salary", f"Rs. {sal:,.0f}" if sal else None))
+            extra_rows.append(_info_row("Working Hours", hrs))
 
         role_section = None
         if extra_rows:
