@@ -212,7 +212,7 @@ CREATE OR REPLACE VIEW vw_FoodItemCost AS
 SELECT
     fi.Item_ID,
     fi.Name,
-    SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Estimated_Cost
+    SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Total_Cost
 FROM Food_Items fi
 JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
 JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID

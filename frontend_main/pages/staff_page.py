@@ -140,7 +140,6 @@ class StaffPage:
         card_bg = t.get("card")
         name = item.get("Name", "Unknown")
         price = item.get("Price", 0)
-        cost = item.get("Estimated_Cost", 0)
         qty = item.get("Quantity", 0)
         path = item.get("Image_Path")
 
@@ -159,10 +158,6 @@ class StaffPage:
         rows.append(ft.Row([
             ft.Text("Price", size=11, color=sub, font_family="DM Sans", expand=1),
             ft.Text(f"Rs. {price:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
-        ]))
-        rows.append(ft.Row([
-            ft.Text("Estimated Cost", size=11, color=sub, font_family="DM Sans", expand=1),
-            ft.Text(f"Rs. {cost:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
         ]))
         rows.append(ft.Row([
             ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
@@ -473,14 +468,13 @@ class StaffPage:
         food_rows = ft.Column(spacing=4)
         for item in (items if isinstance(items, list) else []):
             name = item.get("Name", "")
-            cost = item.get("Estimated_Cost", 0)
             price = item.get("Price", 0)
             label = f"{name} | {item.get('Item_ID','')}"
             food_rows.controls.append(self._row_card([
                 self._food_thumb(item, 44),
                 ft.Column([
                     ft.Text(name, size=13, weight="bold", color=self._clr("text"), font_family="DM Sans"),
-                    ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
+                    ft.Text(f"PKR {price:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {price}", size=12, weight="bold", color=self._clr("accent"), font_family="DM Sans"),
             ], data=label, on_click=lambda e, it=item: self._show_food_detail(it)))

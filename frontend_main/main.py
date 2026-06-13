@@ -1015,7 +1015,7 @@ async def main(page: ft.Page):
             theme["is_guest"] = ud.get("is_guest", False)
 
             if role == "Admin":
-                page_content_placeholder.content = AdminPage(page, ud, theme).build()
+                page_content_placeholder.content = AdminPage(page, ud, theme, push_page=push_page, pop_page=pop_page).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 page_content_placeholder.opacity = 1; page.update()
                 return

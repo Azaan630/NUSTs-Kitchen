@@ -11,12 +11,12 @@ def init_session():
     today = date.today()
     _db = {
         "food_items": [
-            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": "https://picsum.photos/seed/biryani/400/300"},
-            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": "https://picsum.photos/seed/daal/400/300"},
-            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": "https://picsum.photos/seed/karahi/400/300"},
-            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": "https://picsum.photos/seed/nihari/400/300"},
-            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": "https://picsum.photos/seed/pulao/400/300"},
-            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": "https://picsum.photos/seed/paratha/400/300"},
+            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/biryani/400/300"},
+            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/daal/400/300"},
+            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/karahi/400/300"},
+            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/nihari/400/300"},
+            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/pulao/400/300"},
+            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Image_Path": "https://picsum.photos/seed/paratha/400/300"},
         ],
         "students": [
             {"UserID": 101, "First_Name": "Alice", "Last_Name": "Khan", "Email": "alice@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001234567", "Department": "CS", "Hostel_Name": "A1", "Room_Number": "101", "Profile_Picture": "https://picsum.photos/seed/alice/100/100"},
@@ -130,7 +130,7 @@ def get_food_costs():
 def create_food(data):
     fid = _db["next_food_id"]
     _db["next_food_id"] += 1
-    entry = {"Item_ID": fid, "Estimated_Cost": data.get("Price", 0) * 0.8, **data}
+    entry = {"Item_ID": fid, **data}
     _db["food_items"].append(entry)
     return entry
 

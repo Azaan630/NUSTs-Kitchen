@@ -148,12 +148,14 @@ class AdminPage:
 
     PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
 
-    def __init__(self, page, user_data, theme):
+    def __init__(self, page, user_data, theme, push_page=None, pop_page=None):
         self.page = page
         self.user_data = user_data
         self.theme = theme
         self.email = user_data.get("Email", "")
         self.is_guest = theme.get("is_guest", False)
+        self.push_page = push_page
+        self.pop_page = pop_page
         self.tab_idx = {"v": 0}
         self.content = ft.Container(expand=True,
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
@@ -410,7 +412,7 @@ class AdminPage:
             alignment=ft.Alignment(0, 0),
         )
 
-    def _show_food_detail(self, item, include_cost=True):
+    def _show_food_detail(self, item):
         t = self.theme
         sub = t.get("sub")
         txt = t.get("text")
@@ -418,13 +420,11 @@ class AdminPage:
 
         name = item.get("Name", "Unknown")
         price = item.get("Price", 0)
-        cost = item.get("Estimated_Cost", 0)
         qty = item.get("Quantity", 0)
         path = item.get("Image_Path")
 
         rows = []
 
-        # Image
         if path:
             rows.append(ft.Container(
                 content=ft.Image(src=self._img_url(path), fit="cover", width=200, height=150),
@@ -434,22 +434,14 @@ class AdminPage:
 
         rows.append(ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)))
 
-        # Name
         rows.append(ft.Row([
             ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
             ft.Text(name, size=14, weight="bold", color=txt, font_family="DM Sans", expand=2),
         ]))
-        # Price
         rows.append(ft.Row([
             ft.Text("Price", size=11, color=sub, font_family="DM Sans", expand=1),
             ft.Text(f"Rs. {price:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
         ]))
-        # Cost (only for admin/staff)
-        if include_cost:
-            rows.append(ft.Row([
-                ft.Text("Estimated Cost", size=11, color=sub, font_family="DM Sans", expand=1),
-                ft.Text(f"Rs. {cost:,.2f}", size=13, color=txt, font_family="DM Sans", expand=2),
-            ]))
         # Quantity
         rows.append(ft.Row([
             ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
@@ -819,19 +811,15 @@ class AdminPage:
             ),
         )
 
-    def _build_price_cost_line(self, items):
+    def _build_price_line(self, items):
         if not items:
             return ft.Text("No food data", color=self._clr("sub"), font_family="DM Sans")
         top = sorted(items, key=lambda x: x.get("Price") or 0, reverse=True)[:8]
         price_points = []
-        cost_points = []
         for i, f in enumerate(top):
             price = f.get("Price") or 0
-            cost = f.get("Estimated_Cost") or price * 0.6
             price_points.append(LineChartDataPoint(x=i, y=price,
                 tooltip=f"{f.get('Name','?')}: PKR {price:,.0f}"))
-            cost_points.append(LineChartDataPoint(x=i, y=cost,
-                tooltip=f"Cost: PKR {cost:,.0f}"))
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
         max_y, step = self._nice_axis(max_v, 5)
         names = [self._trunc(f.get("Name"), 7) for f in top]
@@ -842,12 +830,6 @@ class AdminPage:
                     points=price_points, color="#3B82F6", stroke_width=3,
                     curved=True, point=ChartCirclePoint(radius=5),
                     below_line_bgcolor=ft.Colors.with_opacity(0.08, "#3B82F6"),
-                    below_line_cutoff_y=0,
-                ),
-                LineChartData(
-                    points=cost_points, color="#8B5CF6", stroke_width=3,
-                    curved=True, point=ChartCirclePoint(radius=5),
-                    below_line_bgcolor=ft.Colors.with_opacity(0.08, "#8B5CF6"),
                     below_line_cutoff_y=0,
                 ),
             ],
@@ -1264,7 +1246,7 @@ class AdminPage:
         )
 
         ratings_chart = self._build_ratings_chart(ratings)
-        cost_chart = self._build_price_cost_line(food_items_data)
+        price_chart = self._build_price_line(food_items_data)
         stock_chart = self._build_stock_chart(ingredients)
         menu_ratings_chart = self._build_menu_ratings_line(menu_items)
         population_pie = self._build_population_pie(stats.get("total_students", 0), stats.get("total_staff", 0))
@@ -1375,7 +1357,7 @@ class AdminPage:
             ft.ResponsiveRow([
                 ft.Container(_fade_wrap(self._dash_card("Avg Ratings (top 8)", ratings_chart), 1),
                              col={"xs": 12, "sm": 6, "md": 6}),
-                ft.Container(_fade_wrap(self._dash_card("Price vs Cost Trend", cost_chart), 2),
+                ft.Container(_fade_wrap(self._dash_card("Price Trend", price_chart), 2),
                              col={"xs": 12, "sm": 6, "md": 6}),
             ], spacing=12),
             ft.Container(height=16),
@@ -1450,67 +1432,19 @@ class AdminPage:
             await self._render_students(ref)
 
         def _show_details(s):
-            uid = s.get("UserID")
-            name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
-            email = s.get("Email", "")
-            async def show_student_overlay(e):
-                details = [s]
-                if not self.is_guest and uid:
-                    r = await _api("students")["details"](self.email, uid)
-                    if isinstance(r, list) and len(r) > 0:
-                        details = r
-                d = details[0] if details else s
-                sex = d.get("Sex") or "-"
-                dob = d.get("DoB") or "-"
-                dept = d.get("Department") or "-"
-                phone = d.get("Contact_Number") or "-"
-                addr = d.get("Address") or "-"
-                father = d.get("Father_Name") or "-"
-                hostel = d.get("Hostel_Name") or "-"
-                room = d.get("Room_Number") or "-"
-                t = self.theme
-                acc = t.get("accent")
-                sub = t.get("sub")
-                pfp = self._pfp_thumb(d, 72)
-                pfp_container = ft.Container(pfp, alignment=ft.alignment.center, margin=ft.Margin.only(bottom=4))
-                card = ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Text("Student Details", size=18, weight="bold",
-                                    color=t.get("text"), font_family="DM Sans", expand=True),
-                            ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
-                                          on_click=lambda e: asyncio.create_task(self._remove_overlay())),
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        pfp_container,
-                        ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
-                        ft.Column([
-                            ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(f"{d.get('First_Name','')} {d.get('Last_Name','')}", size=13, weight="bold", color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Email", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(email, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Sex", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(sex, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Department", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(dept, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("DOB", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(dob, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Phone", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(phone, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Address", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(addr, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Father", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(father, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Hostel", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(hostel, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Room", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(room, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                        ], spacing=6),
-                    ], tight=True, spacing=4),
-                    bgcolor=t.get("card"), border_radius=18, padding=24, width=400,
-                    shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            async def push_detail(e):
+                from pages.admin_detail_page import AdminDetailPage
+                def on_back():
+                    if self.pop_page:
+                        self.pop_page()
+                page = AdminDetailPage(
+                    self.page, self.theme, s, "student",
+                    admin_email=self.email, is_guest=self.is_guest,
+                    on_back=on_back,
                 )
-                self._show_overlay(card)
-            return show_student_overlay
+                if self.push_page:
+                    self.push_page(page.build(), dock_visible=False)
+            return push_detail
 
         for s in students:
             uid = s.get("UserID")
@@ -1579,54 +1513,19 @@ class AdminPage:
             await self._render_staff(ref)
 
         def _show_staff_details(s):
-            uid = s.get("UserID")
-            name = f"{s.get('First_Name','')} {s.get('Last_Name','')}"
-            email = s.get("Email", "")
-            async def show_staff_overlay(e):
-                details = [s]
-                if not self.is_guest and uid:
-                    r = await _api("staff")["details"](self.email, uid)
-                    if isinstance(r, list) and len(r) > 0:
-                        details = r
-                d = details[0] if details else s
-                sex = d.get("Sex") or "-"
-                cat = d.get("Category") or d.get("Cat") or "-"
-                sal = d.get("Salary") or "-"
-                hrs = d.get("Working_hours") or "-"
-                t = self.theme
-                sub = t.get("sub")
-                pfp = self._pfp_thumb(d, 72)
-                pfp_container = ft.Container(pfp, alignment=ft.alignment.center, margin=ft.Margin.only(bottom=4))
-                card = ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Text("Staff Details", size=18, weight="bold",
-                                    color=t.get("text"), font_family="DM Sans", expand=True),
-                            ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
-                                          on_click=lambda e: asyncio.create_task(self._remove_overlay())),
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        pfp_container,
-                        ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
-                        ft.Column([
-                            ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(f"{d.get('First_Name','')} {d.get('Last_Name','')}", size=13, weight="bold", color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Email", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(email, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Sex", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(sex, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Category", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(cat, size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Salary", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(f"Rs. {sal:,}" if isinstance(sal, (int, float)) else str(sal), size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                            ft.Row([ft.Text("Hours", size=11, color=sub, font_family="DM Sans", expand=1),
-                                    ft.Text(str(hrs), size=13, color=t.get("text"), font_family="DM Sans", expand=2)]),
-                        ], spacing=6),
-                    ], tight=True, spacing=4),
-                    bgcolor=t.get("card"), border_radius=18, padding=24, width=400,
-                    shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            async def push_detail(e):
+                from pages.admin_detail_page import AdminDetailPage
+                def on_back():
+                    if self.pop_page:
+                        self.pop_page()
+                page = AdminDetailPage(
+                    self.page, self.theme, s, "staff",
+                    admin_email=self.email, is_guest=self.is_guest,
+                    on_back=on_back,
                 )
-                self._show_overlay(card)
-            return show_staff_overlay
+                if self.push_page:
+                    self.push_page(page.build(), dock_visible=False)
+            return push_detail
 
         for s in staff_list:
             uid = s.get("UserID")
