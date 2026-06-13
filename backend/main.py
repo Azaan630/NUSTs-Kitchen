@@ -1,6 +1,6 @@
 import logging
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import os
 import uuid
 from io import BytesIO, StringIO
@@ -28,6 +28,8 @@ from dao import (
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+UPLOAD_TOKENS: dict[str, str] = {}
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
@@ -101,14 +103,17 @@ def verify_registration(request: Request, email: str, db=Depends(get_db)):
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), token: str = Query(default=None)):
     ext = file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "png"
     name = f"{uuid.uuid4().hex}.{ext}"
     path = os.path.join(UPLOAD_DIR, name)
     content = await file.read()
     with open(path, "wb") as f:
         f.write(content)
-    return {"filename": name, "url": f"/uploads/{name}"}
+    url = f"/uploads/{name}"
+    if token:
+        UPLOAD_TOKENS[token] = url
+    return {"filename": name, "url": url}
 
 
 @app.get("/uploads/{filename}")
@@ -117,6 +122,69 @@ async def serve_upload(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
+
+
+@app.get("/upload-ui")
+async def upload_ui(token: str = Query(default="")):
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Upload File</title>
+<style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ font-family:-apple-system,sans-serif; background:#f5f5f5; display:flex; justify-content:center; align-items:center; min-height:100vh; }}
+.card {{ background:white; border-radius:16px; padding:32px; width:400px; max-width:90vw; box-shadow:0 8px 32px #0000001a; }}
+h2 {{ font-size:20px; margin-bottom:20px; color:#1a1a1a; }}
+label {{ display:block; font-size:14px; color:#666; margin-bottom:6px; }}
+input[type=file] {{ display:block; width:100%; margin-bottom:16px; padding:8px; border:2px dashed #ccc; border-radius:8px; }}
+button {{ background:#6366f1; color:white; border:none; border-radius:8px; padding:10px 20px; font-size:14px; cursor:pointer; }}
+button:hover {{ background:#4f46e5; }}
+button:disabled {{ opacity:.6; cursor:default; }}
+#msg {{ margin-top:12px; font-size:14px; }}
+#url {{ word-break:break-all; color:#6366f1; }}
+</style></head>
+<body>
+<div class="card">
+<h2>Upload Image</h2>
+<form id="form" enctype="multipart/form-data">
+<label for="file">Choose an image</label>
+<input type="file" id="file" name="file" accept="image/*" required>
+<button type="submit" id="btn">Upload</button>
+</form>
+<div id="msg"></div>
+</div>
+<script>
+document.getElementById('form').onsubmit = async function(e) {{
+    e.preventDefault();
+    const btn = document.getElementById('btn');
+    btn.disabled = true; btn.textContent = 'Uploading...';
+    const fd = new FormData();
+    fd.append('file', document.getElementById('file').files[0]);
+    const token = '{token}';
+    if (token) fd.append('token', token);
+    try {{
+        const r = await fetch('/upload' + (token ? '?token='+token : ''), {{ method:'POST', body:fd }});
+        const d = await r.json();
+        if (r.ok) {{
+            document.getElementById('msg').innerHTML = '<strong>Upload successful!</strong><br><br>URL:<br><code id="url">'+window.location.origin+d.url+'</code><br><br><button onclick="navigator.clipboard.writeText(window.location.origin+d.url)">Copy URL</button><br><br><small>You can close this tab now.</small>';
+        }} else {{
+            document.getElementById('msg').innerHTML = '<span style="color:red">Upload failed: '+d.detail+'</span>';
+        }}
+    }} catch(err) {{
+        document.getElementById('msg').innerHTML = '<span style="color:red">Error: '+err.message+'</span>';
+    }}
+    btn.disabled = false; btn.textContent = 'Upload';
+}};
+</script>
+</body>
+</html>""", media_type="text/html")
+
+
+@app.get("/upload-status/{token}")
+async def upload_status(token: str):
+    url = UPLOAD_TOKENS.get(token)
+    if url:
+        return {"status": "done", "url": url}
+    return {"status": "pending", "url": None}
 
 
 @app.patch("/users/{UserID}/picture")

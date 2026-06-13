@@ -2,6 +2,7 @@ import flet as ft
 import asyncio
 import httpx
 import os
+import uuid
 import logging
 from datetime import date, datetime
 import mock_data
@@ -144,7 +145,7 @@ class AdminPage:
         ("Staff Types", ft.Icons.WORKSPACE_PREMIUM_ROUNDED),
     ]
 
-    PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+    PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
 
     def __init__(self, page, user_data, theme):
         self.page = page
@@ -158,7 +159,7 @@ class AdminPage:
         self.content.content = self._loading()
         self.proxy_rows = {}
         self._pending_image_target = None
-        self._image_picker = None
+
 
     # ── helpers ─────────────────────────────────────────────────
 
@@ -540,64 +541,63 @@ class AdminPage:
         )
         self._show_overlay(card)
 
-    def _setup_image_picker(self):
-        if self._image_picker:
-            return
-        def _on_picked(e):
-            if e.files and self._pending_image_target:
-                file = e.files[0]
-                asyncio.create_task(self._do_upload_item_image(file.path))
-        self._image_picker = ft.FilePicker()
-        self._image_picker.on_result = _on_picked
-        self.page.overlay.append(self._image_picker)
-        self.page.update()
-
-    async def _do_upload_item_image(self, file_path):
-        target = self._pending_image_target
-        self._pending_image_target = None
-        if not target:
-            return
-        etype, eid = target
-        try:
-            with open(file_path, "rb") as f:
-                content = f.read()
-            filename = os.path.basename(file_path)
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    f"{BASE_URL}/upload",
-                    files={"file": (filename, content, "image/jpeg")},
-                    timeout=30,
-                )
-            if r.status_code == 200:
-                url = r.json()["url"]
-                if self.is_guest:
-                    if etype == "food":
-                        mock_data.update_food(eid, {"Image_Path": url})
-                    elif etype == "ing":
-                        mock_data.update_ingredient(eid, {"Image_Path": url})
-                else:
-                    ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
-                    result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": url})
-                    if isinstance(result, dict) and "error" in result:
-                        self._snack(f"Update failed: {result['error']}", False)
-                        return
-                self._snack("Image updated")
-                asyncio.create_task(self._safe_render(self.RENDERERS[self.tab_idx["v"]], self.content))
-            else:
-                self._snack("Upload failed", False)
-        except Exception as ex:
-            self._snack(f"Upload error: {ex}", False)
+    async def _do_update_item_image(self, url, etype, eid):
+        if self.is_guest:
+            if etype == "food":
+                mock_data.update_food(eid, {"Image_Path": url})
+            elif etype == "ing":
+                mock_data.update_ingredient(eid, {"Image_Path": url})
+        else:
+            ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
+            result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": url})
+            if isinstance(result, dict) and "error" in result:
+                self._snack(f"Update failed: {result['error']}", False)
+                return
+        self._snack("Image updated")
+        asyncio.create_task(self._safe_render(self.RENDERERS[self.tab_idx["v"]], self.content))
 
     def _upload_img_btn(self, etype, eid):
-        return self._icon_btn(
+        return ft.IconButton(
             ft.Icons.IMAGE_ROUNDED, self._clr("accent"), "Upload Photo",
-            lambda e: self._trigger_upload(etype, eid),
+            lambda e: asyncio.create_task(self._trigger_upload(etype, eid)),
         )
 
-    def _trigger_upload(self, etype, eid):
-        self._setup_image_picker()
-        self._pending_image_target = (etype, eid)
-        self._image_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
+    async def _trigger_upload(self, etype, eid):
+        token = uuid.uuid4().hex
+        upload_url = f"{self.PUBLIC_BACKEND_URL}/upload-ui?token={token}"
+        status_text = ft.Text("", size=12, color=self._clr("sub"))
+        async def check(_):
+            try:
+                async with httpx.AsyncClient() as client:
+                    r = await client.get(f"{BASE_URL}/upload-status/{token}", timeout=10)
+                    data = r.json()
+                if data["status"] == "done":
+                    status_text.value = "Complete!"
+                    status_text.color = ft.Colors.GREEN
+                    dlg.open = False
+                    self.page.update()
+                    await self._do_update_item_image(data["url"], etype, eid)
+                else:
+                    status_text.value = "Not yet uploaded. Open the link, upload, then Check."
+                    status_text.color = ft.Colors.AMBER
+                    self.page.update()
+            except Exception as ex:
+                status_text.value = f"Error: {ex}"
+                self.page.update()
+        def close(_):
+            dlg.open = False
+            self.page.update()
+        dlg = ft.AlertDialog(
+            title=ft.Text("Upload Image", color=self._clr("text")),
+            content=ft.Column([
+                ft.Text("Open the link in a new tab, upload your image, then click Check:", size=13, color=self._clr("text")),
+                ft.TextField(value=upload_url, read_only=True, expand=True),
+                ft.ElevatedButton("Check Upload", on_click=check, style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF")),
+                status_text,
+            ], tight=True, spacing=10, width=380),
+            actions=[ft.TextButton("Cancel", on_click=close)],
+        )
+        self.page.show_dialog(dlg)
 
     # ── Tab sidebar ────────────────────────────────────────────
 
@@ -1422,6 +1422,8 @@ class AdminPage:
                 t = self.theme
                 acc = t.get("accent")
                 sub = t.get("sub")
+                pfp = self._pfp_thumb(d, 72)
+                pfp_container = ft.Container(pfp, alignment=ft.alignment.center, margin=ft.Margin.only(bottom=4))
                 card = ft.Container(
                     content=ft.Column([
                         ft.Row([
@@ -1430,6 +1432,7 @@ class AdminPage:
                             ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
                                           on_click=lambda e: asyncio.create_task(self._remove_overlay())),
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        pfp_container,
                         ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
                         ft.Column([
                             ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
@@ -1543,6 +1546,8 @@ class AdminPage:
                 hrs = d.get("Working_hours") or "-"
                 t = self.theme
                 sub = t.get("sub")
+                pfp = self._pfp_thumb(d, 72)
+                pfp_container = ft.Container(pfp, alignment=ft.alignment.center, margin=ft.Margin.only(bottom=4))
                 card = ft.Container(
                     content=ft.Column([
                         ft.Row([
@@ -1551,6 +1556,7 @@ class AdminPage:
                             ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
                                           on_click=lambda e: asyncio.create_task(self._remove_overlay())),
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        pfp_container,
                         ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, t.get("text"))),
                         ft.Column([
                             ft.Row([ft.Text("Name", size=11, color=sub, font_family="DM Sans", expand=1),
@@ -1790,11 +1796,10 @@ class AdminPage:
                     self._food_thumb(item, 44),
                     ef_name, ef_price, ef_qty,
                 ], actions=[
-                self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_food_detail(it)),
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("food", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label))
+            ], data=label, on_click=lambda e, it=item: asyncio.create_task(self._show_food_detail(it))))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -2010,11 +2015,10 @@ class AdminPage:
                     self._ing_thumb(item, 44),
                     ef_name, ef_qty, ef_unit, ef_cost,
                 ], actions=[
-                self._icon_btn(ft.Icons.VISIBILITY_ROUNDED, self._clr("sub"), "View Details", lambda e, it=item: self._show_ingredient_detail(it)),
                 self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_upd),
                 self._upload_img_btn("ing", iid),
                 self._icon_btn(ft.Icons.DELETE_ROUNDED, self._clr("danger"), "Delete", do_del),
-            ], data=label))
+            ], data=label, on_click=lambda e, it=item: asyncio.create_task(self._show_ingredient_detail(it))))
 
         ref.content = ft.Column([
             self._guest_banner(),

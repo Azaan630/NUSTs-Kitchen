@@ -4,7 +4,8 @@ from datetime import date, timedelta
 from pages.api_client import get_todays_menu, get_weekly_menu, rate_food_item, BASE_URL
 import mock_data
 
-PUBLIC_BACKEND_URL = "http://localhost:8000"
+import os
+PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
 
 
 def _img_url(path):

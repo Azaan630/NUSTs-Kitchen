@@ -133,7 +133,7 @@ class StudentProfilePage:
             self._snack("Invalid Bill ID", ok=False)
             return
 
-        public_backend_url = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+        public_backend_url = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
         actual_url = f"{public_backend_url}/student/bills/download/{billing_id}"
 
         params = f"?email={self.email}"

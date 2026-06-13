@@ -1,5 +1,6 @@
 import flet as ft
 import os
+import uuid
 import asyncio
 import httpx
 from dotenv import load_dotenv
@@ -14,7 +15,7 @@ import mock_data
 load_dotenv()
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
-PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
+PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
 
 # ══════════════════════════════════════════════════════════════════
 #  COLOUR PALETTE — dark default, minimalist modern
@@ -511,45 +512,40 @@ def build_register_form(page, on_submit, on_back):
 
         # ── Profile picture upload for registration ────
         _reg_pfp_url = {"v": None}
-        _reg_pfp_state = {"picker": None}
 
-        def _trigger_reg_pfp_upload(e):
-            p = _reg_pfp_state["picker"]
-            if p is None:
-                def _on_picked(ev):
-                    if ev.files:
-                        asyncio.create_task(_do_reg_pfp_upload(ev.files[0].path))
-                p = ft.FilePicker()
-                p.on_result = _on_picked
-                _reg_pfp_state["picker"] = p
-                page.overlay.append(p)
-            p.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
-
-        async def _do_reg_pfp_upload(file_path):
-            try:
-                with open(file_path, "rb") as f:
-                    content = f.read()
-                filename = os.path.basename(file_path)
-                async with httpx.AsyncClient() as client:
-                    r = await client.post(
-                        f"{BACKEND_URL}/upload",
-                        files={"file": (filename, content, "image/jpeg")},
-                        timeout=30,
-                    )
-                if r.status_code == 200:
-                    _reg_pfp_url["v"] = r.json()["url"]
-                    _reg_pfp_btn.text = "Photo selected"
-                    _reg_pfp_btn.update()
-                else:
-                    page.snack_bar = ft.SnackBar(content=ft.Text("Upload failed", color="#FFF"),
-                        bgcolor=t["danger"], duration=3000)
-                    page.snack_bar.open = True
+        async def _trigger_reg_pfp_upload(e):
+            token = uuid.uuid4().hex
+            upload_url = f"{PUBLIC_BACKEND_URL}/upload-ui?token={token}"
+            status_text = ft.Text("", size=12)
+            async def check(ev):
+                try:
+                    async with httpx.AsyncClient() as client:
+                        r = await client.get(f"{BACKEND_URL}/upload-status/{token}", timeout=10)
+                        data = r.json()
+                    if data["status"] == "done":
+                        _reg_pfp_url["v"] = data["url"]
+                        _reg_pfp_btn.text = "Photo selected"
+                        dp.open = False
+                        _reg_pfp_btn.update()
+                        page.update()
+                    else:
+                        status_text.value = "Not yet uploaded. Check after uploading."
+                        status_text.color = ft.Colors.AMBER
+                        page.update()
+                except Exception as ex:
+                    status_text.value = f"Error: {ex}"
                     page.update()
-            except Exception as ex:
-                page.snack_bar = ft.SnackBar(content=ft.Text(f"Error: {ex}", color="#FFF"),
-                    bgcolor=t["danger"], duration=3000)
-                page.snack_bar.open = True
-                page.update()
+            dp = ft.AlertDialog(
+                title=ft.Text("Upload Profile Photo"),
+                content=ft.Column([
+                    ft.Text("Open the link in a new tab, upload your image, then click Check:"),
+                    ft.TextField(value=upload_url, read_only=True, expand=True),
+                    ft.ElevatedButton("Check Upload", on_click=check),
+                    status_text,
+                ], tight=True, spacing=10),
+                actions=[ft.TextButton("Cancel", on_click=lambda _: setattr(dp, 'open', False) or page.update())],
+            )
+            page.show_dialog(dp)
 
         _reg_pfp_btn = ft.TextButton(
             content=ft.Row([
@@ -928,49 +924,48 @@ async def main(page: ft.Page):
             sections = [s for s in [basic, role_section] if s is not None]
 
             async def _upload_profile_pic():
-                def on_picked(e):
-                    if e.files:
-                        file = e.files[0]
-                        asyncio.create_task(_do_upload_profile(file.path))
-                profile_picker = ft.FilePicker()
-                profile_picker.on_result = on_picked
-                page.overlay.append(profile_picker)
-                page.update()
-                profile_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg", "gif", "webp"])
-
-            async def _do_upload_profile(file_path):
-                try:
-                    with open(file_path, "rb") as f:
-                        content = f.read()
-                    filename = os.path.basename(file_path)
-                    async with httpx.AsyncClient() as client:
-                        r = await client.post(
-                            f"{BACKEND_URL}/upload",
-                            files={"file": (filename, content, "image/jpeg")},
-                            timeout=30,
-                        )
-                    if r.status_code == 200:
-                        url = r.json()["url"]
-                        if not is_gst:
-                            async with httpx.AsyncClient() as client:
-                                await client.patch(
-                                    f"{BACKEND_URL}/users/{uid}/picture",
-                                    json={"Profile_Picture": url},
-                                    params={"email": page.current_user_data.get("Email", "")},
-                                    timeout=10,
-                                )
-                        page.current_user_data["Profile_Picture"] = url
-                        await show_dashboard()
-                    else:
-                        page.snack_bar = ft.SnackBar(content=ft.Text("Upload failed", color="#FFF"),
-                            bgcolor=pt["danger"], duration=3000)
-                        page.snack_bar.open = True
+                token = uuid.uuid4().hex
+                upload_url = f"{PUBLIC_BACKEND_URL}/upload-ui?token={token}"
+                status_text = ft.Text("", size=12)
+                async def check(e):
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            r = await client.get(f"{BACKEND_URL}/upload-status/{token}", timeout=10)
+                            data = r.json()
+                        if data["status"] == "done":
+                            dp.open = False
+                            page.update()
+                            await _do_upload_profile(data["url"])
+                        else:
+                            status_text.value = "Not yet uploaded. Open the link, upload, then Check."
+                            status_text.color = ft.Colors.AMBER
+                            page.update()
+                    except Exception as ex:
+                        status_text.value = f"Error: {ex}"
                         page.update()
-                except Exception as ex:
-                    page.snack_bar = ft.SnackBar(content=ft.Text(f"Error: {ex}", color="#FFF"),
-                        bgcolor=pt["danger"], duration=3000)
-                    page.snack_bar.open = True
-                    page.update()
+                dp = ft.AlertDialog(
+                    title=ft.Text("Upload Profile Picture"),
+                    content=ft.Column([
+                        ft.Text("Open the link in a new tab, upload your image, then click Check:"),
+                        ft.TextField(value=upload_url, read_only=True, expand=True),
+                        ft.ElevatedButton("Check Upload", on_click=check),
+                        status_text,
+                    ], tight=True, spacing=10),
+                    actions=[ft.TextButton("Cancel", on_click=lambda _: setattr(dp, 'open', False) or page.update())],
+                )
+                page.show_dialog(dp)
+
+            async def _do_upload_profile(url):
+                if not is_gst:
+                    async with httpx.AsyncClient() as client:
+                        await client.patch(
+                            f"{BACKEND_URL}/users/{uid}/picture",
+                            json={"Profile_Picture": url},
+                            params={"email": page.current_user_data.get("Email", "")},
+                            timeout=10,
+                        )
+                page.current_user_data["Profile_Picture"] = url
+                await show_dashboard()
 
             card = ft.Container(
                 content=ft.Column([
