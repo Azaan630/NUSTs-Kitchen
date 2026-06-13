@@ -6,6 +6,7 @@ import httpx
 from dotenv import load_dotenv
 from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
+from pages.profile_details_page import ProfileDetailsPage
 from pages.voting_page import StudentVotingPage
 from pages.mess_off_page import StudentMessOffPage
 from pages.admin_page import AdminPage
@@ -762,6 +763,35 @@ async def main(page: ft.Page):
             )
             _show_overlay(card)
 
+        _nav_stack: list[dict] = []
+
+        def push_page(content, dock_visible=False):
+            _nav_stack.append({
+                "content": page_content_placeholder.content,
+                "dock": dock_wrapper.visible,
+            })
+            page_content_placeholder.content = None
+            page_content_placeholder.opacity = 0
+            page.update()
+            page_content_placeholder.content = content
+            dock_wrapper.visible = dock_visible
+            page.update()
+            page_content_placeholder.opacity = 1
+            page.update()
+
+        def pop_page():
+            if not _nav_stack:
+                return
+            prev = _nav_stack.pop()
+            page_content_placeholder.content = None
+            page_content_placeholder.opacity = 0
+            page.update()
+            page_content_placeholder.content = prev["content"]
+            dock_wrapper.visible = prev["dock"]
+            page.update()
+            page_content_placeholder.opacity = 1
+            page.update()
+
         async def logout_click(e):
             is_dark["v"] = True
             page.current_user_data = {}
@@ -813,7 +843,7 @@ async def main(page: ft.Page):
                         ], spacing=8),
                         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
                         border_radius=10,
-                        on_click=lambda e: asyncio.create_task(show_full_profile()),
+                        on_click=lambda e: asyncio.create_task(_open_profile_details()),
                     ),
                     ft.Container(
                         content=ft.Row([
@@ -831,185 +861,13 @@ async def main(page: ft.Page):
             )
             _show_overlay(card, 380)
 
-        async def show_full_profile():
+        async def _open_profile_details():
             await _remove_overlay(instant=True)
-            role = get_val("Account_Type", "Student")
-            uid = get_val("UserID", 0)
-            email = get_val("Email", "")
-            first_n = get_val("First_Name", "")
-            last_n = get_val("Last_Name", "")
-            is_gst = page.current_user_data.get("is_guest", False) if hasattr(page, 'current_user_data') else False
-            initials = (first_n[0] + (last_n[0] if last_n else "")).upper() or "U"
-            profile_pic = get_val("Profile_Picture", "")
-            has_pic = bool(profile_pic)
-
-            pt = make_theme()
-            acc = pt["accent"]
-            sub = pt["sub"]
-            txt = pt["text"]
-            card_bg = pt["card"]
-
-            # Try to fetch extra details
-            extra = {}
-            if is_gst:
-                if role == "Student":
-                    for s in mock_data.get_students():
-                        if s.get("UserID") == uid:
-                            extra = s
-                            break
-                elif role == "Staff":
-                    for s in mock_data.get_staff():
-                        if s.get("UserID") == uid:
-                            extra = s
-                            break
-            elif role in ("Student", "Staff"):
-                ep = f"/admin/{role.lower()}s/details/{uid}"
-                try:
-                    async with httpx.AsyncClient() as client:
-                        r = await client.get(f"{BACKEND_URL}{ep}", params={"email": email}, timeout=8)
-                        if r.status_code == 200:
-                            data = r.json()
-                            if isinstance(data, list) and data:
-                                extra = data[0]
-                except Exception:
-                    pass
-
-            def _row(label, value):
-                if not value or value == "-":
-                    return None
-                return ft.Row([
-                    ft.Text(label, size=12, color=sub, font_family="DM Sans", expand=1),
-                    ft.Text(str(value), size=13, weight="bold", color=txt, font_family="DM Sans", expand=2),
-                ], spacing=8)
-
-            def _section(title, icon, rows):
-                visible = [r for r in rows if r is not None]
-                if not visible:
-                    return None
-                return ft.Column([
-                    ft.Row([
-                        ft.Icon(icon, size=18, color=acc),
-                        ft.Text(title, size=15, weight="bold", color=txt, font_family="DM Sans"),
-                    ], spacing=8),
-                    ft.Divider(height=6, color=ft.Colors.with_opacity(0.1, txt)),
-                    ft.Column(visible, spacing=4),
-                    ft.Container(height=12),
-                ], spacing=6)
-
-            rows = []
-            rows.append(_row("User ID", uid if uid != -1 else "Guest"))
-            rows.append(_row("First Name", first_n))
-            rows.append(_row("Last Name", last_n))
-            rows.append(_row("Email", email))
-            rows.append(_row("Account Type", role))
-            rows.append(_row("Sex", extra.get("Sex") or get_val("Sex", "")))
-            basic = _section("Basic Information", ft.Icons.INFO_ROUNDED, rows)
-
-            extra_rows = []
-            if role == "Student":
-                extra_rows.append(_row("Department", extra.get("Department")))
-                extra_rows.append(_row("Contact Number", extra.get("Contact_Number")))
-                extra_rows.append(_row("Date of Birth", extra.get("DoB")))
-                extra_rows.append(_row("Address", extra.get("Address")))
-                extra_rows.append(_row("Father's Name", extra.get("Father_Name")))
-                extra_rows.append(_row("Hostel", extra.get("Hostel_Name")))
-                extra_rows.append(_row("Room", extra.get("Room_Number")))
-            elif role == "Staff":
-                extra_rows.append(_row("Category", extra.get("Category") or extra.get("Cat")))
-                extra_rows.append(_row("Salary", f"Rs. {extra['Salary']:,.0f}" if extra.get("Salary") else None))
-                extra_rows.append(_row("Working Hours", extra.get("Working_hours")))
-
-            role_section = None
-            if extra_rows:
-                lbl = role + " Details"
-                ico = ft.Icons.SCHOOL_ROUNDED if role == "Student" else ft.Icons.BADGE_ROUNDED
-                role_section = _section(lbl, ico, extra_rows)
-
-            sections = [s for s in [basic, role_section] if s is not None]
-
-            async def _upload_profile_pic():
-                token = uuid.uuid4().hex
-                upload_url = f"{PUBLIC_BACKEND_URL}/upload-ui?token={token}"
-                status_text = ft.Text("", size=12)
-                async def check(e):
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            r = await client.get(f"{BACKEND_URL}/upload-status/{token}", timeout=10)
-                            data = r.json()
-                        if data.get("status") == "done":
-                            dp.open = False
-                            page.update()
-                            await _do_upload_profile(data.get("url", ""))
-                        elif data.get("status") == "pending":
-                            status_text.value = "Not yet uploaded. Open the link, upload, then Check."
-                            status_text.color = ft.Colors.AMBER
-                            page.update()
-                        else:
-                            status_text.value = "Unexpected response from server. Please ensure the backend is updated and try again."
-                            status_text.color = ft.Colors.RED
-                            page.update()
-                    except Exception as ex:
-                        status_text.value = f"Error: {ex}"
-                        page.update()
-                dp = ft.AlertDialog(
-                    title=ft.Text("Upload Profile Picture"),
-                    content=ft.Column([
-                        ft.Text("Open the link in a new tab, upload your image, then click Check:"),
-                        ft.TextField(value=upload_url, read_only=True, expand=True),
-                        ft.ElevatedButton("Check Upload", on_click=check),
-                        status_text,
-                    ], tight=True, spacing=10),
-                    actions=[ft.TextButton("Cancel", on_click=lambda _: setattr(dp, 'open', False) or page.update())],
-                )
-                page.show_dialog(dp)
-
-            async def _do_upload_profile(url):
-                if not is_gst:
-                    async with httpx.AsyncClient() as client:
-                        await client.patch(
-                            f"{BACKEND_URL}/users/{uid}/picture",
-                            json={"Profile_Picture": url},
-                            params={"email": page.current_user_data.get("Email", "")},
-                            timeout=10,
-                        )
-                page.current_user_data["Profile_Picture"] = url
-                await show_dashboard()
-
-            card = ft.Container(
-                content=ft.Column([
-                    ft.Row([
-                        ft.Stack([
-                            ft.Container(
-                                content=ft.Image(src=img_url(profile_pic), fit="cover", width=56, height=56) if has_pic
-                                         else ft.Text(initials, size=24, weight="bold", color="#FFF"),
-                                width=56, height=56, bgcolor=acc if not has_pic else None,
-                                border_radius=28, alignment=ft.Alignment(0, 0),
-                                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                            ),
-                            ft.Container(
-                                content=ft.Icon(ft.Icons.CAMERA_ALT_ROUNDED, size=14, color="#FFF"),
-                                width=24, height=24, bgcolor=ft.Colors.with_opacity(0.7, "#000"),
-                                border_radius=12, alignment=ft.Alignment(0, 0),
-                                right=0, bottom=0,
-                                on_click=lambda e: asyncio.create_task(_upload_profile_pic()),
-                            ),
-                        ]),
-                        ft.Column([
-                            ft.Text(f"{first_n} {last_n}".strip(), size=17, weight="bold",
-                                    color=txt, font_family="DM Sans"),
-                            ft.Text(role, size=12, color=sub, font_family="DM Sans"),
-                        ], spacing=2, expand=True),
-                        ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub,
-                                      on_click=lambda e: asyncio.create_task(_remove_overlay())),
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Divider(height=8, color=ft.Colors.with_opacity(0.1, txt)),
-                    ft.Column(sections, scroll=ft.ScrollMode.ADAPTIVE, spacing=4),
-                ], tight=True, spacing=4),
-                bgcolor=card_bg, border_radius=18, padding=24,
-                width=400,
-                shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+            pp = ProfileDetailsPage(
+                page, page.current_user_data,
+                make_theme(), on_back=pop_page,
             )
-            _show_overlay(card)
+            push_page(pp.build(), dock_visible=False)
 
         async def _do_logout():
             await _remove_overlay(instant=True)
