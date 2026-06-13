@@ -476,6 +476,7 @@ class AdminPage:
                 for ing in ing_names:
                     rows.append(ft.Text(f"\u2022 {ing}", size=12, color=sub, font_family="DM Sans"))
 
+        max_h = (self.page.height or 700) * 0.85
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
@@ -485,8 +486,9 @@ class AdminPage:
                                   on_click=lambda e: asyncio.create_task(self._remove_overlay())),
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 *rows,
-            ], tight=True, spacing=8),
+            ], spacing=8, scroll=ft.ScrollMode.ADAPTIVE),
             bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            height=max_h,
             shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
         )
         self._show_overlay(card)
@@ -526,6 +528,7 @@ class AdminPage:
             ft.Text(f"Rs. {cost:,.2f}/{unit}", size=13, color=txt, font_family="DM Sans", expand=2),
         ]))
 
+        max_h = (self.page.height or 700) * 0.85
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
@@ -535,8 +538,9 @@ class AdminPage:
                                   on_click=lambda e: asyncio.create_task(self._remove_overlay())),
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 *rows,
-            ], tight=True, spacing=8),
+            ], spacing=8, scroll=ft.ScrollMode.ADAPTIVE),
             bgcolor=card_bg, border_radius=18, padding=24, width=420,
+            height=max_h,
             shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
         )
         self._show_overlay(card)

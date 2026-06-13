@@ -861,11 +861,28 @@ async def main(page: ft.Page):
             )
             _show_overlay(card, 380)
 
+        def _refresh_avatar():
+            pic = get_val("Profile_Picture", "")
+            has_pic = bool(pic)
+            first = get_val("First_Name", "U")
+            last = get_val("Last_Name", "")
+            initials = ((first[0] if first else "") + (last[0] if last else "")).upper() or "U"
+            if has_pic:
+                avatar.content = ft.Image(src=img_url(pic), fit="cover", width=32, height=32)
+                avatar.bgcolor = None
+            else:
+                avatar.content = ft.Text(initials, size=12, weight="bold", color=WHITE)
+                avatar.bgcolor = t["accent"]
+            page.update()
+
         async def _open_profile_details():
             await _remove_overlay(instant=True)
+            def _on_back():
+                pop_page()
+                _refresh_avatar()
             pp = ProfileDetailsPage(
                 page, page.current_user_data,
-                make_theme(), on_back=pop_page,
+                make_theme(), on_back=_on_back,
             )
             push_page(pp.build(), dock_visible=False)
 

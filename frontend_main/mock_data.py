@@ -11,21 +11,21 @@ def init_session():
     today = date.today()
     _db = {
         "food_items": [
-            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": None},
-            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": None},
-            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": None},
-            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": None},
-            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": None},
-            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": None},
+            {"Item_ID": 1, "Name": "Chicken Biryani", "Price": 150.0, "Quantity": 1.0, "Estimated_Cost": 120.0, "Image_Path": "https://picsum.photos/seed/biryani/400/300"},
+            {"Item_ID": 2, "Name": "Daal Chawal", "Price": 80.0, "Quantity": 1.0, "Estimated_Cost": 45.0, "Image_Path": "https://picsum.photos/seed/daal/400/300"},
+            {"Item_ID": 3, "Name": "Chicken Karahi", "Price": 200.0, "Quantity": 1.0, "Estimated_Cost": 160.0, "Image_Path": "https://picsum.photos/seed/karahi/400/300"},
+            {"Item_ID": 4, "Name": "Nihari", "Price": 180.0, "Quantity": 1.0, "Estimated_Cost": 140.0, "Image_Path": "https://picsum.photos/seed/nihari/400/300"},
+            {"Item_ID": 5, "Name": "Chicken Pulao", "Price": 130.0, "Quantity": 1.0, "Estimated_Cost": 100.0, "Image_Path": "https://picsum.photos/seed/pulao/400/300"},
+            {"Item_ID": 6, "Name": "Anda Paratha", "Price": 60.0, "Quantity": 1.0, "Estimated_Cost": 35.0, "Image_Path": "https://picsum.photos/seed/paratha/400/300"},
         ],
         "students": [
-            {"UserID": 101, "First_Name": "Alice", "Last_Name": "Khan", "Email": "alice@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001234567", "Department": "CS", "Hostel_Name": "A1", "Room_Number": "101"},
-            {"UserID": 102, "First_Name": "Bob", "Last_Name": "Ahmed", "Email": "bob@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03007654321", "Department": "EE", "Hostel_Name": "B2", "Room_Number": "205"},
-            {"UserID": 103, "First_Name": "Charlie", "Last_Name": "Ali", "Email": "charlie@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001112233", "Department": "MS", "Hostel_Name": "C3", "Room_Number": "312"},
+            {"UserID": 101, "First_Name": "Alice", "Last_Name": "Khan", "Email": "alice@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001234567", "Department": "CS", "Hostel_Name": "A1", "Room_Number": "101", "Profile_Picture": "https://picsum.photos/seed/alice/100/100"},
+            {"UserID": 102, "First_Name": "Bob", "Last_Name": "Ahmed", "Email": "bob@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03007654321", "Department": "EE", "Hostel_Name": "B2", "Room_Number": "205", "Profile_Picture": "https://picsum.photos/seed/bob/100/100"},
+            {"UserID": 103, "First_Name": "Charlie", "Last_Name": "Ali", "Email": "charlie@seecs.edu.pk", "Account_Type": "Student", "Contact_Number": "03001112233", "Department": "MS", "Hostel_Name": "C3", "Room_Number": "312", "Profile_Picture": "https://picsum.photos/seed/charlie/100/100"},
         ],
         "staff": [
-            {"UserID": 201, "First_Name": "Chef", "Last_Name": "Rashid", "Email": "chef@kitchen.pk", "Account_Type": "Staff", "Category": "Head Chef"},
-            {"UserID": 202, "First_Name": "Ali", "Last_Name": "Raza", "Email": "ali@kitchen.pk", "Account_Type": "Staff", "Category": "Cook"},
+            {"UserID": 201, "First_Name": "Chef", "Last_Name": "Rashid", "Email": "chef@kitchen.pk", "Account_Type": "Staff", "Category": "Head Chef", "Profile_Picture": "https://picsum.photos/seed/chef/100/100"},
+            {"UserID": 202, "First_Name": "Ali", "Last_Name": "Raza", "Email": "ali@kitchen.pk", "Account_Type": "Staff", "Category": "Cook", "Profile_Picture": "https://picsum.photos/seed/ali_s/100/100"},
         ],
         "menu_schedule": [
             {"Schedule_ID": 1, "Item_ID": 1, "Date": today.isoformat(), "meal_type": "Lunch", "Food_Item_Name": "Chicken Biryani", "Ratings_Average": 4.2},
@@ -35,12 +35,12 @@ def init_session():
             {"Schedule_ID": 5, "Item_ID": 3, "Date": (today + timedelta(days=1)).isoformat(), "meal_type": "Dinner", "Food_Item_Name": "Chicken Karahi", "Ratings_Average": 4.7},
         ],
         "ingredients": [
-            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0, "Image_Path": None},
-            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0, "Image_Path": None},
-            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0, "Image_Path": None},
-            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0, "Image_Path": None},
-            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0, "Image_Path": None},
-            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0, "Image_Path": None},
+            {"Ingredient_ID": 1, "Name": "Rice", "Unit": "kg", "Unit_cost": 150.0, "Total_Quantity": 50.0, "Image_Path": "https://picsum.photos/seed/rice/400/300"},
+            {"Ingredient_ID": 2, "Name": "Chicken", "Unit": "kg", "Unit_cost": 400.0, "Total_Quantity": 30.0, "Image_Path": "https://picsum.photos/seed/chicken/400/300"},
+            {"Ingredient_ID": 3, "Name": "Daal", "Unit": "kg", "Unit_cost": 200.0, "Total_Quantity": 25.0, "Image_Path": "https://picsum.photos/seed/daal_ing/400/300"},
+            {"Ingredient_ID": 4, "Name": "Onions", "Unit": "kg", "Unit_cost": 80.0, "Total_Quantity": 40.0, "Image_Path": "https://picsum.photos/seed/onions/400/300"},
+            {"Ingredient_ID": 5, "Name": "Tomatoes", "Unit": "kg", "Unit_cost": 100.0, "Total_Quantity": 35.0, "Image_Path": "https://picsum.photos/seed/tomatoes/400/300"},
+            {"Ingredient_ID": 6, "Name": "Oil", "Unit": "L", "Unit_cost": 350.0, "Total_Quantity": 20.0, "Image_Path": "https://picsum.photos/seed/oil/400/300"},
         ],
         "recipes": [
             {"Item_ID": 1, "Name": "Rice", "Ingredient_Quantity": 0.5, "Unit": "kg"},

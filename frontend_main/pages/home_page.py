@@ -167,6 +167,7 @@ class StudentHomePage:
                 self._detail_overlay = None
                 self.page.update()
 
+        max_h = (self.page.height or 700) * 0.85
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
@@ -176,8 +177,9 @@ class StudentHomePage:
                                   on_click=close),
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 *rows,
-            ], tight=True, spacing=8),
+            ], spacing=8, scroll=ft.ScrollMode.ADAPTIVE),
             bgcolor=self.card, border_radius=18, padding=24, width=400,
+            height=max_h,
             shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
         )
         dim = ft.Colors.with_opacity(0.5 if self.theme.get("is_dark") else 0.25, "#000")
