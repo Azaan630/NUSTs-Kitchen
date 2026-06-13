@@ -190,7 +190,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         ft.Container(height=16 if m else 20),
         ft.Text("NUST's Kitchen", size=tsize, weight="bold",
                 font_family="Playfair", color=t["text"]),
-        ft.Text("Mess Portal \u2022 SEECS", size=14 if m else 17, color=sub,
+        ft.Text("Mess Portal \u2022 Designed For NUST Hostels", size=14 if m else 17, color=sub,
                 font_family="DM Sans"),
         ft.Container(height=36 if m else 48),
         ft.FilledButton(
