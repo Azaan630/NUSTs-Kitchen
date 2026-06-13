@@ -623,6 +623,7 @@ def build_register_form(page, on_submit, on_back):
 
 async def main(page: ft.Page):
     page.title = "NUST\u2019s Kitchen"
+    page.meta_description = "A Smart Mess Management System designed specifically for NUST'S Hostels! Track daily menus, manage food logistics, and view meal schedules effortlessly."
     page.favicon = "favicon.png?v=3.0"
     page.update()
     page.theme_mode = ft.ThemeMode.DARK
