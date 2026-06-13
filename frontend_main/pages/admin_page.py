@@ -1440,7 +1440,7 @@ class AdminPage:
                 page = AdminDetailPage(
                     self.page, self.theme, s, "student",
                     admin_email=self.email, is_guest=self.is_guest,
-                    on_back=on_back,
+                    on_back=on_back, backend_url=BASE_URL,
                 )
                 if self.push_page:
                     self.push_page(page.build(), dock_visible=False)
@@ -1521,7 +1521,7 @@ class AdminPage:
                 page = AdminDetailPage(
                     self.page, self.theme, s, "staff",
                     admin_email=self.email, is_guest=self.is_guest,
-                    on_back=on_back,
+                    on_back=on_back, backend_url=BASE_URL,
                 )
                 if self.push_page:
                     self.push_page(page.build(), dock_visible=False)
@@ -1607,10 +1607,32 @@ class AdminPage:
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
 
+        _pending_food_img = [None]
+
         add_f_form = ft.Container(
             content=ft.Column([
                 ft.Row([add_f_name, add_f_price, add_f_qty], spacing=6, wrap=mobile),
                 ft.Row([
+                    ft.Container(expand=True),
+                    ft.Container(
+                        content=ft.Row([
+                            ft.IconButton(
+                                icon=ft.Icons.IMAGE_ROUNDED,
+                                icon_color=self._clr("accent"),
+                                tooltip="Add Photo",
+                                on_click=lambda e: asyncio.create_task(
+                                    _show_add_food_img_dialog()
+                                ),
+                            ),
+                            ft.Text("No photo", size=11, color=self._clr("sub"),
+                                    font_family="DM Sans"),
+                        ] if not _pending_food_img[0] else [
+                            ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=16, color=self._clr("success")),
+                            ft.Text("Photo set", size=11, color=self._clr("success"),
+                                    font_family="DM Sans"),
+                        ], spacing=4),
+                        padding=ft.Padding.symmetric(vertical=4),
+                    ),
                     self._btn("Save", ft.Icons.SAVE_ROUNDED,
                               lambda e: asyncio.create_task(do_add_food(e))),
                     self._btn("Cancel", ft.Icons.CLOSE_ROUNDED, lambda e: do_toggle_add_f(e)),
@@ -1619,10 +1641,75 @@ class AdminPage:
             visible=False, margin=ft.Margin.only(bottom=6),
         )
 
+        async def _show_add_food_img_dialog():
+            link_input = ft.TextField(
+                label="Google Drive shareable link",
+                hint_text="https://drive.google.com/file/d/...",
+                border_color=ft.Colors.with_opacity(0.3, self._clr("text")),
+                border_radius=10, text_size=14, expand=True,
+            )
+            status = ft.Text("", size=12, color=self._clr("sub"))
+            async def _do_set():
+                drive_url = link_input.value or ""
+                fid = self._extract_drive_id(drive_url)
+                if not fid:
+                    status.value = "Could not recognise a Google Drive link."
+                    status.color = self._clr("danger")
+                    self.page.update()
+                    return
+                status.value = "Processing..."
+                self.page.update()
+                try:
+                    if self.is_guest:
+                        saved_url = drive_url
+                    else:
+                        async with httpx.AsyncClient() as client:
+                            r = await client.post(
+                                f"{BASE_URL}/drive-download",
+                                json={"drive_url": drive_url},
+                                timeout=20,
+                            )
+                            data = r.json()
+                            saved_url = data.get("url", drive_url)
+                    _pending_food_img[0] = saved_url
+                    dlg.open = False
+                    self.page.update()
+                except Exception as ex:
+                    status.value = f"Error: {ex}"
+                    status.color = self._clr("danger")
+                    self.page.update()
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Row([
+                    ft.Icon(ft.Icons.IMAGE_ROUNDED, size=20, color=self._clr("accent")),
+                    ft.Text("Upload Image", size=18, weight="bold", color=self._clr("text")),
+                ], spacing=8),
+                content=ft.Column([
+                    ft.Text(
+                        "Upload an image to Google Drive, get a shareable link "
+                        "(Anyone with the link), and paste it below:",
+                        size=13, color=self._clr("sub"),
+                    ),
+                    ft.Container(height=8),
+                    link_input,
+                    status,
+                ], tight=True, spacing=8, width=400),
+                actions=[
+                    ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                                  on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                    ft.FilledButton("Set Image",
+                        style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                        on_click=lambda e: asyncio.create_task(_do_set())),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dlg)
+
         def do_toggle_add_f(e):
             add_f_form.visible = not add_f_form.visible
             if not add_f_form.visible:
                 add_f_name.value = add_f_price.value = add_f_qty.value = ""
+                _pending_food_img[0] = None
             self.page.update()
 
         async def do_add_food(e):
@@ -1636,13 +1723,27 @@ class AdminPage:
             v_qty, err = validate_positive_number(add_f_qty.value, "Quantity")
             if err: add_f_qty.error = err; add_f_qty.update(); self._snack(err, False); return
             data = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
+            if _pending_food_img[0]:
+                data["Image_Path"] = _pending_food_img[0]
             if self.is_guest:
-                mock_data.create_food(data)
+                created = mock_data.create_food(data)
+                if _pending_food_img[0]:
+                    nid = created.get("Item_ID")
+                    if nid is not None:
+                        mock_data.update_food(nid, {"Image_Path": _pending_food_img[0]})
                 self._snack("Created")
+                _pending_food_img[0] = None
                 await refresh()
             else:
                 r = await _api("food")["create"](self.email, data)
                 if "error" in (r or {}): logger.error("create_food: %s", r["error"]); self._snack(r["error"], False); return
+                created_id = (r or {}).get("id")
+                if created_id and _pending_food_img[0]:
+                    ep = f"/admin/food-items/{created_id}/image"
+                    img_result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": _pending_food_img[0]})
+                    if isinstance(img_result, dict) and "error" in img_result:
+                        logger.error("set food image after create: %s", img_result["error"])
+                _pending_food_img[0] = None
                 self._snack("Created"); await refresh()
 
         header = ft.Container(
@@ -1810,11 +1911,33 @@ class AdminPage:
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             text_align=ft.TextAlign.CENTER, filled=True, fill_color=self._clr("card"),)
 
+        _pending_ing_img = [None]
+
         add_form = ft.Container(
             content=ft.Column([
                 ft.Row([add_name, add_qty, add_unit, add_cost] if not mobile else [add_name, add_qty, add_unit, add_cost], spacing=6,
                        wrap=mobile),
                 ft.Row([
+                    ft.Container(expand=True),
+                    ft.Container(
+                        content=ft.Row([
+                            ft.IconButton(
+                                icon=ft.Icons.IMAGE_ROUNDED,
+                                icon_color=self._clr("accent"),
+                                tooltip="Add Photo",
+                                on_click=lambda e: asyncio.create_task(
+                                    _show_add_ing_img_dialog()
+                                ),
+                            ),
+                            ft.Text("No photo", size=11, color=self._clr("sub"),
+                                    font_family="DM Sans"),
+                        ] if not _pending_ing_img[0] else [
+                            ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=16, color=self._clr("success")),
+                            ft.Text("Photo set", size=11, color=self._clr("success"),
+                                    font_family="DM Sans"),
+                        ], spacing=4),
+                        padding=ft.Padding.symmetric(vertical=4),
+                    ),
                     self._btn("Save", ft.Icons.SAVE_ROUNDED,
                               lambda e: asyncio.create_task(do_save_add(e))),
                     self._btn("Cancel", ft.Icons.CLOSE_ROUNDED, lambda e: do_toggle_add(e)),
@@ -1823,6 +1946,70 @@ class AdminPage:
             visible=False, margin=ft.Margin.only(bottom=6),
         )
 
+        async def _show_add_ing_img_dialog():
+            link_input = ft.TextField(
+                label="Google Drive shareable link",
+                hint_text="https://drive.google.com/file/d/...",
+                border_color=ft.Colors.with_opacity(0.3, self._clr("text")),
+                border_radius=10, text_size=14, expand=True,
+            )
+            status = ft.Text("", size=12, color=self._clr("sub"))
+            async def _do_set():
+                drive_url = link_input.value or ""
+                fid = self._extract_drive_id(drive_url)
+                if not fid:
+                    status.value = "Could not recognise a Google Drive link."
+                    status.color = self._clr("danger")
+                    self.page.update()
+                    return
+                status.value = "Processing..."
+                self.page.update()
+                try:
+                    if self.is_guest:
+                        saved_url = drive_url
+                    else:
+                        async with httpx.AsyncClient() as client:
+                            r = await client.post(
+                                f"{BASE_URL}/drive-download",
+                                json={"drive_url": drive_url},
+                                timeout=20,
+                            )
+                            data = r.json()
+                            saved_url = data.get("url", drive_url)
+                    _pending_ing_img[0] = saved_url
+                    dlg.open = False
+                    self.page.update()
+                except Exception as ex:
+                    status.value = f"Error: {ex}"
+                    status.color = self._clr("danger")
+                    self.page.update()
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Row([
+                    ft.Icon(ft.Icons.IMAGE_ROUNDED, size=20, color=self._clr("accent")),
+                    ft.Text("Upload Image", size=18, weight="bold", color=self._clr("text")),
+                ], spacing=8),
+                content=ft.Column([
+                    ft.Text(
+                        "Upload an image to Google Drive, get a shareable link "
+                        "(Anyone with the link), and paste it below:",
+                        size=13, color=self._clr("sub"),
+                    ),
+                    ft.Container(height=8),
+                    link_input,
+                    status,
+                ], tight=True, spacing=8, width=400),
+                actions=[
+                    ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                                  on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                    ft.FilledButton("Set Image",
+                        style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                        on_click=lambda e: asyncio.create_task(_do_set())),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dlg)
+
         async def refresh():
             await self._render_ingredients(ref)
 
@@ -1830,6 +2017,7 @@ class AdminPage:
             add_form.visible = not add_form.visible
             if not add_form.visible:
                 add_name.value = add_qty.value = add_unit.value = add_cost.value = ""
+                _pending_ing_img[0] = None
             self.page.update()
 
         async def do_save_add(e):
@@ -1845,13 +2033,27 @@ class AdminPage:
             v_cost, err = validate_positive_number(add_cost.value, "Cost/unit")
             if err: add_cost.error = err; add_cost.update(); self._snack(err, False); return
             data = {"Name": v_name, "Total_Quantity": v_qty, "Unit": v_unit, "Unit_cost": v_cost}
+            if _pending_ing_img[0]:
+                data["Image_Path"] = _pending_ing_img[0]
             if self.is_guest:
-                mock_data.create_ingredient(data)
+                created = mock_data.create_ingredient(data)
+                if _pending_ing_img[0]:
+                    nid = created.get("Ingredient_ID")
+                    if nid is not None:
+                        mock_data.update_ingredient(nid, {"Image_Path": _pending_ing_img[0]})
                 self._snack("Created")
+                _pending_ing_img[0] = None
                 await refresh()
             else:
                 r = await _api("ingredients")["create"](self.email, data)
                 if "error" in (r or {}): logger.error("create_ingredient: %s", r["error"]); self._snack(r["error"], False); return
+                created_id = (r or {}).get("id")
+                if created_id and _pending_ing_img[0]:
+                    ep = f"/admin/ingredients/{created_id}/image"
+                    img_result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": _pending_ing_img[0]})
+                    if isinstance(img_result, dict) and "error" in img_result:
+                        logger.error("set ingredient image after create: %s", img_result["error"])
+                _pending_ing_img[0] = None
                 self._snack("Created"); await refresh()
 
         header = ft.Container(

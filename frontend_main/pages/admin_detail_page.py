@@ -24,7 +24,8 @@ def _ensure_list(data):
 
 class AdminDetailPage:
     def __init__(self, page: ft.Page, theme: dict, person: dict, role: str,
-                 admin_email: str, is_guest: bool = False, on_back=None):
+                 admin_email: str, is_guest: bool = False, on_back=None,
+                 backend_url=None):
         self.page = page
         self.theme = theme
         self.person = person
@@ -32,6 +33,7 @@ class AdminDetailPage:
         self.admin_email = admin_email
         self.is_guest = is_guest
         self.on_back = on_back
+        self._backend_url = backend_url or BACKEND_URL
 
         t = theme
         self.txt = t["text"]
@@ -203,6 +205,17 @@ class AdminDetailPage:
         if extra_rows:
             icon = ft.Icons.SCHOOL_ROUNDED if self.role == "student" else ft.Icons.BADGE_ROUNDED
             role_section = _section(icon, f"{role_label} Details", extra_rows)
+        elif not self.is_guest and self.role == "staff":
+            role_section = _section(ft.Icons.BADGE_ROUNDED, f"{role_label} Details", [
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=16, color=self.sub),
+                        ft.Text("Staff details could not be loaded. They may not have a category assigned yet.",
+                                size=12, color=self.sub, font_family="DM Sans", expand=True),
+                    ], spacing=8),
+                    padding=ft.Padding.symmetric(vertical=6),
+                )
+            ])
 
         sections = [s for s in [basic_section, role_section] if s is not None]
 
@@ -295,7 +308,7 @@ class AdminDetailPage:
             ep = f"/admin/{'staff' if self.role == 'staff' else self.role + 's'}/details/{uid}"
             try:
                 async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BACKEND_URL}{ep}",
+                    r = await client.get(f"{self._backend_url}{ep}",
                                          params={"email": self.admin_email}, timeout=8)
                     if r.status_code == 200:
                         data = r.json()
@@ -316,7 +329,7 @@ class AdminDetailPage:
         else:
             try:
                 async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BACKEND_URL}/admin/{uid}/bill-status",
+                    r = await client.get(f"{self._backend_url}/admin/{uid}/bill-status",
                                          params={"email": self.admin_email}, timeout=8)
                     if r.status_code == 200:
                         data = r.json()
