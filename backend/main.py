@@ -192,13 +192,63 @@ def update_profile_picture(UserID: int, data: models.ProfilePictureUpdate, user=
     return BaseDAO(db).update_record("Users", data, "UserID", UserID)
 
 
+@app.post("/drive-download")
+async def download_from_drive(data: dict):
+    drive_url = data.get("drive_url", "")
+    token = data.get("token")
+    import re
+    patterns = [
+        r"/file/d/([a-zA-Z0-9_-]+)",
+        r"id=([a-zA-Z0-9_-]+)",
+        r"drive\.google\.com/uc\?.*id=([a-zA-Z0-9_-]+)",
+        r"^(1[0-9A-Za-z_-]{10,})$",
+    ]
+    fid = None
+    for p in patterns:
+        m = re.search(p, drive_url.strip())
+        if m:
+            fid = m.group(1)
+            break
+    if not fid:
+        raise HTTPException(status_code=400, detail="Could not extract file ID from URL")
+    import urllib.request
+    urls_to_try = [
+        f"https://drive.google.com/thumbnail?id={fid}&sz=w800",
+        f"https://drive.google.com/uc?export=download&confirm=t&id={fid}",
+    ]
+    content = None
+    content_type = None
+    for url in urls_to_try:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "NUSTsKitchen/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                content = resp.read()
+                content_type = resp.headers.get("Content-Type", "")
+                if content and len(content) > 100:
+                    break
+        except Exception:
+            continue
+    if not content:
+        raise HTTPException(status_code=502, detail="Failed to download image from Google Drive")
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
+    ext = ext_map.get(content_type, "png")
+    name = f"{uuid.uuid4().hex}.{ext}"
+    path = os.path.join(UPLOAD_DIR, name)
+    with open(path, "wb") as f:
+        f.write(content)
+    url = f"/uploads/{name}"
+    if token:
+        UPLOAD_TOKENS[token] = url
+    return {"url": url}
+
+
 @app.patch("/admin/food-items/{ItemID}/image")
-def update_food_image(ItemID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def update_food_image(ItemID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return BaseDAO(db).update_record("Food_Items", data, "Item_ID", ItemID)
 
 
 @app.patch("/admin/ingredients/{IngredientID}/image")
-def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     return BaseDAO(db).update_record("Ingredients", data, "IngredientID", IngredientID)
 
 

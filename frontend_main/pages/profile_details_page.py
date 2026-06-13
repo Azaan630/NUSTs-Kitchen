@@ -165,16 +165,21 @@ class ProfileDetailsPage:
             def _do_preview():
                 fid = _extract_drive_id(link_input.value or "")
                 if fid:
-                    direct = f"https://drive.google.com/thumbnail?id={fid}&sz=w400"
-                    preview.content = ft.Image(src=direct, fit="cover", width=140, height=140,
-                        border_radius=16,
-                        error_content=ft.Container(
-                            content=ft.Column([
-                                ft.Icon(ft.Icons.BROKEN_IMAGE_OUTLINED, size=32, color=self.danger),
-                                ft.Text("Preview failed", size=11, color=self.danger, font_family="DM Sans"),
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4),
-                            alignment=ft.Alignment(0, 0), width=140, height=140,
-                        ))
+                    preview.content = ft.Container(
+                        content=ft.Column([
+                            ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=36, color=self.success),
+                            ft.Text("Link detected", size=13, weight="bold", color=self.success,
+                                    font_family="DM Sans"),
+                            ft.Text(f"ID: {fid[:12]}...", size=10, color=self.sub,
+                                    font_family="DM Sans"),
+                            ft.Container(height=4),
+                            ft.Text("Click 'Set as Picture'", size=11, color=self.sub,
+                                    font_family="DM Sans"),
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                        alignment=ft.Alignment(0, 0), width=140, height=140,
+                        bgcolor=ft.Colors.with_opacity(0.08, self.success),
+                        border_radius=16, border=ft.Border.all(1, ft.Colors.with_opacity(0.2, self.success)),
+                    )
                 else:
                     preview.content = ft.Container(
                         content=ft.Column([
@@ -191,26 +196,37 @@ class ProfileDetailsPage:
                 asyncio.create_task(_do_save())
 
             async def _do_save():
-                fid = _extract_drive_id(link_input.value or "")
+                drive_url = link_input.value or ""
+                fid = _extract_drive_id(drive_url)
                 if not fid:
                     status.value = "Could not recognise a Google Drive link. Please check and try again."
                     status.color = self.danger
                     self.page.update()
                     return
-                direct_url = f"https://drive.google.com/thumbnail?id={fid}&sz=w1000"
-                status.value = "Saving..."
+                status.value = "Downloading from Google Drive..."
                 status.color = self.sub
                 self.page.update()
                 try:
-                    if not self.is_guest:
+                    backend_url = BACKEND_URL
+                    if self.is_guest:
+                        saved_url = drive_url
+                    else:
+                        async with httpx.AsyncClient() as client:
+                            r = await client.post(
+                                f"{backend_url}/drive-download",
+                                json={"drive_url": drive_url},
+                                timeout=20,
+                            )
+                            data = r.json()
+                            saved_url = data.get("url", drive_url)
                         async with httpx.AsyncClient() as client:
                             await client.patch(
-                                f"{BACKEND_URL}/users/{uid}/picture",
-                                json={"Profile_Picture": direct_url},
+                                f"{backend_url}/users/{uid}/picture",
+                                json={"Profile_Picture": saved_url},
                                 params={"email": email},
                                 timeout=10,
                             )
-                    self.user_data["Profile_Picture"] = direct_url
+                    self.user_data["Profile_Picture"] = saved_url
                     dlgo.open = False
                     self.page.update()
                     await self._render()

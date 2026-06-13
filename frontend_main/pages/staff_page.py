@@ -479,7 +479,6 @@ class StaffPage:
                     ft.Text(f"Cost: PKR {cost:.0f}", size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {price}", size=12, weight="bold", color=self._clr("accent"), font_family="DM Sans"),
-                self._upload_img_btn("food", item.get('Item_ID')),
             ], data=label, on_click=lambda e, it=item: self._show_food_detail(it)))
 
         ref.content = ft.Column([
@@ -510,9 +509,8 @@ class StaffPage:
                 *[self._row_card([
                     self._ing_thumb(i, 36),
                     ft.Text(i.get("Name", ""), size=13, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
-                    ft.Text(f"Qty: {i.get('Total_Quantity', 0)} {i.get('Unit', '')}",
-                            size=12, color=self._clr("danger"), font_family="DM Sans"),
-                    self._upload_img_btn("ing", i.get('Ingredient_ID')),
+                ft.Text(f"Qty: {i.get('Total_Quantity', 0)} {i.get('Unit', '')}",
+                        size=12, color=self._clr("danger"), font_family="DM Sans"),
                 ], data=i.get("Name"), on_click=lambda e, it=i: self._show_ingredient_detail(it)) for i in low_stock]
             )
 
@@ -527,7 +525,6 @@ class StaffPage:
                 ], expand=True, spacing=2),
                 ft.Text(f"PKR {i.get('Unit_cost', 0)}/{i.get('Unit', '')}", size=11,
                         color=self._clr("sub"), font_family="DM Sans"),
-                self._upload_img_btn("ing", i.get('Ingredient_ID')),
             ], on_click=lambda e, it=i: self._show_ingredient_detail(it)))
 
         ref.content = ft.Column([

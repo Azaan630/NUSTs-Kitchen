@@ -558,8 +558,10 @@ class AdminPage:
 
     def _upload_img_btn(self, etype, eid):
         return ft.IconButton(
-            ft.Icons.IMAGE_ROUNDED, self._clr("accent"), "Upload Photo",
-            lambda e: asyncio.create_task(self._trigger_upload(etype, eid)),
+            icon=ft.Icons.IMAGE_ROUNDED,
+            icon_color=self._clr("accent"),
+            tooltip="Upload Photo",
+            on_click=lambda e: asyncio.create_task(self._trigger_upload(etype, eid)),
         )
 
     async def _trigger_upload(self, etype, eid):
