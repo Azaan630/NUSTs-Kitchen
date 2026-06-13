@@ -298,15 +298,19 @@ class StaffPage:
                 async with httpx.AsyncClient() as client:
                     r = await client.get(f"{BASE_URL}/upload-status/{token}", timeout=10)
                     data = r.json()
-                if data["status"] == "done":
+                if data.get("status") == "done":
                     status_text.value = "Complete!"
                     status_text.color = ft.Colors.GREEN
                     dlg.open = False
                     self.page.update()
-                    await self._do_update_item_image(data["url"], etype, eid)
-                else:
+                    await self._do_update_item_image(data.get("url", ""), etype, eid)
+                elif data.get("status") == "pending":
                     status_text.value = "Not yet uploaded. Open the link, upload, then Check."
                     status_text.color = ft.Colors.AMBER
+                    self.page.update()
+                else:
+                    status_text.value = "Unexpected response from server. Please ensure the backend is updated and try again."
+                    status_text.color = ft.Colors.RED
                     self.page.update()
             except Exception as ex:
                 status_text.value = f"Error: {ex}"

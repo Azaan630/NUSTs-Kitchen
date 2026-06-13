@@ -522,15 +522,19 @@ def build_register_form(page, on_submit, on_back):
                     async with httpx.AsyncClient() as client:
                         r = await client.get(f"{BACKEND_URL}/upload-status/{token}", timeout=10)
                         data = r.json()
-                    if data["status"] == "done":
-                        _reg_pfp_url["v"] = data["url"]
+                    if data.get("status") == "done":
+                        _reg_pfp_url["v"] = data.get("url", "")
                         _reg_pfp_btn.text = "Photo selected"
                         dp.open = False
                         _reg_pfp_btn.update()
                         page.update()
-                    else:
+                    elif data.get("status") == "pending":
                         status_text.value = "Not yet uploaded. Check after uploading."
                         status_text.color = ft.Colors.AMBER
+                        page.update()
+                    else:
+                        status_text.value = "Unexpected response from server. Please ensure the backend is updated and try again."
+                        status_text.color = ft.Colors.RED
                         page.update()
                 except Exception as ex:
                     status_text.value = f"Error: {ex}"
@@ -932,13 +936,17 @@ async def main(page: ft.Page):
                         async with httpx.AsyncClient() as client:
                             r = await client.get(f"{BACKEND_URL}/upload-status/{token}", timeout=10)
                             data = r.json()
-                        if data["status"] == "done":
+                        if data.get("status") == "done":
                             dp.open = False
                             page.update()
-                            await _do_upload_profile(data["url"])
-                        else:
+                            await _do_upload_profile(data.get("url", ""))
+                        elif data.get("status") == "pending":
                             status_text.value = "Not yet uploaded. Open the link, upload, then Check."
                             status_text.color = ft.Colors.AMBER
+                            page.update()
+                        else:
+                            status_text.value = "Unexpected response from server. Please ensure the backend is updated and try again."
+                            status_text.color = ft.Colors.RED
                             page.update()
                     except Exception as ex:
                         status_text.value = f"Error: {ex}"
