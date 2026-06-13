@@ -696,8 +696,8 @@ async def main(page: ft.Page):
             avatar.bgcolor = t["accent"]
             dock_container.bgcolor = t["card"]
             _page_bg.gradient = t["bg_gradient"]
-            _nav_stack.clear()
-            load_page(current_index["v"])
+            if not _nav_stack:
+                load_page(current_index["v"])
             page.update()
 
         dark_btn = ft.IconButton(

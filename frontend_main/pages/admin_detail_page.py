@@ -207,37 +207,41 @@ class AdminDetailPage:
         sections = [s for s in [basic_section, role_section] if s is not None]
 
         # Billing history (students only)
-        if self.role == "student" and self._bills:
+        if self.role == "student":
             bill_rows = []
-            for b in self._bills:
-                month = b.get("Month") or b.get("Billing_Month", "")
-                total = b.get("Amount", b.get("Total_Amount", 0))
-                paid = b.get("Total_Collected", 0)
-                outstanding = total - paid
-                status = b.get("Status", "Unpaid")
-                fg = self.success if status == "Paid" else (self.warn if "unpaid" in status.lower() else self.danger)
-                bg = ft.Colors.with_opacity(0.1, fg)
-                bill_rows.append(
-                    ft.Container(
-                        content=ft.Row([
-                            ft.Column([
-                                ft.Text(f"Month: {month}", size=13, weight="bold",
-                                        color=self.txt, font_family="DM Sans"),
-                                ft.Text(f"Amount: PKR {total:,.0f}  |  Paid: PKR {paid:,.0f}  |  Due: PKR {outstanding:,.0f}",
-                                        size=11, color=self.sub, font_family="DM Sans"),
-                            ], expand=True, spacing=2),
-                            ft.Container(
-                                content=ft.Text(status, size=10, weight="bold",
-                                                color=fg, font_family="DM Sans"),
-                                bgcolor=bg, border_radius=6,
-                                padding=ft.Padding.symmetric(horizontal=8, vertical=3),
-                            ),
-                        ], spacing=8),
-                        bgcolor=self.card, border_radius=12,
-                        padding=ft.Padding.symmetric(horizontal=14, vertical=10),
-                        border=ft.Border.all(1, ft.Colors.with_opacity(0.05, self.txt)),
+            if self._bills:
+                for b in self._bills:
+                    month = b.get("Month") or b.get("Billing_Month", "")
+                    total = b.get("Amount", b.get("Total_Amount", 0))
+                    paid = b.get("Total_Collected", 0)
+                    outstanding = total - paid
+                    status = b.get("Status", "Unpaid")
+                    fg = self.success if status == "Paid" else (self.warn if "unpaid" in status.lower() else self.danger)
+                    bg = ft.Colors.with_opacity(0.1, fg)
+                    bill_rows.append(
+                        ft.Container(
+                            content=ft.Row([
+                                ft.Column([
+                                    ft.Text(f"Month: {month}", size=13, weight="bold",
+                                            color=self.txt, font_family="DM Sans"),
+                                    ft.Text(f"Amount: PKR {total:,.0f}  |  Paid: PKR {paid:,.0f}  |  Due: PKR {outstanding:,.0f}",
+                                            size=11, color=self.sub, font_family="DM Sans"),
+                                ], expand=True, spacing=2),
+                                ft.Container(
+                                    content=ft.Text(status, size=10, weight="bold",
+                                                    color=fg, font_family="DM Sans"),
+                                    bgcolor=bg, border_radius=6,
+                                    padding=ft.Padding.symmetric(horizontal=8, vertical=3),
+                                ),
+                            ], spacing=8),
+                            bgcolor=self.card, border_radius=12,
+                            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, self.txt)),
+                        )
                     )
-                )
+            else:
+                bill_rows.append(ft.Text("No billing history available", size=12,
+                                         color=self.sub, font_family="DM Sans"))
             bill_section = _section(ft.Icons.RECEIPT_LONG_ROUNDED, "Billing History", bill_rows)
             if bill_section:
                 sections.append(bill_section)
@@ -288,7 +292,7 @@ class AdminDetailPage:
                         self._extra = s
                         break
         else:
-            ep = f"/admin/{self.role}s/details/{uid}"
+            ep = f"/admin/{'staff' if self.role == 'staff' else self.role + 's'}/details/{uid}"
             try:
                 async with httpx.AsyncClient() as client:
                     r = await client.get(f"{BACKEND_URL}{ep}",
