@@ -1013,8 +1013,12 @@ async def main(page: ft.Page):
             for i, item in enumerate(NAV_ITEMS):
                 is_sel = current_index["v"] == item["index"]
                 inner = dock_items[i].content
-                icon_box = inner.controls[0]
+                icon_widget = inner.controls[0]
                 label    = inner.controls[1]
+                if isinstance(icon_widget, ft.Stack):
+                    icon_box = icon_widget.controls[0]
+                else:
+                    icon_box = icon_widget
                 icon_box.content.color = t["accent"] if is_sel else t["sub"]
                 icon_box.bgcolor = (
                     ft.Colors.with_opacity(0.12, t["accent"]) if is_sel else ft.Colors.TRANSPARENT
