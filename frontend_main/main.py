@@ -3,6 +3,7 @@ import os
 import uuid
 import asyncio
 import httpx
+from datetime import timedelta
 from dotenv import load_dotenv
 from pages.home_page import StudentHomePage
 from pages.profile_page import StudentProfilePage
@@ -192,6 +193,8 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                 font_family="Playfair", color=t["text"]),
         ft.Text("Mess Portal \u2022 Designed For NUST Hostels", size=14 if m else 17, color=sub,
                 font_family="DM Sans"),
+        ft.Text("(This Website is not officially associated with NUST)", size=12 if m else 17, color=sub,
+                font_family="DM Sans"),
         ft.Container(height=36 if m else 48),
         ft.FilledButton(
             content=ft.Row([
@@ -370,7 +373,7 @@ def build_register_form(page, on_submit, on_back):
         async def pick_date(e):
             dp = ft.DatePicker(
                 on_change=lambda e: (
-                    setattr(fields["dob"], "value", e.control.value.strftime("%Y-%m-%d")),
+                    setattr(fields["dob"], "value", (e.control.value + timedelta(hours=12)).date().isoformat()),
                     fields["dob"].update(),
                 )[1],
             )
@@ -423,7 +426,8 @@ def build_register_form(page, on_submit, on_back):
         msg = ft.Text("", size=13, color=acc, font_family="DM Sans")
 
         async def submit(e):
-            for f in list(fields.values()) + [sex_dd, hostel_dd, room_f, cat_dd]:
+            _dd = [sex_dd] + ([hostel_dd, room_f] if not is_staff else [cat_dd])
+            for f in list(fields.values()) + _dd:
                 f.error = None
                 f.update()
             from pages.validation import (
@@ -468,7 +472,7 @@ def build_register_form(page, on_submit, on_back):
                 v_cat = None
 
             first_err = None
-            for f in list(fields.values()) + [sex_dd, hostel_dd, room_f, cat_dd]:
+            for f in list(fields.values()) + _dd:
                 f.update()
                 if f.error and not first_err:
                     first_err = f.error
@@ -498,16 +502,40 @@ def build_register_form(page, on_submit, on_back):
                 async with httpx.AsyncClient() as client:
                     resp = await client.post(f"{BACKEND_URL}/register/request", json=payload, timeout=10)
                 if resp.status_code == 200:
-                    msg.value = "Request submitted! Awaiting admin approval."
-                    msg.color = t["success"]
-                    for f in fields.values(): f.value = ""
+                    page.clean()
+                    st = make_theme()
+                    page.bgcolor = st["bg"]
+                    page.theme_mode = ft.ThemeMode.LIGHT if not st["is_dark"] else ft.ThemeMode.DARK
+                    tick = ft.Container(
+                        content=ft.Column([
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=80, color=st["success"]),
+                                alignment=ft.Alignment(0, 0),
+                                scale=ft.Scale(0), animate_scale=ft.Animation(500, ft.AnimationCurve.EASE_OUT),
+                            ),
+                            ft.Container(height=12),
+                            ft.Text("Registration Submitted!", size=22, weight="bold",
+                                    color=st["text"], font_family="Playfair"),
+                            ft.Text("Awaiting admin approval.", size=14, color=st["sub"],
+                                    font_family="DM Sans"),
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        alignment=ft.Alignment(0, 0), expand=True,
+                    )
+                    page.add(tick)
+                    page.update()
+                    tick.content.controls[0].scale = ft.Scale(1)
+                    tick.update()
+                    await asyncio.sleep(2.5)
+                    show_landing()
                 else:
                     msg.value = f"Error: {resp.json().get('detail', 'Unknown error')}"
                     msg.color = t["danger"]
+                    msg.update()
             except (httpx.ConnectError, httpx.TimeoutException):
                 msg.value = "Backend unreachable. Try again later."
                 msg.color = t["danger"]
-            msg.update()
+                msg.update()
+            return
 
         common_fields = [fields[k] for k in ["first", "last", "email", "dob", "dept", "phone", "address", "father"]]
 
@@ -625,6 +653,7 @@ async def main(page: ft.Page):
     page.title = "NUST\u2019s Kitchen"
     page.meta_description = "A Smart Mess Management System designed specifically for NUST'S Hostels! Track daily menus, manage food logistics, and view meal schedules effortlessly."
     page.favicon = "favicon.png?v=3.0"
+    page.pwa = True
     page.update()
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
@@ -699,7 +728,7 @@ async def main(page: ft.Page):
             avatar.bgcolor = t["accent"]
             dock_container.bgcolor = t["card"]
             _page_bg.gradient = t["bg_gradient"]
-            _page_cache.clear()
+            _student_pages_view.controls.clear()
             if not _nav_stack:
                 load_page(current_index["v"])
             page.update()
@@ -1028,27 +1057,38 @@ async def main(page: ft.Page):
             dock_container.bgcolor = t["card"]
             page.update()
 
-        _page_cache = {}
+        _student_pages_view = ft.PageView(
+            controls=[], keep_page=True, horizontal=True,
+            snap=True, expand=True, on_change=lambda e: _sync_dock(e.control.selected_index),
+        )
+
+        def _sync_dock(idx):
+            current_index["v"] = idx
+            refresh_dock()
+            page.update()
 
         def load_page(index):
             current_index["v"] = index
             if index == 2:
                 _bill_badge["count"] = 0
                 _update_badge()
-            page_content_placeholder.content = None
-            page_content_placeholder.opacity = 0
-            page.update()
             ud = page.current_user_data
             role = ud.get("Account_Type", "Student")
             theme = make_theme()
             theme["is_guest"] = ud.get("is_guest", False)
 
             if role == "Admin":
+                page_content_placeholder.content = None
+                page_content_placeholder.opacity = 0
+                page.update()
                 page_content_placeholder.content = AdminPage(page, ud, theme, push_page=push_page, pop_page=pop_page).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 page_content_placeholder.opacity = 1; page.update()
                 return
             if role == "Staff":
+                page_content_placeholder.content = None
+                page_content_placeholder.opacity = 0
+                page.update()
                 page_content_placeholder.content = StaffPage(page, ud, theme).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 page_content_placeholder.opacity = 1; page.update()
@@ -1056,11 +1096,13 @@ async def main(page: ft.Page):
 
             dock_wrapper.visible = True
             page_classes = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
-            if 0 <= index < len(page_classes):
-                key = f"{role}_{index}"
-                if key not in _page_cache:
-                    _page_cache[key] = page_classes[index](page, ud, theme).build()
-                page_content_placeholder.content = _page_cache[key]
+            if not _student_pages_view.controls:
+                for cls in page_classes:
+                    _student_pages_view.controls.append(cls(page, ud, theme).build())
+                page_content_placeholder.content = _student_pages_view
+                page_content_placeholder.opacity = 0
+                page.update()
+            _student_pages_view.selected_index = index
             refresh_dock()
             page.update()
             page_content_placeholder.opacity = 1

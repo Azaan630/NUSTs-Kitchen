@@ -251,12 +251,12 @@ class StudentProfilePage:
                         ),
                     ]),
                     ft.Column([
-                        ft.Text("Bills", size=11, color=self.sub, font_family="DM Sans"),
+                        ft.Text("Unpaid", size=11, color=self.sub, font_family="DM Sans"),
                         ft.Text(
-                            str(len(self.bills_data)),
+                            str(sum(1 for b in self.bills_data if b.get("Status") in ("Unpaid", "Overdue"))),
                             size=20,
                             weight="bold",
-                            color=self.txt,
+                            color=self.amber,
                             font_family="DM Sans",
                         ),
                     ]),

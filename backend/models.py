@@ -59,6 +59,7 @@ class BillStatus(str, Enum):
     PAID = "Paid"
     UNPAID = "Unpaid"
     OVERDUE = "Overdue"
+    CANCELLED = "Cancelled"
 
 
 class BillCreate(BaseModel):

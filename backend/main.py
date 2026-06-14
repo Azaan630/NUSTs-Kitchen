@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, Upl
 from fastapi.responses import FileResponse, HTMLResponse
 import os
 import uuid
+import threading
 from io import BytesIO, StringIO
 import csv
 
@@ -21,7 +22,7 @@ from datetime import date
 import models
 import mysql.connector
 from contextlib import asynccontextmanager
-from email_utils import send_bill_notification
+from email_utils import notify_students, SMTP_HOST
 from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
@@ -419,24 +420,27 @@ def delete_staff_category(category: str, db=Depends(get_db), user=Depends(permis
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = BillDAO(db)
     cursor = dao.create_bill(data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value)
-    try:
-        u = UserDAO(db).find_by_id(data.UserID)
-        if u:
-            name = f"{u.get('First_Name', '')} {u.get('Last_Name', '')}".strip()
-            send_bill_notification(u["Email"], name, data.Amount, str(data.Due_Date), data.Month)
-    except Exception as e:
-        logger.warning("Failed to send bill email notification: %s", e)
+    u = UserDAO(db).find_by_id(data.UserID)
+    if u:
+        notify_students([{
+            "Email": u.get("Email", ""),
+            "First_Name": u.get("First_Name", ""),
+            "Last_Name": u.get("Last_Name", ""),
+            "Amount": data.Amount,
+            "Due_Date": str(data.Due_Date),
+            "Month": data.Month,
+        }])
     return {"message": "Bill created", "id": cursor.lastrowid}
 
 
 @app.patch("/admin/bills/update/{BillID}")
 def update_bill(data: models.BillUpdate, BillID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return BaseDAO(db).update_record("Bills", data, "BillingID", BillID)
+    return BillDAO(db).update_record("Bills", data, "Billing_ID", BillID)
 
 
 @app.delete("/admin/bills/delete/{BillID}")
 def delete_bill(BillID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return BaseDAO(db).delete_record("Bills", "BillingID", BillID)
+    return BillDAO(db).delete_record("Bills", "Billing_ID", BillID)
 
 
 def draw_challan_pdf(bill):
@@ -640,6 +644,38 @@ def record_payment(BillingID: int, amount: float, method: str, user=Depends(perm
         cursor.callproc('sp_RecordPayment', [BillingID, amount, method])
         db.commit()
         return {"message": "Payment recorded and bill status updated."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+
+
+@app.post("/admin/bills/undo-pay/{BillingID}")
+def undo_payment(BillingID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM Transactions WHERE Transaction_ID = ("
+            "SELECT Transaction_ID FROM ("
+            "SELECT Transaction_ID FROM Transactions "
+            "WHERE Billing_ID = %s AND Transaction_Status = 'Success' "
+            "ORDER BY Transaction_ID DESC LIMIT 1"
+            ") AS t)",
+            (BillingID,)
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No successful payment found to undo")
+        cursor.execute("SELECT COALESCE(SUM(Amount_Paid), 0) AS total FROM Transactions WHERE Billing_ID = %s AND Transaction_Status = 'Success'", (BillingID,))
+        total_paid = cursor.fetchone()[0]
+        cursor.execute("SELECT Amount FROM Bills WHERE Billing_ID = %s", (BillingID,))
+        bill_amount = cursor.fetchone()[0]
+        if total_paid < bill_amount:
+            cursor.execute("UPDATE Bills SET Status = 'Unpaid' WHERE Billing_ID = %s", (BillingID,))
+        db.commit()
+        return {"message": "Last payment undone", "total_paid": total_paid}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

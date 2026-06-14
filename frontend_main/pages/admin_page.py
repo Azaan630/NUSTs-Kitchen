@@ -89,6 +89,8 @@ def _api(table):
             "generate": lambda e,a: _req("POST", "/admin/bills/generate-monthly", {"email": e, "amount": a}),
             "update":   lambda e,i,d: _req("PATCH", f"/admin/bills/update/{i}", {"email": e}, d),
             "pay":      lambda e,i,a,m: _req("POST", f"/admin/bills/pay/{i}", {"email": e, "amount": a, "method": m}),
+            "undo":     lambda e,i: _req("POST", f"/admin/bills/undo-pay/{i}", {"email": e}),
+            "delete":   lambda e,i: _req("DELETE", f"/admin/bills/delete/{i}", {"email": e}),
         },
         "menu": {
             "weekly": lambda e: _req("GET", "/menu/weekly", {"email": e}),
@@ -1319,7 +1321,7 @@ class AdminPage:
                 bgcolor=ft.Colors.with_opacity(0.08, da),
                 border_radius=16,
                 padding=14,
-                border=ft.border.all(1, ft.Colors.with_opacity(0.2, da)),
+                border=ft.Border.all(1, ft.Colors.with_opacity(0.2, da)),
             )
 
         _anim_queue = []
@@ -2292,12 +2294,237 @@ class AdminPage:
 
         s_colors = {"Paid": (self._clr("success"), ft.Colors.with_opacity(0.12, self._clr("success"))),
                     "Unpaid": (self._clr("warn"), ft.Colors.with_opacity(0.12, self._clr("warn"))),
-                    "Overdue": (self._clr("danger"), ft.Colors.with_opacity(0.12, self._clr("danger")))}
+                    "Overdue": (self._clr("danger"), ft.Colors.with_opacity(0.12, self._clr("danger"))),
+                    "Cancelled": (self._clr("sub"), ft.Colors.with_opacity(0.12, self._clr("sub")))}
         rows = []
 
         async def refresh():
             await self._render_bills(ref)
 
+        # ── Confirmation + Pay + Undo ──
+        async def _confirm_pay(bid, amount, name_str):
+            async def _execute():
+                dlg.open = False; self.page.update()
+                if self.is_guest:
+                    mock_data.pay_bill(bid, amount)
+                    self._snack(f"Paid {name_str}")
+                    await refresh()
+                else:
+                    r = await _api("bills")["pay"](self.email, bid, amount, "Cash")
+                    if "error" in (r or {}):
+                        self._snack(r["error"], False); return
+                    self._snack(f"Paid {name_str}")
+                    await refresh()
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirm Payment", weight="bold", color=self._clr("text")),
+                content=ft.Text(f"Mark bill as paid for PKR {amount:,.0f}?{name_str}",
+                                color=self._clr("sub")),
+                actions=[
+                    ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                        on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                    ft.FilledButton("Confirm", style=ft.ButtonStyle(bgcolor=self._clr("success"), color="#FFF"),
+                        on_click=lambda e: asyncio.create_task(_execute())),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dlg)
+
+        def _confirm_undo(bid, name_str):
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Undo Payment", weight="bold", color=self._clr("text")),
+                content=ft.Text(f"Revert bill #{bid} to Unpaid?{name_str}", color=self._clr("sub")),
+                actions=[
+                    ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                                  on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                    ft.FilledButton("Undo", style=ft.ButtonStyle(bgcolor=self._clr("warn"), color="#FFF"),
+                                    on_click=lambda e: _do_undo_click(e, dlg, bid, name_str)),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dlg)
+
+        def _do_undo_click(e, dlg, bid, name_str):
+            dlg.open = False
+            self.page.update()
+            asyncio.create_task(_do_undo(bid, name_str))
+
+        async def _do_undo(bid, name_str):
+            if self.is_guest:
+                self._snack("Undo not available in guest mode", ok=False); return
+            r = await _api("bills")["undo"](self.email, bid)
+            if "error" in (r or {}):
+                self._snack(r["error"], False); return
+            self._snack(f"Payment undone{name_str}")
+            await refresh()
+
+        def _confirm_cancel(bid):
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Cancel Bill", weight="bold", color=self._clr("text")),
+                content=ft.Text(f"Delete bill #{bid} permanently? This cannot be undone.",
+                                color=self._clr("sub")),
+                actions=[
+                    ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
+                                  on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
+                    ft.FilledButton("Delete", style=ft.ButtonStyle(bgcolor=self._clr("danger"), color="#FFF"),
+                                    on_click=lambda e: asyncio.create_task(_do_cancel(e, dlg, bid))),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dlg)
+
+        async def _do_cancel(e, dlg, bid):
+            dlg.open = False; self.page.update()
+            try:
+                if self.is_guest:
+                    mock_data.delete_bill(bid)
+                else:
+                    async with httpx.AsyncClient() as client:
+                        r = await client.delete(
+                            f"{BASE_URL}/admin/bills/delete/{bid}",
+                            params={"email": self.email},
+                            timeout=10.0,
+                        )
+                        r.raise_for_status()
+                self._snack(f"Bill #{bid} cancelled")
+            except Exception as ex:
+                self._snack(f"Cancel failed: {ex}", False)
+            await refresh()
+
+        # ── Issue Bill form ──
+        all_students = (mock_data.get_students() if self.is_guest
+                        else (await _api("students")["all"](self.email)) or [])
+        create_visible = {"v": False}
+        _sel_user = {"v": None}
+        _filtered = all_students if isinstance(all_students, list) else []
+        _results_col = ft.Column(spacing=2)
+        _show_results = {"v": False}
+
+        def _on_search_change(e):
+            q = e.control.value.lower().strip()
+            _sel_user["v"] = None
+            matches = [s for s in _filtered if q in f"{s.get('First_Name','')} {s.get('Last_Name','')} {s.get('Email','')}".lower()]
+            _results_col.controls.clear()
+            for s in matches[:10]:
+                _results_col.controls.append(
+                    ft.Container(
+                        content=ft.Text(
+                            f"{s.get('UserID','')} \u2022 {s.get('First_Name','')} {s.get('Last_Name','')}",
+                            size=13, color=self._clr("text"), font_family="DM Sans",
+                        ),
+                        padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+                        on_click=lambda e, m=s: _pick_user(m),
+                    )
+                )
+            _show_results["v"] = bool(matches)
+            self.page.update()
+
+        def _pick_user(s):
+            _sel_user["v"] = s.get("Email", "")
+            create_search.value = f"{s.get('UserID','')} \u2022 {s.get('First_Name','')} {s.get('Last_Name','')}"
+            _results_col.controls.clear()
+            _show_results["v"] = False
+            self.page.update()
+
+        create_search = ft.TextField(
+            label="Select User", dense=True, expand=True,
+            border="none",
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            on_change=_on_search_change,
+            suffix_icon=ft.Icons.ARROW_DROP_DOWN_ROUNDED,
+        )
+        _search_dropdown = ft.Container(
+            content=ft.Column([create_search, _results_col], spacing=0, tight=True),
+            border=ft.Border.all(1, self._clr("accent")),
+            border_radius=8,
+            bgcolor=self._clr("card"),
+            padding=0,
+            expand=True,
+        )
+
+        create_amount = ft.TextField(
+            label="Amount (PKR)", dense=True, expand=True,
+            border_color=self._clr("accent"), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),
+        )
+        from datetime import date, timedelta
+        today = date.today()
+        create_issue = ft.TextField(
+            label="Issue Date", dense=True, expand=True, value=today.isoformat(),
+            border_color=self._clr("accent"), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),
+        )
+        create_due = ft.TextField(
+            label="Due Date", dense=True, expand=True, value=(today + timedelta(days=14)).isoformat(),
+            border_color=self._clr("accent"), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),
+        )
+        create_month = ft.TextField(
+            label="Month (YYYY-MM-DD)", dense=True, expand=True, value=today.strftime("%Y-%m-01"),
+            border_color=self._clr("accent"), border_radius=8,
+            text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
+            filled=True, fill_color=self._clr("card"),
+        )
+
+        async def _do_create_bill(e):
+            if not _sel_user["v"]:
+                self._snack("Select a user", False); return
+            match = [s for s in (all_students if isinstance(all_students, list) else [])
+                     if s.get("Email") == _sel_user["v"]]
+            if not match:
+                self._snack("User not found", False); return
+            try:
+                amt = float(create_amount.value or 0)
+                if amt <= 0: raise ValueError
+            except ValueError:
+                self._snack("Invalid amount", False); return
+            payload = {
+                "UserID": match[0]["UserID"],
+                "Amount": amt,
+                "Issue_Date": create_issue.value or today.isoformat(),
+                "Due_Date": create_due.value or (today + timedelta(days=14)).isoformat(),
+                "Month": create_month.value or today.strftime("%Y-%m-01"),
+                "Status": "Unpaid",
+            }
+            if self.is_guest:
+                mock_data.create_bill(payload)
+                self._snack("Bill created")
+            else:
+                r = await _api("bills")["create"](self.email, payload)
+                if "error" in (r or {}):
+                    self._snack(r["error"], False); return
+                self._snack("Bill created")
+            create_visible["v"] = False
+            create_form.visible = False
+            await refresh()
+
+        def _cancel_create(e):
+            create_visible["v"] = False
+            create_form.visible = False
+            create_search.value = ""
+            _sel_user["v"] = None
+            _results_col.controls.clear()
+            self.page.update()
+
+        create_form = ft.Container(
+            content=ft.Column([
+                ft.Row([_search_dropdown, create_amount], spacing=8),
+                _results_col,
+                ft.Row([create_issue, create_due, create_month], spacing=8),
+                ft.Row([
+                    self._btn("Cancel", ft.Icons.CLOSE_ROUNDED, _cancel_create),
+                    self._btn("Create Bill", ft.Icons.ADD_CIRCLE_ROUNDED, lambda e: asyncio.create_task(_do_create_bill(e))),
+                ], alignment=ft.MainAxisAlignment.END),
+            ], spacing=8),
+            visible=False, margin=ft.Margin.only(bottom=6),
+        )
+
+        # ── Build rows ──
         for b in (bills if isinstance(bills, list) else []):
             bid = b.get("Billing_ID")
             uid = b.get("User_ID")
@@ -2305,7 +2532,9 @@ class AdminPage:
             total = b.get("Amount", b.get("Total_Amount", 0))
             paid = b.get("Total_Collected", 0)
             outstanding = total - paid
-            status = "Paid" if outstanding <= 0 else "Unpaid"
+            status = b.get("Status", "Unpaid")
+            if status != "Cancelled" and outstanding <= 0:
+                status = "Paid"
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
 
             ef_total = ft.TextField(value=str(round(total, 1)), dense=True, width=100,
@@ -2327,25 +2556,39 @@ class AdminPage:
                 r = await _api("bills")["update"](self.email, b, {"Amount": amt})
                 if "error" in (r or {}): logger.error("save_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
                 self._snack("Updated"); await refresh()
-            def do_pay(e, b=bid, tf=ef_total, p=paid):
+
+            def do_pay_click(e, b=bid, tf=ef_total, p=paid, ns=""):
                 try:
                     amt = float(tf.value or 0) - p
                     if amt <= 0: self._snack("Already paid", False); return
                 except ValueError:
                     self._snack("Invalid amount", False); return
-                if self.is_guest:
-                    mock_data.pay_bill(b, amt)
-                    self._snack("Paid")
-                    asyncio.create_task(refresh())
-                else:
-                    self._run(_pay_bill(b, amt))
-            async def _pay_bill(b=bid, amt=0):
-                r = await _api("bills")["pay"](self.email, b, amt, "Cash")
-                if "error" in (r or {}): logger.error("pay_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
-                self._snack("Paid"); await refresh()
+                asyncio.create_task(_confirm_pay(b, amt, ns))
+
+            def do_undo_click(e, b=bid, ns=""):
+                _confirm_undo(b, ns)
+
+            def do_cancel_click(e, b=bid):
+                _confirm_cancel(b)
 
             name = b.get("First_Name", "")
             name_str = f" \u2022 {name}" if name else ""
+            actions = [
+                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
+            ]
+            if status == "Paid":
+                actions.append(
+                    self._icon_btn(ft.Icons.UNDO_ROUNDED, self._clr("warn"), "Undo Payment", do_undo_click),
+                )
+            elif status == "Cancelled":
+                pass
+            else:
+                actions.append(
+                    self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay_click),
+                )
+                actions.append(
+                    self._icon_btn(ft.Icons.DELETE_FOREVER_ROUNDED, self._clr("danger"), "Cancel Bill", do_cancel_click),
+                )
             rows.append(self._row_card([
                 ft.Column([
                     ft.Text(f"Bill #{bid}{name_str}", size=13, weight="bold",
@@ -2358,10 +2601,7 @@ class AdminPage:
                             size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 self._chip(status, fg, bg),
-            ], actions=[
-                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
-                self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay),
-            ]))
+            ], actions=actions))
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -2371,11 +2611,18 @@ class AdminPage:
             ft.Row([
                 self._btn("Export CSV", ft.Icons.DOWNLOAD_ROUNDED, do_export),
                 self._btn("Generate Monthly", ft.Icons.AUTO_GRAPH_ROUNDED, do_generate),
+                self._btn("Issue Bill", ft.Icons.ADD_CARD_ROUNDED, lambda e: _toggle_create()),
             ], spacing=8),
+            create_form,
             ft.Container(height=8),
             ft.Column(rows, scroll=ft.ScrollMode.ADAPTIVE) if rows else ft.Text("No billing data", color=self._clr("sub")),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
+
+        def _toggle_create():
+            create_visible["v"] = not create_visible["v"]
+            create_form.visible = create_visible["v"]
+            self.page.update()
 
     # ════════════════════════════════════════════════════════════
     #  TAB — STAFF TYPES
@@ -2536,20 +2783,16 @@ class AdminPage:
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"), expand=1,
         )
+        all_food = (mock_data.get_food_costs() if self.is_guest
+                    else (await _api("food")["all"](self.email)) or [])
         add_m_food = ft.Dropdown(
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
             text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
             filled=True, fill_color=self._clr("card"), expand=3,
+            options=[ft.dropdown.Option(key=str(fi.get("Item_ID")),
+                                        text=f"{fi.get('Name', '?')} (PKR {fi.get('Price', 0):.0f})")
+                     for fi in (all_food or [])],
         )
-
-        # populate food dropdown
-        all_food = (mock_data.get_food_costs() if self.is_guest
-                    else (await _api("food")["all"](self.email)) or [])
-        for fi in all_food:
-            add_m_food.options.append(
-                ft.dropdown.Option(key=str(fi.get("Item_ID")),
-                                   text=f"{fi.get('Name', '?')} (PKR {fi.get('Price', 0):.0f})")
-            )
 
         add_m_form = ft.Container(
             content=ft.Column([

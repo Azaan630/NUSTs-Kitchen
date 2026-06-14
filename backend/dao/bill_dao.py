@@ -1,5 +1,6 @@
 from io import StringIO
 import csv
+import threading
 from dao.base import BaseDAO
 from dao.queries import getStudentBillDetails, getMyBills, createBill, getBillPDF, getMonthBills
 
@@ -66,7 +67,6 @@ class BillDAO(BaseDAO):
     def generate_monthly_bills(self, amount=5000, due_days=14):
         """Generate bills for all students who don't already have one for the current month."""
         from datetime import date, timedelta
-        from email_utils import send_bill_notification
         today = date.today()
         month_str = today.strftime("%Y-%m-01")
         due_date = today + timedelta(days=due_days)
@@ -78,6 +78,7 @@ class BillDAO(BaseDAO):
             "SELECT User_ID FROM Bills WHERE Month = %s)", (month_str,)
         )
         generated = 0
+        email_list = []
         for s in students:
             self._execute(
                 "INSERT INTO Bills (User_ID, Issue_Date, Amount, Due_Date, Month, Status) "
@@ -85,11 +86,17 @@ class BillDAO(BaseDAO):
                 (s["UserID"], today, amount, due_date, month_str)
             )
             generated += 1
-            try:
-                name = f"{s.get('First_Name', '')} {s.get('Last_Name', '')}".strip()
-                send_bill_notification(s["Email"], name, amount, str(due_date), month_str)
-            except Exception:
-                pass
+            email_list.append({
+                "Email": s.get("Email", ""),
+                "First_Name": s.get("First_Name", ""),
+                "Last_Name": s.get("Last_Name", ""),
+                "Amount": amount,
+                "Due_Date": str(due_date),
+                "Month": month_str,
+            })
+        if email_list:
+            from email_utils import notify_students
+            notify_students(email_list)
         return {"message": f"Generated {generated} bills for {month_str}", "count": generated}
 
     def get_recent_activity(self, limit=10):

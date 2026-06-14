@@ -1,6 +1,3 @@
--- Migration: Add Sex column + Student Details view + Picture columns
--- Run against the deployed Aiven database.
-
 ALTER TABLE Users
     ADD COLUMN Sex ENUM('Male', 'Female') DEFAULT NULL
     AFTER Account_Type;
