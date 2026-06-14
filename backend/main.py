@@ -21,6 +21,7 @@ from datetime import date
 import models
 import mysql.connector
 from contextlib import asynccontextmanager
+from email_utils import send_bill_notification
 from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
@@ -318,6 +319,11 @@ def get_my_bills(email: str, db=Depends(get_db), user=Depends(permission_checker
     return BillDAO(db).get_my_bills(email)
 
 
+@app.get("/students/bills/unseen-count")
+def get_unseen_bills_count(email: str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
+    return {"count": BillDAO(db).get_unseen_count(email)}
+
+
 # ── Registration Requests ──────────────────────────────────────
 
 @app.post("/register/request")
@@ -413,6 +419,13 @@ def delete_staff_category(category: str, db=Depends(get_db), user=Depends(permis
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = BillDAO(db)
     cursor = dao.create_bill(data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value)
+    try:
+        u = UserDAO(db).find_by_id(data.UserID)
+        if u:
+            name = f"{u.get('First_Name', '')} {u.get('Last_Name', '')}".strip()
+            send_bill_notification(u["Email"], name, data.Amount, str(data.Due_Date), data.Month)
+    except Exception as e:
+        logger.warning("Failed to send bill email notification: %s", e)
     return {"message": "Bill created", "id": cursor.lastrowid}
 
 

@@ -38,7 +38,7 @@ ROSE_400  = "#FB7185"
 AMBER_400 = "#FBBF24"
 WHITE     = "#FFFFFF"
 
-is_dark = {"v": True}
+is_dark = {"v": False}
 
 def make_theme():
     d = is_dark["v"]
@@ -626,7 +626,7 @@ async def main(page: ft.Page):
     page.meta_description = "A Smart Mess Management System designed specifically for NUST'S Hostels! Track daily menus, manage food logistics, and view meal schedules effortlessly."
     page.favicon = "favicon.png?v=3.0"
     page.update()
-    page.theme_mode = ft.ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
     page.spacing = 0
     page.fonts = {
@@ -699,6 +699,7 @@ async def main(page: ft.Page):
             avatar.bgcolor = t["accent"]
             dock_container.bgcolor = t["card"]
             _page_bg.gradient = t["bg_gradient"]
+            _page_cache.clear()
             if not _nav_stack:
                 load_page(current_index["v"])
             page.update()
@@ -797,11 +798,8 @@ async def main(page: ft.Page):
             page.update()
 
         async def logout_click(e):
-            is_dark["v"] = True
             page.current_user_data = {}
             page.clean()
-            page.bgcolor = SLATE_900
-            page.theme_mode = ft.ThemeMode.DARK
             landing = build_landing(page, login_click, guest_login, show_register_page, show_landing)
             landing.animate_opacity = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
             landing.opacity = 0
@@ -951,20 +949,38 @@ async def main(page: ft.Page):
         ]
 
         dock_items = []
+        _bill_badge = {"count": 0}
+        _badge_ctl = ft.Container(
+            content=ft.Text("", size=9, color="#FFF", weight="bold",
+                            font_family="DM Sans"),
+            width=18, height=18, bgcolor="#EF4444", border_radius=9,
+            alignment=ft.Alignment(0, 0),
+            right=-4, top=-4, visible=False,
+        )
+
+        def _update_badge():
+            _badge_ctl.content.value = str(_bill_badge["count"])
+            _badge_ctl.visible = _bill_badge["count"] > 0
+            if page:
+                page.update()
 
         def make_dock_btn(item):
             idx = item["index"]
             is_sel = current_index["v"] == idx
+            icon_box = ft.Container(
+                content=ft.Icon(item["icon"], size=22,
+                    color=t["accent"] if is_sel else t["sub"]),
+                width=44, height=44,
+                bgcolor=ft.Colors.with_opacity(0.12, t["accent"]) if is_sel else ft.Colors.TRANSPARENT,
+                border_radius=14, alignment=ft.Alignment(0, 0),
+                animate=ft.Animation(200, "easeOut"),
+            )
+            icon_stack = ft.Stack(
+                [icon_box, _badge_ctl], width=44, height=44,
+            ) if idx == 2 else icon_box
             btn = ft.Container(
                 content=ft.Column([
-                    ft.Container(
-                        content=ft.Icon(item["icon"], size=22,
-                            color=t["accent"] if is_sel else t["sub"]),
-                        width=44, height=44,
-                        bgcolor=ft.Colors.with_opacity(0.12, t["accent"]) if is_sel else ft.Colors.TRANSPARENT,
-                        border_radius=14, alignment=ft.Alignment(0, 0),
-                        animate=ft.Animation(200, "easeOut"),
-                    ),
+                    icon_stack,
                     ft.Text(item["label"], size=9,
                         color=t["accent"] if is_sel else t["sub"],
                         font_family="DM Sans", weight="bold" if is_sel else "normal"),
@@ -1008,8 +1024,13 @@ async def main(page: ft.Page):
             dock_container.bgcolor = t["card"]
             page.update()
 
+        _page_cache = {}
+
         def load_page(index):
             current_index["v"] = index
+            if index == 2:
+                _bill_badge["count"] = 0
+                _update_badge()
             page_content_placeholder.content = None
             page_content_placeholder.opacity = 0
             page.update()
@@ -1030,9 +1051,12 @@ async def main(page: ft.Page):
                 return
 
             dock_wrapper.visible = True
-            pages = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
-            if 0 <= index < len(pages):
-                page_content_placeholder.content = pages[index](page, ud, theme).build()
+            page_classes = [StudentHomePage, StudentVotingPage, StudentProfilePage, StudentMessOffPage]
+            if 0 <= index < len(page_classes):
+                key = f"{role}_{index}"
+                if key not in _page_cache:
+                    _page_cache[key] = page_classes[index](page, ud, theme).build()
+                page_content_placeholder.content = _page_cache[key]
             refresh_dock()
             page.update()
             page_content_placeholder.opacity = 1
@@ -1048,6 +1072,24 @@ async def main(page: ft.Page):
         page.add(body)
         load_page(0)
         page.update()
+
+        async def _fetch_badge():
+            ud = page.current_user_data
+            if ud.get("Account_Type") != "Student" or ud.get("is_guest"):
+                return
+            try:
+                async with httpx.AsyncClient() as client:
+                    r = await client.get(
+                        f"{BACKEND_URL}/students/bills/unseen-count",
+                        params={"email": ud.get("Email", "")},
+                        timeout=10,
+                    )
+                    if r.status_code == 200:
+                        _bill_badge["count"] = r.json().get("count", 0)
+                        _update_badge()
+            except Exception:
+                pass
+        asyncio.create_task(_fetch_badge())
 
     async def on_login(e: ft.LoginEvent):
         if e.error:
@@ -1177,7 +1219,8 @@ async def main(page: ft.Page):
     def show_register_page():
         register_mode["v"] = True
         page.clean()
-        page.bgcolor = SLATE_900
+        t = make_theme()
+        page.bgcolor = t["bg"]
         reg = build_register_form(page, None, show_landing)
         reg.animate_opacity = ft.Animation(500, ft.AnimationCurve.EASE_OUT)
         reg.animate_scale = ft.Animation(500, ft.AnimationCurve.EASE_OUT)

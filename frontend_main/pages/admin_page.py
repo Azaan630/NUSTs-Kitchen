@@ -613,6 +613,11 @@ class AdminPage:
                 status.color = self._clr("danger")
                 self.page.update()
 
+        async def _do_remove():
+            dlg.open = False
+            self.page.update()
+            await self._do_update_item_image("", etype, eid)
+
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Row([
@@ -630,6 +635,8 @@ class AdminPage:
                 status,
             ], tight=True, spacing=8, width=400),
             actions=[
+                ft.TextButton("Remove Photo", style=ft.ButtonStyle(color=self._clr("danger")),
+                    on_click=lambda e: asyncio.create_task(_do_remove())),
                 ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
                     on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),
                 ft.FilledButton("Set Image",

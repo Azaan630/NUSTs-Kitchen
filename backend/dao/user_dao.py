@@ -14,6 +14,9 @@ class UserDAO(BaseDAO):
     def find_by_email(self, email):
         return self._fetchone(findUserByEmail, (email,))
 
+    def find_by_id(self, user_id):
+        return self._fetchone("SELECT * FROM Users WHERE UserID = %s", (user_id,))
+
     def get_my_profile(self, email):
         return self._fetchone(findUserByEmail, (email,))
 

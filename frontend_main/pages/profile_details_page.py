@@ -235,6 +235,23 @@ class ProfileDetailsPage:
                     status.color = self.danger
                     self.page.update()
 
+            async def _do_remove():
+                dlgo.open = False
+                self.page.update()
+                try:
+                    if not self.is_guest:
+                        async with httpx.AsyncClient() as client:
+                            await client.patch(
+                                f"{BACKEND_URL}/users/{uid}/picture",
+                                json={"Profile_Picture": ""},
+                                params={"email": email},
+                                timeout=10,
+                            )
+                    self.user_data["Profile_Picture"] = ""
+                    await self._render()
+                except Exception as ex:
+                    self.page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Error: {ex}")))
+
             dlgo = ft.AlertDialog(
                 modal=True,
                 title=ft.Row([
@@ -271,6 +288,8 @@ class ProfileDetailsPage:
                     status,
                 ], tight=True, spacing=4, width=420),
                 actions=[
+                    ft.TextButton("Remove Photo", style=ft.ButtonStyle(color=self.danger),
+                        on_click=lambda _: asyncio.create_task(_do_remove())),
                     ft.TextButton("Cancel", style=ft.ButtonStyle(color=self.sub),
                         on_click=lambda _: setattr(dlgo, 'open', False) or self.page.update()),
                     ft.FilledButton("Set as Picture",

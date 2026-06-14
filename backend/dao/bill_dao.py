@@ -17,6 +17,14 @@ class BillDAO(BaseDAO):
     def get_bill_pdf(self, billing_id, email):
         return self._fetchone(getBillPDF, (billing_id, email))
 
+    def get_unseen_count(self, email):
+        return self._fetchone(
+            "SELECT COUNT(*) AS cnt FROM Bills b "
+            "JOIN Users u ON b.User_ID = u.UserID "
+            "WHERE u.Email = %s AND (b.Status = 'Unpaid' OR b.Status = 'Overdue')",
+            (email,)
+        )["cnt"]
+
     def get_all_bills(self):
         return self._fetchall("""
             SELECT b.Billing_ID, b.User_ID, u.First_Name, u.Last_Name,
@@ -58,12 +66,15 @@ class BillDAO(BaseDAO):
     def generate_monthly_bills(self, amount=5000, due_days=14):
         """Generate bills for all students who don't already have one for the current month."""
         from datetime import date, timedelta
+        from email_utils import send_bill_notification
         today = date.today()
         month_str = today.strftime("%Y-%m-01")
         due_date = today + timedelta(days=due_days)
 
         students = self._fetchall(
-            "SELECT UserID FROM Student WHERE UserID NOT IN ("
+            "SELECT s.UserID, u.First_Name, u.Last_Name, u.Email FROM Student s "
+            "JOIN Users u ON s.UserID = u.UserID "
+            "WHERE s.UserID NOT IN ("
             "SELECT User_ID FROM Bills WHERE Month = %s)", (month_str,)
         )
         generated = 0
@@ -74,6 +85,11 @@ class BillDAO(BaseDAO):
                 (s["UserID"], today, amount, due_date, month_str)
             )
             generated += 1
+            try:
+                name = f"{s.get('First_Name', '')} {s.get('Last_Name', '')}".strip()
+                send_bill_notification(s["Email"], name, amount, str(due_date), month_str)
+            except Exception:
+                pass
         return {"message": f"Generated {generated} bills for {month_str}", "count": generated}
 
     def get_recent_activity(self, limit=10):
