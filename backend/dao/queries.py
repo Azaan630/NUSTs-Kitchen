@@ -99,9 +99,11 @@ addMenuItem = """INSERT INTO Menu_Food_Items
                  (Schedule_ID, Item_ID)
                  VALUES (%s, %s)"""
 
-getAllFoodCosts = ("""SELECT fi.*, COALESCE(vc.Total_Cost, 0) AS Total_Cost
+getAllFoodCosts = ("""SELECT fi.*, COALESCE(SUM(i.Unit_cost * fii.Ingredient_Quantity), 0) AS Total_Cost
                       FROM Food_Items fi
-                      LEFT JOIN vw_FoodItemCost vc ON fi.Item_ID = vc.Item_ID""")
+                      LEFT JOIN Food_Item_Ingredients fii ON fi.Item_ID = fii.Item_ID
+                      LEFT JOIN Ingredients i ON fii.Ingredient_ID = i.Ingredient_ID
+                      GROUP BY fi.Item_ID""")
 
 getAllFoodItems = ("""SELECT *
                       FROM Food_Items""")

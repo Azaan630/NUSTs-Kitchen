@@ -378,6 +378,14 @@ INSERT INTO Registration_Requests (First_Name,Last_Name,Email,Account_Type,Sex,D
 ('Kamran','Tariq',  'kamran.tariq@gmail.com',     'Staff',  'Male',  '1990-03-05',NULL,                     '0300-9012345','H-12 NUST','Mr. Tariq',  NULL,     NULL, 'Server','Pending','https://picsum.photos/seed/kamran/200/200');
 
 -- ============================================================================
+-- ACTIVE POLL
+-- ============================================================================
+INSERT INTO System_Config (Config_Key, Value) VALUES
+('active_poll_items', '5,9,12'),
+('active_poll_meal_type', 'Lunch')
+ON DUPLICATE KEY UPDATE Value=VALUES(Value);
+
+-- ============================================================================
 -- SYSTEM CONFIG
 -- ============================================================================
 INSERT INTO System_Config (Config_Key, Value) VALUES

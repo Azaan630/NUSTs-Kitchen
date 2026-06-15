@@ -387,9 +387,81 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         padding=ft.Padding.symmetric(horizontal=16),
     )
 
+    # ── Stats bar ──
+    stats_section = ft.Container(
+        content=ft.Row([
+            ft.Container(
+                ft.Column([
+                    ft.Text("3", size=28, weight="bold", color=acc, font_family="DM Sans"),
+                    ft.Text("User Roles", size=11, color=sub, font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                width=120, padding=ft.Padding.all(16),
+                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
+            ),
+            ft.Container(width=12),
+            ft.Container(
+                ft.Column([
+                    ft.Text("15+", size=28, weight="bold", color=acc, font_family="DM Sans"),
+                    ft.Text("Food Items", size=11, color=sub, font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                width=120, padding=ft.Padding.all(16),
+                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
+            ),
+            ft.Container(width=12),
+            ft.Container(
+                ft.Column([
+                    ft.Text("7", size=28, weight="bold", color=acc, font_family="DM Sans"),
+                    ft.Text("Day Menu", size=11, color=sub, font_family="DM Sans"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                width=120, padding=ft.Padding.all(16),
+                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
+            ),
+        ], alignment=ft.MainAxisAlignment.CENTER, wrap=True, run_spacing=12),
+        bgcolor=t["bg"] if d else "#EEF2FF",
+        padding=ft.Padding.symmetric(horizontal=16, vertical=32),
+    )
+
+    # ── How it works ──
+    steps = [
+        ("1", "Sign In", "Use your NUST email\nwith Google OAuth", ft.Icons.LOGIN_ROUNDED),
+        ("2", "Explore", "Browse menus, vote on\npolls, rate your meals", ft.Icons.EXPLORE_ROUNDED),
+        ("3", "Manage", "Staff manage inventory\n& admins run analytics", ft.Icons.SETTINGS_ROUNDED),
+    ]
+    how_section = ft.Container(
+        content=ft.Column([
+            ft.Container(height=40),
+            ft.Text("How It Works", size=22 if m else 26, weight="bold",
+                    font_family="Playfair", color=txt),
+            ft.Container(height=24),
+            ft.Row([
+                ft.Container(
+                    ft.Column([
+                        ft.Container(
+                            ft.Text(num, size=18, weight="bold", color="#FFF", font_family="DM Sans"),
+                            width=40, height=40, border_radius=20,
+                            bgcolor=acc, alignment=ft.Alignment(0, 0),
+                        ),
+                        ft.Container(height=12),
+                        ft.Text(title, size=14, weight="bold", color=txt, font_family="DM Sans"),
+                        ft.Container(height=4),
+                        ft.Text(desc, size=11, color=sub, font_family="DM Sans",
+                                text_align=ft.TextAlign.CENTER),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=160, padding=ft.Padding.all(16),
+                )
+                for num, title, desc, _ in steps
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=24, wrap=True, run_spacing=16),
+            ft.Container(height=40),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        bgcolor=t["bg"] if d else "#FAFBFF",
+        padding=ft.Padding.symmetric(horizontal=16),
+    )
+
     page_column = ft.Column([
         result,
         about_section,
+        stats_section,
+        how_section,
     ], scroll=ft.ScrollMode.ADAPTIVE, spacing=0, expand=True)
 
     page_column._logo_box = logo_box

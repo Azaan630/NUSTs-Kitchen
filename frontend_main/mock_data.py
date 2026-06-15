@@ -124,9 +124,13 @@ def init_session():
         "next_mess_off_id": 7,
         "next_billing_id": 10,
         "next_food_id": 16,
-        "poll_active": False,
-        "poll_meal_type": "",
-        "poll_items": [],
+        "poll_active": True,
+        "poll_meal_type": "Lunch",
+        "poll_items": [
+            {"Item_ID": 5,  "Name": "Chicken Karahi",  "Price": 450.0},
+            {"Item_ID": 9,  "Name": "Chicken Pulao",   "Price": 200.0},
+            {"Item_ID": 12, "Name": "Chicken Tikka",   "Price": 350.0},
+        ],
         "poll_votes": {},
         "registration_requests": [
             {"RequestID": 1, "First_Name": "Usman",  "Last_Name": "Dar",     "Email": "usman.dar@seecs.edu.pk",    "Account_Type": "Student", "Department": "Civil Engineering",       "Contact_Number": "0300-7890123", "DoB": "2005-02-18", "Address": "H-12 NUST", "Father_Name": "Mr. Dar",    "Hostel_Name": "Iqbal",   "Room_Number": "118", "Status": "Pending", "Profile_Picture": "https://picsum.photos/seed/usman/200/200",  "Created_At": today.isoformat()},
