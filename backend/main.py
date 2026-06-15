@@ -9,7 +9,21 @@ import csv
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("backend")
-from reportlab.pdfgen import canvas
+from email_utils import (
+    registration_requested_email, registration_approved_email,
+    account_deleted_email, bill_issued_email, send_email,
+)
+import asyncio
+
+
+def _fire_email(to_email, subject, html_body):
+    """Fire-and-forget email sending in background thread."""
+    def _send():
+        try:
+            asyncio.run(send_email(to_email, subject, html_body))
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
 from reportlab.lib.pagesizes import A4, landscape
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -353,7 +367,10 @@ def get_unseen_bills_count(user=Depends(permission_checker(["Student"])), db=Dep
 
 @app.post("/register/request")
 def submit_registration_request(data: models.RegistrationRequestCreate, db=Depends(get_db)):
-    return RegistrationDAO(db).create_request(data)
+    result = RegistrationDAO(db).create_request(data)
+    subject, body = registration_requested_email(data.First_Name, data.Email)
+    _fire_email(data.Email, subject, body)
+    return result
 
 
 @app.get("/admin/registration-requests")
@@ -363,7 +380,12 @@ def get_registration_requests(status: str = "Pending", user=Depends(permission_c
 
 @app.post("/admin/registration-requests/{RequestID}/approve")
 def approve_registration(RequestID: int, data: models.RegistrationRequestUpdate = None, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return RegistrationDAO(db).approve_request(RequestID, data)
+    req = RegistrationDAO(db).get_request_by_id(RequestID)
+    result = RegistrationDAO(db).approve_request(RequestID, data)
+    if req:
+        subject, body = registration_approved_email(req.get("First_Name", ""), req.get("Email", ""))
+        _fire_email(req.get("Email", ""), subject, body)
+    return result
 
 
 @app.post("/admin/registration-requests/{RequestID}/reject")
@@ -390,7 +412,13 @@ def update_student_profile(data: models.StudentUpdate, UserID: int, user=Depends
 
 @app.delete("/admin/students/delete/{UserID}")
 def delete_student(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return UserDAO(db).cascade_delete_user(UserID)
+    dao = UserDAO(db)
+    u = dao._fetchone("SELECT First_Name, Email FROM Users WHERE UserID = %s", (UserID,))
+    result = dao.cascade_delete_user(UserID)
+    if u:
+        subject, body = account_deleted_email(u.get("First_Name", ""), u.get("Email", ""))
+        _fire_email(u.get("Email", ""), subject, body)
+    return result
 
 
 # ── Staff ──────────────────────────────────────────────────────
@@ -411,7 +439,13 @@ def update_staff_profile(data: models.Staff, UserID: int, user=Depends(permissio
 
 @app.delete("/admin/staff/delete/{UserID}")
 def delete_staff(UserID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return UserDAO(db).cascade_delete_user(UserID)
+    dao = UserDAO(db)
+    u = dao._fetchone("SELECT First_Name, Email FROM Users WHERE UserID = %s", (UserID,))
+    result = dao.cascade_delete_user(UserID)
+    if u:
+        subject, body = account_deleted_email(u.get("First_Name", ""), u.get("Email", ""))
+        _fire_email(u.get("Email", ""), subject, body)
+    return result
 
 
 @app.post("/admin/staff/contact/{UserID}")
@@ -444,6 +478,11 @@ def delete_staff_category(category: str, db=Depends(get_db), user=Depends(permis
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = BillDAO(db)
     cursor = dao.create_bill(data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value)
+    u = UserDAO(db)._fetchone("SELECT First_Name, Email FROM Users WHERE UserID = %s", (data.UserID,))
+    if u:
+        subject, body = bill_issued_email(u.get("First_Name", ""), u.get("Email", ""),
+                                          data.Amount, str(data.Month), str(data.Due_Date))
+        _fire_email(u.get("Email", ""), subject, body)
     return {"message": "Bill created", "id": cursor.lastrowid}
 
 

@@ -169,7 +169,9 @@ getRecipes = ("""SELECT Food_Item_Ingredients.Item_ID, Ingredients.Ingredient_ID
 
 getRecipesDetailed = ("""SELECT
     fi.Item_ID, fi.Name AS Item_Name, fi.Price,
+    fi.Image_Path AS Item_Image, fi.Ratings_Average,
     i.Ingredient_ID, i.Name AS Ingredient_Name,
+    i.Image_Path AS Ingredient_Image,
     i.Unit, fii.Ingredient_Quantity, i.Total_Quantity AS Ingredient_Stock
 FROM Food_Item_Ingredients fii
 JOIN Food_Items fi ON fii.Item_ID = fi.Item_ID

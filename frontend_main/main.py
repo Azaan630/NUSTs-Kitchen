@@ -111,6 +111,21 @@ def make_theme():
     }
 
 
+def _add_feedback_button(page, theme):
+    btn = ft.Container(
+        content=ft.Row([
+            ft.Icon(ft.Icons.FEEDBACK_ROUNDED, size=16, color="#FFF"),
+            ft.Text("Feedback", size=12, color="#FFF", font_family="DM Sans", weight="bold"),
+        ], spacing=6),
+        bgcolor=theme["accent"], border_radius=20,
+        padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+        shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.3, theme["accent"])),
+        right=16, bottom=16,
+        on_click=lambda e: page.launch_url("https://nust-kitchen.userback.io"),
+    )
+    page.overlay.append(btn)
+
+
 FOOD_DECOS = [
     (ft.Icons.RICE_BOWL_ROUNDED,     180, 25,  60),
     (ft.Icons.COFFEE_ROUNDED,        110, None, None, 35, 40),
@@ -417,12 +432,16 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             card_rows,
             ft.Container(height=40),
             ft.Container(
-                content=ft.Row([
-                    ft.Container(width=20, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
-                    ft.Text("From NUST, for NUST", size=12, color=ft.Colors.with_opacity(0.5, acc),
-                            font_family="Playfair", italic=True),
-                    ft.Container(width=20, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
-                ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
+                content=ft.Text("With great food, comes great responsibility!",
+                                size=16 if m else 20, weight="bold",
+                                color=acc, font_family="Playfair", italic=True),
+                padding=ft.Padding.symmetric(horizontal=20, vertical=14),
+                border_radius=16,
+                bgcolor=ft.Colors.with_opacity(0.05, acc),
+                shadow=ft.BoxShadow(blur_radius=20, color=ft.Colors.with_opacity(0.25, acc),
+                                    spread_radius=1),
+                animate_scale=ft.Animation(1200, ft.AnimationCurve.EASE_OUT_BACK),
+                scale=1.0,
             ),
             ft.Container(height=48 if m else 64),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -1293,6 +1312,7 @@ async def main(page: ft.Page):
 
         page.on_resized = lambda e: load_page(current_index["v"])
         page.add(body)
+        _add_feedback_button(page, t)
         load_page(0)
         page.update()
 

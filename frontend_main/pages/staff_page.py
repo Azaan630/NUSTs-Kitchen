@@ -597,7 +597,7 @@ class StaffPage:
                 async def handler(e):
                     dlg = await self._recipe_popup(g_data)
                     self._recipe_dlg = dlg
-                    self.page.open(dlg)
+                    self.page.show_dialog(dlg)
                 return handler
             card = self._row_card([
                 ft.Container(
@@ -741,19 +741,19 @@ class StaffPage:
                         status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
                 build_ing_rows()
                 status_text.value = "Ingredient added"; status_text.color = self._clr("success")
-                self.page.close(add_dlg)
+                (setattr(add_dlg, "open", False), self.page.update())
 
             add_dlg = ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Add Ingredient", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
                 content=ft.Column([sel_dd, qty_field, ft.Container(height=8)], width=300, tight=True),
                 actions=[
-                    ft.TextButton("Cancel", on_click=lambda e: self.page.close(add_dlg)),
+                    ft.TextButton("Cancel", on_click=lambda e: (setattr(add_dlg, "open", False), self.page.update())),
                     ft.FilledButton("Add", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
                                     on_click=lambda e: asyncio.ensure_future(save_new())),
                 ],
             )
-            self.page.open(add_dlg)
+            self.page.show_dialog(add_dlg)
 
         ing_header_row = ft.Row([
             ft.Text("Ingredients", size=15, weight="bold", color="#1a1a2e", font_family="DM Sans", expand=True),
@@ -792,7 +792,7 @@ class StaffPage:
 
         return ft.AlertDialog(
             content=content,
-            actions=[ft.TextButton("Close", on_click=lambda e: self.page.close(self._recipe_dlg))],
+            actions=[ft.TextButton("Close", on_click=lambda e: (setattr(self._recipe_dlg, "open", False), self.page.update()))],
             actions_alignment=ft.MainAxisAlignment.END,
             shape=ft.RoundedRectangleBorder(12),
         )
@@ -822,19 +822,19 @@ class StaffPage:
                     status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
             rebuild()
             status_text.value = "Updated"; status_text.color = self._clr("success")
-            self.page.close(edit_dlg)
+            (setattr(edit_dlg, "open", False), self.page.update())
 
         edit_dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text(f"Edit {ing_data.get('Ingredient_Name','')}", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
             content=ft.Column([ft.Text("Quantity:", size=12, color=self._clr("sub"), font_family="DM Sans"), qty_field], width=280, tight=True),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e: self.page.close(edit_dlg)),
+                ft.TextButton("Cancel", on_click=lambda e: (setattr(edit_dlg, "open", False), self.page.update())),
                 ft.FilledButton("Update", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
                                 on_click=lambda e: asyncio.ensure_future(save_edit())),
             ],
         )
-        self.page.open(edit_dlg)
+        self.page.show_dialog(edit_dlg)
 
     async def _delete_recipe_ingredient(self, g, ing_id, rebuild, status_text):
         item_id = g["Item_ID"]
@@ -849,19 +849,19 @@ class StaffPage:
                     status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
             rebuild()
             status_text.value = "Deleted"; status_text.color = self._clr("success")
-            self.page.close(del_dlg)
+            (setattr(del_dlg, "open", False), self.page.update())
 
         del_dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text("Confirm Delete", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
             content=ft.Text("Remove this ingredient from the recipe?", size=13, color=self._clr("sub"), font_family="DM Sans"),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda e: self.page.close(del_dlg)),
+                ft.TextButton("Cancel", on_click=lambda e: (setattr(del_dlg, "open", False), self.page.update())),
                 ft.FilledButton("Delete", style=ft.ButtonStyle(bgcolor="#EF4444", color="#FFF"),
                                 on_click=lambda e: asyncio.ensure_future(confirm_delete())),
             ],
         )
-        self.page.open(del_dlg)
+        self.page.show_dialog(del_dlg)
 
     # ── Safe render wrapper ────────────────────────────────────
 
