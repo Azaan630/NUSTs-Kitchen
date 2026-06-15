@@ -1,5 +1,5 @@
 from dao.base import BaseDAO
-from dao.queries import requestMessOff, cancelMessOff, getMessOffStatus, getMessOffThisMonth
+from dao.queries import requestMessOff, cancelMessOff, getMessOffStatus, getMessOffThisMonth, getMyMessOffThisMonth
 
 
 class MessOffDAO(BaseDAO):
@@ -14,3 +14,6 @@ class MessOffDAO(BaseDAO):
 
     def get_mess_off_this_month(self):
         return self._fetchall(getMessOffThisMonth)
+
+    def get_my_mess_off_this_month(self, user_id):
+        return self._fetchall(getMyMessOffThisMonth, (user_id,))

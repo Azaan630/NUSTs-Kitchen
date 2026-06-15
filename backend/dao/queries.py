@@ -137,9 +137,16 @@ getMessOffStatus = ("""SELECT *
 
 getMessOffThisMonth = ("""SELECT *
                            FROM Mess_Off
-                           WHERE DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
-                              OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                           WHERE (DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                               OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'))
                            ORDER BY Start_Date DESC;""")
+
+getMyMessOffThisMonth = ("""SELECT *
+                            FROM Mess_Off
+                            WHERE (DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                                OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'))
+                              AND User_ID = %s
+                            ORDER BY Start_Date DESC;""")
 
 getMessOffAdmin = ("""SELECT *
                           FROM Mess_Off 

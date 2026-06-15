@@ -22,11 +22,11 @@ from datetime import date
 import models
 import mysql.connector
 from contextlib import asynccontextmanager
-from email_utils import notify_students, SMTP_HOST
 from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
 )
+from auth import create_access_token, get_current_user, get_optional_user, require_role, verify_google_token
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -77,15 +77,11 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def permission_checker(allowed_roles: list):
-    def mapper(email: str, db=Depends(get_db)):
+    def mapper(user: dict = Depends(require_role(allowed_roles)), db=Depends(get_db)):
+        email = user.get("sub", "")
         user_record = UserDAO(db).find_by_email(email)
         if not user_record:
-            logger.warning("permission_checker: email=%s not found", email)
             raise HTTPException(status_code=404, detail="User record not found")
-        if user_record.get("Account_Type") not in allowed_roles:
-            logger.warning("permission_checker: email=%s role=%s not in %s",
-                          email, user_record.get("Account_Type"), allowed_roles)
-            raise HTTPException(status_code=403, detail="Unauthorized")
         return user_record
     return mapper
 
@@ -93,6 +89,48 @@ def permission_checker(allowed_roles: list):
 @app.get("/")
 def read_root():
     return {"status": "MEOWMEOW Backend is Online"}
+
+
+@app.post("/auth/google")
+async def google_auth(data: dict, db=Depends(get_db)):
+    access_token = data.get("access_token", "")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Missing access_token")
+    google_data = await verify_google_token(access_token)
+    if not google_data:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    email = google_data.get("email", "")
+    if not email:
+        raise HTTPException(status_code=401, detail="Google token missing email")
+    user_record = UserDAO(db).find_by_email(email)
+    if not user_record:
+        raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
+    jwt_token = create_access_token({
+        "sub": email,
+        "role": user_record.get("Account_Type", "Student"),
+        "user_id": user_record.get("UserID"),
+    })
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user_details": user_record,
+    }
+
+
+@app.post("/auth/guest")
+def guest_auth(data: dict, db=Depends(get_db)):
+    email = data.get("email", "")
+    role = data.get("role", "Student")
+    jwt_token = create_access_token({
+        "sub": email,
+        "role": role,
+        "user_id": -1,
+    })
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user_details": {"UserID": -1, "Email": email, "Account_Type": role},
+    }
 
 
 @app.get("/users/verify")
@@ -191,6 +229,8 @@ async def upload_status(token: str):
 
 @app.patch("/users/{UserID}/picture")
 def update_profile_picture(UserID: int, data: models.ProfilePictureUpdate, user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
+    if user.get("Account_Type") != "Admin" and user.get("UserID") != UserID:
+        raise HTTPException(status_code=403, detail="Cannot update another user's picture")
     return BaseDAO(db).update_record("Users", data, "UserID", UserID)
 
 
@@ -230,8 +270,8 @@ def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, use
 
 
 @app.get("/users/me")
-def get_my_profile(email: str, user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
-    return UserDAO(db).get_my_profile(email)
+def get_my_profile(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
+    return UserDAO(db).get_my_profile(user.get("Email"))
 
 
 @app.get("/menu/today")
@@ -301,8 +341,8 @@ def get_student_bill_status(UserID: int, db=Depends(get_db), user=Depends(permis
 
 
 @app.get("/bills/my-history")
-def get_my_bill_history(email: str, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
-    return BillDAO(db).get_my_bills(email)
+def get_my_bill_history(user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    return BillDAO(db).get_my_bills(user.get("Email"))
 
 
 @app.get("/analytics/ingredients")
@@ -316,13 +356,13 @@ def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends
 
 
 @app.get("/users/my-bills")
-def get_my_bills(email: str, db=Depends(get_db), user=Depends(permission_checker(["Admin", "Student"]))):
-    return BillDAO(db).get_my_bills(email)
+def get_my_bills(user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    return BillDAO(db).get_my_bills(user.get("Email"))
 
 
 @app.get("/students/bills/unseen-count")
-def get_unseen_bills_count(email: str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
-    return {"count": BillDAO(db).get_unseen_count(email)}
+def get_unseen_bills_count(user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+    return {"count": BillDAO(db).get_unseen_count(user.get("Email"))}
 
 
 # ── Registration Requests ──────────────────────────────────────
@@ -420,16 +460,6 @@ def delete_staff_category(category: str, db=Depends(get_db), user=Depends(permis
 def create_bill(data: models.BillCreate, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
     dao = BillDAO(db)
     cursor = dao.create_bill(data.UserID, data.Issue_Date, data.Amount, data.Due_Date, data.Month, data.Status.value)
-    u = UserDAO(db).find_by_id(data.UserID)
-    if u:
-        notify_students([{
-            "Email": u.get("Email", ""),
-            "First_Name": u.get("First_Name", ""),
-            "Last_Name": u.get("Last_Name", ""),
-            "Amount": data.Amount,
-            "Due_Date": str(data.Due_Date),
-            "Month": data.Month,
-        }])
     return {"message": "Bill created", "id": cursor.lastrowid}
 
 
@@ -478,8 +508,8 @@ def draw_challan_pdf(bill):
 
 
 @app.get("/student/bills/download/{BillingID}")
-def generate_pdf(BillingID: int, email: str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
-    bill_record = BillDAO(db).get_bill_pdf(BillingID, email)
+def generate_pdf(BillingID: int, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
+    bill_record = BillDAO(db).get_bill_pdf(BillingID, user.get("Email"))
     if not bill_record:
         raise HTTPException(status_code=404, detail="Bill not found")
     pdf_buffer = draw_challan_pdf(bill_record)
@@ -563,7 +593,7 @@ def get_active_poll(db=Depends(get_db), user=Depends(permission_checker(["Admin"
 
 
 @app.post("/poll/vote/{ItemID}/{UserID}")
-def cast_vote(UserID: int, ItemID: int, email: str, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
+def cast_vote(UserID: int, ItemID: int, db=Depends(get_db), user=Depends(permission_checker(["Student"]))):
     dao = PollDAO(db)
     active_poll = dao.get_active_poll()
     if not active_poll.get("active"):
@@ -686,13 +716,13 @@ def undo_payment(BillingID: int, user=Depends(permission_checker(["Admin"])), db
 # ── Mess Off ───────────────────────────────────────────────────
 
 @app.post("/student/mess-off/request/{UserID}/{StartDate}/{EndDate}")
-def request_mess_off(UserID: int, StartDate: date, EndDate: date, email: str, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+def request_mess_off(UserID: int, StartDate: date, EndDate: date, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
     MessOffDAO(db).request_mess_off(UserID, StartDate, EndDate)
     return {"message": "Mess off requested successfully"}
 
 
 @app.post("/student/mess-off/cancel/{MessOffID}")
-def cancel_mess_off_request(MessOffID: int, email: str, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
+def cancel_mess_off_request(MessOffID: int, user=Depends(permission_checker(["Student"])), db=Depends(get_db)):
     MessOffDAO(db).cancel_mess_off(MessOffID)
     return {"message": "Mess off request cancelled successfully"}
 
@@ -714,8 +744,9 @@ def approve_mess_off(RequestID: int, user=Depends(permission_checker(["Admin"]))
 
 
 @app.get("/student/mess-off/history")
-def get_mess_off_history(email: str, user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
-    return {"status": MessOffDAO(db).get_mess_off_this_month()}
+def get_mess_off_history(user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
+    user_id = user.get("UserID")
+    return {"status": MessOffDAO(db).get_my_mess_off_this_month(user_id)}
 
 
 @app.get("/student/mess-off/{MessOffID}")
@@ -777,9 +808,9 @@ def trigger_monthly_bills(amount: float = Query(default=5000),
 
 
 @app.get("/student/dashboard/stats")
-def get_student_dashboard_stats(email: str, db=Depends(get_db),
+def get_student_dashboard_stats(db=Depends(get_db),
                                 user=Depends(permission_checker(["Student"]))):
-    user_record = UserDAO(db).find_by_email(email)
+    user_record = UserDAO(db).find_by_email(user.get("Email"))
     return UserDAO(db).get_student_dashboard_stats(user_record["UserID"])
 
 

@@ -2334,7 +2334,7 @@ class AdminPage:
             dlg = ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Undo Payment", weight="bold", color=self._clr("text")),
-                content=ft.Text(f"Revert bill #{bid} to Unpaid?{name_str}", color=self._clr("sub")),
+                content=ft.Text(f"Revert bill #{bid} by 1 transaction?{name_str}", color=self._clr("sub")),
                 actions=[
                     ft.TextButton("Cancel", style=ft.ButtonStyle(color=self._clr("sub")),
                                   on_click=lambda _: setattr(dlg, 'open', False) or self.page.update()),

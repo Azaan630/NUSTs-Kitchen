@@ -201,8 +201,8 @@ class StudentProfilePage:
             data = mock_data.get_my_bills()
             self.role_details = None
         else:
-            data = await get_my_bills(self.email)
-            profile_data = await get_my_profile(self.email)
+            data = await get_my_bills()
+            profile_data = await get_my_profile()
             self.role_details = profile_data.get("role_details") if isinstance(profile_data, dict) else None
         self.bills_data = data if isinstance(data, list) else []
 

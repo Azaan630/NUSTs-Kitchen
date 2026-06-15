@@ -13,6 +13,7 @@ from pages.mess_off_page import StudentMessOffPage
 from pages.admin_page import AdminPage
 from pages.staff_page import StaffPage
 import mock_data
+from pages import api_client
 
 load_dotenv()
 
@@ -1124,15 +1125,10 @@ async def main(page: ft.Page):
             if ud.get("Account_Type") != "Student" or ud.get("is_guest"):
                 return
             try:
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(
-                        f"{BACKEND_URL}/students/bills/unseen-count",
-                        params={"email": ud.get("Email", "")},
-                        timeout=10,
-                    )
-                    if r.status_code == 200:
-                        _bill_badge["count"] = r.json().get("count", 0)
-                        _update_badge()
+                r = await api_client._make_request("GET", "/students/bills/unseen-count")
+                if isinstance(r, dict) and "count" in r:
+                    _bill_badge["count"] = r["count"]
+                    _update_badge()
             except Exception:
                 pass
         asyncio.create_task(_fetch_badge())
@@ -1146,15 +1142,23 @@ async def main(page: ft.Page):
             await asyncio.sleep(0.2)
         email = page.auth.user.get("email")
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{BACKEND_URL}/users/verify", params={"email": email}, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if "user_details" in data:
-                    page.current_user_data = data["user_details"]
-                    await show_dashboard()
-                else:
-                    raise KeyError("user_details missing")
+            api_client.set_jwt(None)
+            token_obj = getattr(page.auth, "token", None)
+            access_token = None
+            if token_obj:
+                access_token = token_obj.get("access_token") if isinstance(token_obj, dict) else getattr(token_obj, "access_token", None)
+            if access_token:
+                data = await api_client.google_auth(access_token)
+            else:
+                data = await api_client.verify_user(email)
+                if isinstance(data, dict) and "error" not in data:
+                    jwt_data = await api_client._make_request("POST", "/auth/guest", json_data={"email": email, "role": data.get("Account_Type", "Student")})
+                    if isinstance(jwt_data, dict) and "access_token" in jwt_data:
+                        data = jwt_data
+            if isinstance(data, dict) and "user_details" in data:
+                api_client.set_jwt(data.get("access_token"))
+                page.current_user_data = data["user_details"]
+                await show_dashboard()
             else:
                 page.clean()
                 t = make_theme()
@@ -1221,12 +1225,20 @@ async def main(page: ft.Page):
         mock_data.init_session()
         name_map = {"Student": ("Guest", "Student"), "Staff": ("Guest", "Staff"), "Admin": ("Guest", "Admin")}
         first, last = name_map[role]
-        page.current_user_data = {
-            "UserID": -1, "First_Name": first, "Last_Name": last,
-            "Email": f"guest.{role.lower()}@demo.app", "Account_Type": role,
-            "is_guest": True,
-        }
-        asyncio.create_task(show_dashboard())
+        email = f"guest.{role.lower()}@demo.app"
+        asyncio.create_task(_do_guest_login(email, first, last, role))
+
+    async def _do_guest_login(email, first, last, role):
+        api_client.set_jwt(None)
+        data = await api_client.guest_auth(email, role)
+        if isinstance(data, dict) and "user_details" in data:
+            api_client.set_jwt(data.get("access_token"))
+            page.current_user_data = {
+                "UserID": -1, "First_Name": first, "Last_Name": last,
+                "Email": email, "Account_Type": role,
+                "is_guest": True,
+            }
+            await show_dashboard()
 
     register_mode = {"v": False}
 

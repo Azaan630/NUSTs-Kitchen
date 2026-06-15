@@ -156,7 +156,7 @@ class StudentMessOffPage:
         if self.is_guest:
             result = mock_data.get_mess_off_history()
         else:
-            result = await get_mess_off_history(self.email)
+            result = await get_mess_off_history()
         requests = []
         if isinstance(result, dict) and "status" in result:
             requests = result["status"] if isinstance(result["status"], list) else []
@@ -264,7 +264,7 @@ class StudentMessOffPage:
                 mock_data.request_mess_off(self.user_id, start, end)
                 result = {"message": "Request submitted!"}
             else:
-                result = await request_mess_off(self.user_id, start, end, self.email)
+                result = await request_mess_off(self.user_id, start, end)
 
             if isinstance(result, dict) and "error" in result:
                 msg = result["error"]
@@ -333,7 +333,7 @@ class StudentMessOffPage:
                 mock_data.cancel_mess_off(mid)
                 result = {"message": "Cancelled"}
             else:
-                result = await cancel_mess_off(mid, self.email)
+                result = await cancel_mess_off(mid)
             if isinstance(result, dict) and "error" in result:
                 msg, colour = result["error"], "#EF4444"
             else:

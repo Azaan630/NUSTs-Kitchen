@@ -246,7 +246,6 @@ class StudentHomePage:
                     meal_date=meal_date,
                     meal_type=meal_type,
                     score=score,
-                    email=self.email,
                 )
             page_ref.snack_bar = ft.SnackBar(
                 content=ft.Text("✅ Rating saved!", color="#FFF"),
@@ -558,13 +557,11 @@ class StudentHomePage:
         else:
             try:
                 import httpx
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BASE_URL}/admin/food-items/all", params={"email": self.email}, timeout=8)
-                    if r.status_code == 200:
-                        data = r.json()
-                        if isinstance(data, list):
-                            for f in data:
-                                self._food_cache[f["Item_ID"]] = f
+                from pages.api_client import _make_request
+                data = await _make_request("GET", "/admin/food-items/all")
+                if isinstance(data, list):
+                    for f in data:
+                        self._food_cache[f["Item_ID"]] = f
             except:
                 pass
 
@@ -584,7 +581,7 @@ class StudentHomePage:
             if self.is_guest:
                 data = mock_data.get_todays_menu()
             else:
-                data = await get_todays_menu(self.email, user_id=uid)
+                data = await get_todays_menu(user_id=uid)
             if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:

@@ -219,11 +219,12 @@ class ProfileDetailsPage:
                             )
                             data = r.json()
                             saved_url = data.get("url", drive_url)
+                        from pages.api_client import get_headers
                         async with httpx.AsyncClient() as client:
                             await client.patch(
-                                f"{backend_url}/users/{uid}/picture",
+                                f"{BACKEND_URL}/users/{uid}/picture",
                                 json={"Profile_Picture": saved_url},
-                                params={"email": email},
+                                headers=get_headers(),
                                 timeout=10,
                             )
                     self.user_data["Profile_Picture"] = saved_url
@@ -240,11 +241,12 @@ class ProfileDetailsPage:
                 self.page.update()
                 try:
                     if not self.is_guest:
+                        from pages.api_client import get_headers
                         async with httpx.AsyncClient() as client:
                             await client.patch(
                                 f"{BACKEND_URL}/users/{uid}/picture",
                                 json={"Profile_Picture": ""},
-                                params={"email": email},
+                                headers=get_headers(),
                                 timeout=10,
                             )
                     self.user_data["Profile_Picture"] = ""
@@ -438,7 +440,6 @@ class ProfileDetailsPage:
 
     async def _fetch_details(self):
         uid = self._get("UserID", 0)
-        email = self._get("Email", "")
         role = self._get("Account_Type", "Student")
 
         if self.is_guest:
@@ -454,12 +455,11 @@ class ProfileDetailsPage:
                         break
         else:
             try:
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BACKEND_URL}/users/me", params={"email": email}, timeout=8)
-                    if r.status_code == 200:
-                        data = r.json()
-                        rd = data.get("role_details")
-                        if rd:
-                            self._extra = rd
+                from pages.api_client import _make_request
+                data = await _make_request("GET", "/users/me")
+                if isinstance(data, dict):
+                    rd = data.get("role_details")
+                    if rd:
+                        self._extra = rd
             except Exception:
                 pass
