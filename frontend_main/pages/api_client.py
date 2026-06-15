@@ -59,10 +59,6 @@ async def google_auth(access_token: str) -> Dict[str, Any]:
     return await _make_request("POST", "/auth/google", json_data={"access_token": access_token})
 
 
-async def guest_auth(email: str, role: str) -> Dict[str, Any]:
-    return await _make_request("POST", "/auth/guest", json_data={"email": email, "role": role})
-
-
 async def get_my_profile() -> Dict[str, Any]:
     return await _make_request("GET", "/users/me")
 

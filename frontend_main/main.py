@@ -1150,11 +1150,7 @@ async def main(page: ft.Page):
             if access_token:
                 data = await api_client.google_auth(access_token)
             else:
-                data = await api_client.verify_user(email)
-                if isinstance(data, dict) and "error" not in data:
-                    jwt_data = await api_client._make_request("POST", "/auth/guest", json_data={"email": email, "role": data.get("Account_Type", "Student")})
-                    if isinstance(jwt_data, dict) and "access_token" in jwt_data:
-                        data = jwt_data
+                data = None
             if isinstance(data, dict) and "user_details" in data:
                 api_client.set_jwt(data.get("access_token"))
                 page.current_user_data = data["user_details"]
@@ -1230,15 +1226,12 @@ async def main(page: ft.Page):
 
     async def _do_guest_login(email, first, last, role):
         api_client.set_jwt(None)
-        data = await api_client.guest_auth(email, role)
-        if isinstance(data, dict) and "user_details" in data:
-            api_client.set_jwt(data.get("access_token"))
-            page.current_user_data = {
-                "UserID": -1, "First_Name": first, "Last_Name": last,
-                "Email": email, "Account_Type": role,
-                "is_guest": True,
-            }
-            await show_dashboard()
+        page.current_user_data = {
+            "UserID": -1, "First_Name": first, "Last_Name": last,
+            "Email": email, "Account_Type": role,
+            "is_guest": True,
+        }
+        await show_dashboard()
 
     register_mode = {"v": False}
 

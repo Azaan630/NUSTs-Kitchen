@@ -117,22 +117,6 @@ async def google_auth(data: dict, db=Depends(get_db)):
     }
 
 
-@app.post("/auth/guest")
-def guest_auth(data: dict, db=Depends(get_db)):
-    email = data.get("email", "")
-    role = data.get("role", "Student")
-    jwt_token = create_access_token({
-        "sub": email,
-        "role": role,
-        "user_id": -1,
-    })
-    return {
-        "access_token": jwt_token,
-        "token_type": "bearer",
-        "user_details": {"UserID": -1, "Email": email, "Account_Type": role},
-    }
-
-
 @app.get("/users/verify")
 @limiter.limit("20/minute")
 def verify_registration(request: Request, email: str, db=Depends(get_db)):
