@@ -2542,8 +2542,8 @@ class AdminPage:
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
                 filled=True, fill_color=self._clr("card"),
-                suffix_text=f"/{total:.0f}",
-                hint_text=f"0 - {outstanding:.0f}" if outstanding > 0 else "Fully paid",
+                suffix=ft.Text(f"/{total:.0f}", size=11, color=self._clr("sub")),
+                hint_text=f"0 \u2013 {outstanding:.0f}" if outstanding > 0 else "Fully paid",
             )
             def do_record_payment(e, b=bid, tf=ef_paid, tot=total, p=paid):
                 try:

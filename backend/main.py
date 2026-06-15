@@ -230,7 +230,7 @@ def update_ingredient_image(IngredientID: int, data: models.ImagePathUpdate, use
 
 
 @app.get("/users/me")
-def get_my_profile(email: str, db=Depends(get_db)):
+def get_my_profile(email: str, user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return UserDAO(db).get_my_profile(email)
 
 

@@ -452,14 +452,14 @@ class ProfileDetailsPage:
                     if s.get("UserID") == uid:
                         self._extra = s
                         break
-        elif role in ("Student", "Staff"):
+        else:
             try:
-                ep = f"/admin/{role.lower()}s/details/{uid}"
                 async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BACKEND_URL}{ep}", params={"email": email}, timeout=8)
+                    r = await client.get(f"{BACKEND_URL}/users/me", params={"email": email}, timeout=8)
                     if r.status_code == 200:
                         data = r.json()
-                        if isinstance(data, list) and data:
-                            self._extra = data[0]
+                        rd = data.get("role_details")
+                        if rd:
+                            self._extra = rd
             except Exception:
                 pass

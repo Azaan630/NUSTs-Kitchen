@@ -18,7 +18,19 @@ class UserDAO(BaseDAO):
         return self._fetchone("SELECT * FROM Users WHERE UserID = %s", (user_id,))
 
     def get_my_profile(self, email):
-        return self._fetchone(findUserByEmail, (email,))
+        user = self._fetchone(findUserByEmail, (email,))
+        if not user:
+            return None
+        at = user.get("Account_Type")
+        if at == "Student":
+            details = self._fetchall(getStudentDetails, (user["UserID"],))
+            if details:
+                user["role_details"] = details[0]
+        elif at == "Staff":
+            details = self._fetchall(getStaffDetails, (user["UserID"],))
+            if details:
+                user["role_details"] = details[0]
+        return user
 
     def get_all_users(self):
         return self._fetchall("SELECT * FROM Users")

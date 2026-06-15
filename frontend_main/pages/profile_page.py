@@ -1,7 +1,7 @@
 import flet as ft
 import asyncio
 import os
-from pages.api_client import get_my_bills
+from pages.api_client import get_my_bills, get_my_profile
 import mock_data
 
 
@@ -25,6 +25,7 @@ class StudentProfilePage:
         self.main_container = ft.Container(expand=True,
             animate_opacity=ft.Animation(350, ft.AnimationCurve.EASE_OUT))
         self.bills_data = []
+        self.role_details = None
 
     def _guest_banner(self):
         if not self.is_guest:
@@ -41,6 +42,42 @@ class StudentProfilePage:
             bgcolor="#FEF3C7", border_radius=10,
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             margin=ft.Margin.only(bottom=12),
+        )
+
+    def _role_details_card(self):
+        rd = self.role_details
+        if not rd:
+            return ft.Container()
+
+        at = self.user_data.get("Account_Type", "")
+        if at == "Student":
+            rows = [
+                ("Department", rd.get("Department", "")),
+                ("Hostel", rd.get("Hostel_Name", "")),
+                ("Room", rd.get("Room_Number", "")),
+            ]
+        elif at == "Staff":
+            rows = [
+                ("Staff Category", rd.get("Category", "")),
+            ]
+        else:
+            return ft.Container()
+
+        items = []
+        for label, value in rows:
+            items.append(
+                ft.Row([
+                    ft.Text(label, size=12, color=self.sub, font_family="DM Sans"),
+                    ft.Text(str(value), size=13, weight="bold", color=self.txt, font_family="DM Sans"),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+            )
+
+        return ft.Container(
+            content=ft.Column(items, spacing=8),
+            bgcolor=self.card2,
+            border_radius=16,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=14),
+            margin=ft.Margin.only(bottom=20),
         )
 
     def _loading(self):
@@ -162,8 +199,11 @@ class StudentProfilePage:
 
         if self.is_guest:
             data = mock_data.get_my_bills()
+            self.role_details = None
         else:
             data = await get_my_bills(self.email)
+            profile_data = await get_my_profile(self.email)
+            self.role_details = profile_data.get("role_details") if isinstance(profile_data, dict) else None
         self.bills_data = data if isinstance(data, list) else []
 
         error = None
@@ -269,11 +309,15 @@ class StudentProfilePage:
             bill_cards = [self._bill_card(b, self._download) for b in self.bills_data]
             bills_section = ft.Column([summary] + bill_cards, spacing=0)
 
+        # ── Role-specific details ─────────────────────────────────
+        role_details_section = self._role_details_card()
+
         self.main_container.content = ft.Column([
             self._guest_banner(),
             ft.Text("Profile", size=28, weight="bold", font_family="DM Sans", color=self.txt),
             ft.Container(height=12),
             profile_card,
+            role_details_section,
             ft.Row([
                 ft.Text("Billing History", size=18, weight="bold", color=self.txt, font_family="DM Sans"),
                 ft.IconButton(
