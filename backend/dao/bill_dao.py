@@ -26,7 +26,15 @@ class BillDAO(BaseDAO):
             (email,)
         )["cnt"]
 
+    def mark_overdue(self):
+        from datetime import date
+        self._execute(
+            "UPDATE Bills SET Status = 'Overdue' WHERE Status = 'Unpaid' AND Due_Date < %s",
+            (date.today(),)
+        )
+
     def get_all_bills(self):
+        self.mark_overdue()
         return self._fetchall("""
             SELECT b.Billing_ID, b.User_ID, u.First_Name, u.Last_Name,
                    b.Month, b.Amount, b.Due_Date, b.Status,

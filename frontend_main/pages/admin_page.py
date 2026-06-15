@@ -796,7 +796,7 @@ class AdminPage:
                                   tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
                                   border_radius=6, width=22)],
             ))
-        names = [self._trunc(r.get("Name"), 7) for r in top]
+        names = [self._trunc(r.get("Name"), 12) for r in top]
         return BarChart(
             groups=groups,
             group_spacing=8,
@@ -813,10 +813,10 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                labels=[ChartAxisLabel(i, ft.Text(n, size=10, color=self._clr("text"),
+                                                  font_family="DM Sans", no_wrap=True))
                         for i, n in enumerate(names)],
-                show_labels=True, label_size=90,
+                show_labels=True, label_size=120,
             ),
         )
 
@@ -2537,33 +2537,31 @@ class AdminPage:
                 status = "Paid"
             fg, bg = s_colors.get(status, (self._clr("sub"), self._clr("card2")))
 
-            ef_total = ft.TextField(value=str(round(total, 1)), dense=True, width=100,
+            ef_paid = ft.TextField(
+                label="Amount Paid", dense=True, width=120, value="",
                 border_color=self._clr("accent"), border_radius=8,
                 text_style=ft.TextStyle(color=self._clr("text"), font_family="DM Sans"),
-                filled=True, fill_color=self._clr("card"))
-            def do_save(e, b=bid, tf=ef_total):
+                filled=True, fill_color=self._clr("card"),
+                suffix_text=f"/{total:.0f}",
+                hint_text=f"0 - {outstanding:.0f}" if outstanding > 0 else "Fully paid",
+            )
+            def do_record_payment(e, b=bid, tf=ef_paid, tot=total, p=paid):
                 try:
                     amt = float(tf.value or 0)
+                    if amt <= 0: self._snack("Enter a positive amount", False); return
+                    if amt > (tot - p): self._snack(f"Exceeds due amount ({tot-p:.0f})", False); return
                 except ValueError:
                     self._snack("Invalid amount", False); return
                 if self.is_guest:
-                    mock_data.update_bill(b, {"Amount": amt, "Total_Amount": amt})
-                    self._snack("Updated")
+                    mock_data.pay_bill(b, amt)
+                    self._snack(f"PKR {amt:.0f} paid")
                     asyncio.create_task(refresh())
                 else:
-                    self._run(_save_bill(b, amt))
-            async def _save_bill(b=bid, amt=0):
-                r = await _api("bills")["update"](self.email, b, {"Amount": amt})
-                if "error" in (r or {}): logger.error("save_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
-                self._snack("Updated"); await refresh()
-
-            def do_pay_click(e, b=bid, tf=ef_total, p=paid, ns=""):
-                try:
-                    amt = float(tf.value or 0) - p
-                    if amt <= 0: self._snack("Already paid", False); return
-                except ValueError:
-                    self._snack("Invalid amount", False); return
-                asyncio.create_task(_confirm_pay(b, amt, ns))
+                    asyncio.create_task(_pay_bill(b, amt))
+            async def _pay_bill(b=bid, amt=0):
+                r = await _api("bills")["pay"](self.email, b, amt, "Cash")
+                if "error" in (r or {}): logger.error("pay_bill %s: %s", b, r["error"]); self._snack(r["error"], False); return
+                self._snack(f"PKR {amt:.0f} paid"); await refresh()
 
             def do_undo_click(e, b=bid, ns=""):
                 _confirm_undo(b, ns)
@@ -2574,18 +2572,15 @@ class AdminPage:
             name = b.get("First_Name", "")
             name_str = f" \u2022 {name}" if name else ""
             actions = [
-                self._icon_btn(ft.Icons.SAVE_ROUNDED, self._clr("accent"), "Save", do_save),
+                self._icon_btn(ft.Icons.PAYMENTS_ROUNDED, self._clr("success"), "Record Payment", do_record_payment),
             ]
             if status == "Paid":
                 actions.append(
                     self._icon_btn(ft.Icons.UNDO_ROUNDED, self._clr("warn"), "Undo Payment", do_undo_click),
                 )
             elif status == "Cancelled":
-                pass
+                actions = []
             else:
-                actions.append(
-                    self._icon_btn(ft.Icons.CHECK_CIRCLE_ROUNDED, self._clr("success"), "Mark Paid", do_pay_click),
-                )
                 actions.append(
                     self._icon_btn(ft.Icons.DELETE_FOREVER_ROUNDED, self._clr("danger"), "Cancel Bill", do_cancel_click),
                 )
@@ -2595,8 +2590,10 @@ class AdminPage:
                             color=self._clr("text"), font_family="DM Sans"),
                     ft.Row([
                         ft.Text("Amount:", size=11, color=self._clr("sub"), font_family="DM Sans"),
-                        ef_total,
-                    ], spacing=6),
+                        ft.Text(f"PKR {total:.0f}", size=13, weight="bold",
+                                color=self._clr("text"), font_family="DM Sans"),
+                        ef_paid,
+                    ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     ft.Text(f"Paid: PKR {paid:.0f} \u2022 Due: PKR {outstanding:.0f}",
                             size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),

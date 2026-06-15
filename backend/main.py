@@ -247,7 +247,7 @@ def get_weekly_menu(user_id: int = None, db=Depends(get_db)):
 
 @app.get("/admin/students/all")
 def get_all_students(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
-    return UserDAO(db).get_all_users()
+    return UserDAO(db).get_all_students_only()
 
 
 @app.get("/admin/staff/all")

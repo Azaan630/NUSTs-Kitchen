@@ -23,6 +23,9 @@ class UserDAO(BaseDAO):
     def get_all_users(self):
         return self._fetchall("SELECT * FROM Users")
 
+    def get_all_students_only(self):
+        return self._fetchall("SELECT * FROM Users WHERE Account_Type = 'Student'")
+
     def get_staff_details(self, user_id):
         return self._fetchall(getStaffDetails, (user_id,))
 
