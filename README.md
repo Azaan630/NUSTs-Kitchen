@@ -171,34 +171,6 @@ A full-stack, role-based mess management platform purpose-built for NUST hostels
 | `OAUTH_REDIRECT_URL` | OAuth callback URL |
 
 ---
-
-## 🚀 Deployment
-
-1. **Set env vars** on both Railway services (see above)
-2. **Run schema**: `python run_init.py` (or `db/init.sql` manually)
-3. **Run migrations**: `db/migration.sql`
-4. **Seed data**: Run `db/seed.sql` in MySQL Workbench
-5. **Deploy**: Push to Railway — both services auto-deploy
-
-### Email Setup
-1. Sign up at [resend.com](https://resend.com)
-2. Create API key
-3. Set `RESEND_API_KEY` env var
-4. Verify your sending domain
-
-### Userback Feedback (Optional)
-Add the following script to your HTML head (requires custom Flet template):
-```html
-<script>
-  window.Userback = window.Userback || {};
-  Userback.access_token = "YOUR_TOKEN";
-  (function(d) {
-    var s = d.createElement('script');
-    s.async = true;
-    s.src = 'https://static.userback.io/widget/v1.js';
-    (d.head || d.body).appendChild(s);
-  })(document);
-</script>
 ```
 
 ---
