@@ -137,7 +137,7 @@ class StaffPage:
             alignment=ft.Alignment(0, 0),
         )
 
-    def _show_food_detail(self, item):
+    async def _show_food_detail(self, item):
         t = self.theme
         sub = t.get("sub")
         txt = t.get("text")
@@ -174,11 +174,11 @@ class StaffPage:
             if self.is_guest:
                 recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
             else:
-                import asyncio
                 try:
-                    r = asyncio.run(_req("/recipes", {"email": self.email}))
-                    recipes = [r for r in (r if isinstance(r, list) else []) if r.get("Item_ID") == iid]
-                except: pass
+                    r_data = await _req("/recipes", {"email": self.email})
+                    recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
+                except Exception:
+                    pass
             if recipes:
                 rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
                 rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))

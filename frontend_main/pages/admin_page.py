@@ -418,7 +418,7 @@ class AdminPage:
             alignment=ft.Alignment(0, 0),
         )
 
-    def _show_food_detail(self, item):
+    async def _show_food_detail(self, item):
         t = self.theme
         sub = t.get("sub")
         txt = t.get("text")
@@ -462,18 +462,16 @@ class AdminPage:
                 recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
             else:
                 try:
-                    r = _ensure_list(_req("GET", "/recipes", {"email": self.email}))
-                    recipes = [r for r in r if r.get("Item_ID") == iid]
-                except:
+                    r_data = await _req("GET", "/recipes", {"email": self.email})
+                    recipes = [r for r in _ensure_list(r_data) if r.get("Item_ID") == iid]
+                except Exception:
                     pass
             if recipes:
-                ing_names = []
-                for r in recipes[:6]:
-                    ing_names.append(f"{r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})")
                 rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
                 rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
-                for ing in ing_names:
-                    rows.append(ft.Text(f"\u2022 {ing}", size=12, color=sub, font_family="DM Sans"))
+                for r in recipes[:6]:
+                    rows.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
+                                        size=12, color=sub, font_family="DM Sans"))
 
         max_h = (self.page.height or 700) * 0.85
         card = ft.Container(

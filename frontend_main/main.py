@@ -328,37 +328,44 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         ("Admin Dashboard",     ft.Icons.DASHBOARD_ROUNDED,          "Bar, line & pie charts\nwith real-time stats"),
     ]
 
-    feature_grid = ft.ResponsiveRow(spacing=12, run_spacing=12)
+    feature_grid = ft.Column(spacing=12)
+    feature_cards = []
     for idx, (title_, icon_, desc_) in enumerate(features):
         clr = icon_colors[idx % len(icon_colors)]
-        feature_grid.controls.append(
-            ft.Container(
-                content=ft.Column([
-                    ft.Container(
-                        ft.Icon(icon_, size=20, color=clr),
-                        width=44, height=44, border_radius=12,
-                        bgcolor=ft.Colors.with_opacity(0.10, clr),
-                        alignment=ft.Alignment(0, 0),
-                    ),
-                    ft.Container(height=12),
-                    ft.Text(title_, size=13, weight="bold", color=txt,
-                            font_family="DM Sans", text_align=ft.TextAlign.CENTER),
-                    ft.Text(desc_, size=11, color=sub, font_family="DM Sans",
-                            text_align=ft.TextAlign.CENTER),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
-                bgcolor=ft.Colors.with_opacity(0.04 if d else 0.5, t["card"]),
-                border_radius=16, padding=ft.Padding.all(20),
-                border=ft.Border(
-                    top=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                    left=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                    right=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                    bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+        card = ft.Container(
+            content=ft.Column([
+                ft.Container(
+                    ft.Icon(icon_, size=22, color=clr),
+                    width=48, height=48, border_radius=14,
+                    bgcolor=ft.Colors.with_opacity(0.10, clr),
+                    alignment=ft.Alignment(0, 0),
                 ),
-                shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.04, "#000"),
-                                    offset=ft.Offset(0, 2)),
-                col={"sm": 6, "md": 4},
-            )
+                ft.Container(height=12),
+                ft.Text(title_, size=13, weight="bold", color=txt,
+                        font_family="DM Sans"),
+                ft.Text(desc_.replace("\n", " "), size=11, color=sub,
+                        font_family="DM Sans"),
+            ], spacing=0),
+            bgcolor=ft.Colors.with_opacity(0.04 if d else 0.5, t["card"]),
+            border_radius=16, padding=ft.Padding.all(18),
+            border=ft.Border(
+                top=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                left=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                right=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+            ),
+            shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(0.03, "#000"),
+                                offset=ft.Offset(0, 2)),
+            width=200,
         )
+        feature_cards.append(card)
+
+    if m:
+        feature_grid.controls.extend(feature_cards)
+    else:
+        for i in range(0, len(feature_cards), 3):
+            chunk = feature_cards[i:i+3]
+            feature_grid.controls.append(ft.Row(chunk, spacing=12, alignment=ft.MainAxisAlignment.CENTER))
 
     detail_visible = [False]
     detail_ref = [None]

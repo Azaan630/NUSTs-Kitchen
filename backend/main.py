@@ -280,7 +280,7 @@ def get_student_details(UserID: int, user=Depends(permission_checker(["Admin"]))
 
 
 @app.get("/admin/food/costs")
-def get_food_costs(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def get_food_costs(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return FoodDAO(db).get_all_food_costs()
 
 
@@ -320,7 +320,7 @@ def get_my_bill_history(user=Depends(permission_checker(["Admin", "Student"])), 
 
 
 @app.get("/analytics/ingredients")
-def get_ingredients(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def get_ingredients(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return FoodDAO(db).get_ingredients()
 
 
@@ -503,7 +503,7 @@ def generate_pdf(BillingID: int, db=Depends(get_db), user=Depends(permission_che
 # ── Food Items ─────────────────────────────────────────────────
 
 @app.get("/admin/food-items/all")
-def get_all_food_items(user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def get_all_food_items(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return FoodDAO(db).get_all_food_items()
 
 
