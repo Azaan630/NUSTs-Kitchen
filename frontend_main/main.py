@@ -316,191 +316,75 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
     )
 
     # ── About / Developer section ──
-    # ── Feature bento grid ──
-    icon_colors = ["#6366F1", "#10B981", "#F59E0B", "#EC4899", "#3B82F6", "#8B5CF6"]
-    features = [
-        ("Menu & Scheduling",   ft.Icons.RESTAURANT_MENU_ROUNDED,    "7-day meal planning with\ndrag-drop scheduling"),
-        ("Billing & Payments",  ft.Icons.RECEIPT_LONG_ROUNDED,       "Auto-generated monthly bills\nwith payment tracking"),
-        ("Ingredient Tracker",  ft.Icons.INVENTORY_ROUNDED,          "Real-time stock, low-stock\nalerts & cost profiling"),
-        ("Voting & Ratings",    ft.Icons.HOW_TO_VOTE_ROUNDED,        "Student polls and 5-star\nratings with analytics"),
-        ("Mess-Off Manager",    ft.Icons.EVENT_BUSY_ROUNDED,         "Approve/reject requests\nwith day-limit guardrails"),
-        ("Admin Dashboard",     ft.Icons.DASHBOARD_ROUNDED,          "Bar, line & pie charts\nwith real-time stats"),
-    ]
-
-    feature_grid = ft.Column(spacing=12)
-    feature_cards = []
-    for idx, (title_, icon_, desc_) in enumerate(features):
-        clr = icon_colors[idx % len(icon_colors)]
-        card = ft.Container(
-            content=ft.Column([
-                ft.Container(
-                    ft.Icon(icon_, size=22, color=clr),
-                    width=48, height=48, border_radius=14,
-                    bgcolor=ft.Colors.with_opacity(0.10, clr),
-                    alignment=ft.Alignment(0, 0),
-                ),
-                ft.Container(height=12),
-                ft.Text(title_, size=13, weight="bold", color=txt,
-                        font_family="DM Sans"),
-                ft.Text(desc_.replace("\n", " "), size=11, color=sub,
-                        font_family="DM Sans"),
-            ], spacing=0),
-            bgcolor=ft.Colors.with_opacity(0.04 if d else 0.5, t["card"]),
-            border_radius=16, padding=ft.Padding.all(18),
-            border=ft.Border(
-                top=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                left=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                right=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-                bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
-            ),
-            shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(0.03, "#000"),
-                                offset=ft.Offset(0, 2)),
-            width=200,
-        )
-        feature_cards.append(card)
-
-    if m:
-        feature_grid.controls.extend(feature_cards)
-    else:
-        for i in range(0, len(feature_cards), 3):
-            chunk = feature_cards[i:i+3]
-            feature_grid.controls.append(ft.Row(chunk, spacing=12, alignment=ft.MainAxisAlignment.CENTER))
-
-    detail_visible = [False]
-    detail_ref = [None]
-
-    def toggle_detail(e):
-        detail_visible[0] = not detail_visible[0]
-        if detail_ref[0]:
-            detail_ref[0].visible = detail_visible[0]
-            detail_ref[0].animate_opacity = ft.Animation(400, ft.AnimationCurve.EASE_OUT)
-            detail_ref[0].opacity = 1.0 if detail_visible[0] else 0.0
-            detail_ref[0].update()
-
-    detail_content = ft.Column([
-        ft.Container(height=16),
-        ft.Text("Why NUST's Kitchen?", size=17, weight="bold",
-                color=acc, font_family="DM Sans"),
-        ft.Container(height=12),
-        ft.Text(
-            "Managing hostel mess operations is complex — from daily menu planning to "
-            "billing hundreds of students, tracking ingredient inventory, and collecting "
-            "feedback. NUST's Kitchen centralises everything into one elegant platform.\n\n"
-            "Built with FastAPI + MySQL on the backend and Flet on the frontend, it supports "
-            "role-based dashboards for Admins, Staff, and Students — with real-time analytics, "
-            "Google OAuth, and a polished dark/light theme.",
-            size=13 if m else 14, color=sub, font_family="DM Sans",
-        ),
-        ft.Container(height=16),
-        ft.Row([
-            ft.Container(
-                ft.Text("FastAPI", size=10, color=acc, font_family="DM Sans", weight="bold"),
-                bgcolor=ft.Colors.with_opacity(0.1, acc), border_radius=6,
-                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            ),
-            ft.Container(
-                ft.Text("MySQL", size=10, color=txt, font_family="DM Sans", weight="bold"),
-                bgcolor=ft.Colors.with_opacity(0.08, txt), border_radius=6,
-                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            ),
-            ft.Container(
-                ft.Text("Flet", size=10, color="#10B981", font_family="DM Sans", weight="bold"),
-                bgcolor=ft.Colors.with_opacity(0.12, "#10B981"), border_radius=6,
-                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            ),
-            ft.Container(
-                ft.Text("Railway", size=10, color="#8B5CF6", font_family="DM Sans", weight="bold"),
-                bgcolor=ft.Colors.with_opacity(0.12, "#8B5CF6"), border_radius=6,
-                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            ),
-        ], spacing=8, wrap=True, run_spacing=6),
-    ], visible=False, opacity=0)
-    detail_ref[0] = detail_content
-
-    # ── Holographic card ──
-    holo_gradient = ft.LinearGradient(
-        begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1),
-        colors=["rgba(99,102,241,0.06)", "rgba(168,85,247,0.04)", "rgba(59,130,246,0.06)",
-                "rgba(16,185,129,0.04)", "rgba(245,158,11,0.03)"],
-    )
-
-    holo_card = ft.Container(
+    # ── Feature highlights (simple cards) ──
+    about_section = ft.Container(
         content=ft.Column([
-            ft.Container(height=36 if m else 48),
-            # ── Gradient accent bar ──
-            ft.Container(
-                width=100, height=3, border_radius=2,
-                bgcolor=ft.LinearGradient(
-                    begin=ft.Alignment(-1, 0), end=ft.Alignment(1, 0),
-                    colors=["#6366F1", "#8B5CF6", "#EC4899"],
-                ),
-            ),
-            ft.Container(height=20 if m else 24),
-            # ── Title ──
-            ft.Text("Smart Mess Management", size=24 if m else 32, weight="bold",
+            ft.Container(height=56 if m else 72),
+            ft.Container(width=60, height=4, border_radius=2, bgcolor=acc),
+            ft.Container(height=16),
+            ft.Text("Everything you need", size=22 if m else 28, weight="bold",
                     font_family="Playfair", color=txt),
             ft.Container(height=8),
-            ft.Text(
-                "One platform for menu planning, billing, inventory, voting, and analytics — "
-                "purpose-built for NUST hostels.",
-                size=13 if m else 15, color=sub, font_family="DM Sans",
-                text_align=ft.TextAlign.CENTER, width=int(page_w * 0.70) if int(page_w * 0.70) < 500 else 500,
-            ),
-            ft.Container(height=32 if m else 40),
-            # ── Bento feature grid ──
-            ft.Container(
-                content=feature_grid,
-                width=int(page_w * 0.92) if int(page_w * 0.92) < 680 else 680,
-            ),
-            ft.Container(height=28 if m else 36),
-            # ── Tap to expand ──
+            ft.Text("One platform for menu planning, billing, inventory, voting, and analytics.",
+                    size=13 if m else 15, color=sub, font_family="DM Sans",
+                    text_align=ft.TextAlign.CENTER),
+            ft.Container(height=36 if m else 48),
+            ft.Row([
+                ft.Container(
+                    ft.Column([
+                        ft.Icon(ft.Icons.RESTAURANT_MENU_ROUNDED, size=32, color="#3B82F6"),
+                        ft.Container(height=12),
+                        ft.Text("Smart Menus", size=15, weight="bold", color=txt, font_family="DM Sans"),
+                        ft.Container(height=4),
+                        ft.Text("7-day planning with meal-type grouping and drag-drop scheduling",
+                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=180, padding=ft.Padding.all(20),
+                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
+                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
+                ),
+                ft.Container(width=16),
+                ft.Container(
+                    ft.Column([
+                        ft.Icon(ft.Icons.ANALYTICS_ROUNDED, size=32, color="#10B981"),
+                        ft.Container(height=12),
+                        ft.Text("Analytics", size=15, weight="bold", color=txt, font_family="DM Sans"),
+                        ft.Container(height=4),
+                        ft.Text("Bar, line & pie charts with live stats and real-time trend tracking",
+                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=180, padding=ft.Padding.all(20),
+                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
+                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
+                ),
+                ft.Container(width=16),
+                ft.Container(
+                    ft.Column([
+                        ft.Icon(ft.Icons.SHIELD_ROUNDED, size=32, color="#8B5CF6"),
+                        ft.Container(height=12),
+                        ft.Text("Role-Based", size=15, weight="bold", color=txt, font_family="DM Sans"),
+                        ft.Container(height=4),
+                        ft.Text("Admin, Staff & Student dashboards with Google OAuth security",
+                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=180, padding=ft.Padding.all(20),
+                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
+                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER, wrap=True, run_spacing=16),
+            ft.Container(height=40 if m else 56),
             ft.Container(
                 content=ft.Row([
-                    ft.Text("Tap to learn more" if not detail_visible[0] else "Show less",
-                            size=12, color=acc, font_family="DM Sans", weight="bold"),
-                    ft.Icon(
-                        ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED if not detail_visible[0] else ft.Icons.KEYBOARD_ARROW_UP_ROUNDED,
-                        size=16, color=acc,
-                    ),
-                ], spacing=4),
-                on_click=toggle_detail,
-                ink=True, border_radius=8,
-                padding=ft.Padding.symmetric(horizontal=16, vertical=10),
-                bgcolor=ft.Colors.with_opacity(0.06, acc),
-            ),
-            ft.Container(height=8),
-            detail_content,
-            ft.Container(height=28 if m else 36),
-            # ── From NUST tagline ──
-            ft.Container(
-                content=ft.Row([
-                    ft.Container(width=24, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
-                    ft.Text("From NUST, for NUST", size=11, color=ft.Colors.with_opacity(0.5, acc),
+                    ft.Container(width=20, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
+                    ft.Text("From NUST, for NUST", size=12, color=ft.Colors.with_opacity(0.5, acc),
                             font_family="Playfair", italic=True),
-                    ft.Container(width=24, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
-                ], spacing=12, alignment=ft.MainAxisAlignment.CENTER),
-                padding=ft.Padding.symmetric(vertical=8),
+                    ft.Container(width=20, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
+                ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
             ),
             ft.Container(height=48 if m else 64),
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        gradient=holo_gradient,
-        padding=ft.Padding.symmetric(horizontal=20 if m else 40),
-        border_radius=24,
-        border=ft.Border(
-            top=ft.BorderSide(1, ft.Colors.with_opacity(0.10, "#6366F1")),
-            left=ft.BorderSide(1, ft.Colors.with_opacity(0.10, "#8B5CF6")),
-            right=ft.BorderSide(1, ft.Colors.with_opacity(0.10, "#EC4899")),
-            bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.10, "#10B981")),
-        ),
-        shadow=ft.BoxShadow(blur_radius=80, color=ft.Colors.with_opacity(0.06, "#6366F1"),
-                            spread_radius=0, offset=ft.Offset(0, 12)),
-        margin=ft.Margin.only(left=16, right=16),
-    )
-
-    about_section = ft.Container(
-        content=holo_card,
         bgcolor=t["bg"] if d else "#F8FAFC",
-        padding=ft.Padding.symmetric(horizontal=16, vertical=32 if m else 48),
+        padding=ft.Padding.symmetric(horizontal=16),
     )
 
     page_column = ft.Column([

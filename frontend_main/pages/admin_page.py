@@ -2825,6 +2825,15 @@ class AdminPage:
         ref.content = self._loading(); self.page.update()
         items = mock_data.get_weekly_menu() if self.is_guest else (await _api("menu")["weekly"](self.email)) or []
 
+        food_map = {}
+        if self.is_guest:
+            for f in mock_data.get_food_costs():
+                food_map[f.get("Item_ID")] = f
+        else:
+            food_list = _ensure_list(await _api("analytics")["food_costs"](self.email))
+            for f in food_list:
+                food_map[f.get("Item_ID")] = f
+
         m_colors = {"Breakfast": self._clr("warn"), "Lunch": self._clr("success"), "Dinner": self._clr("accent2")}
         rows = []
         for item in items:
@@ -2834,6 +2843,8 @@ class AdminPage:
             mt = item.get("meal_type", "")
             d = item.get("Date", "")
             mc = m_colors.get(mt, self._clr("accent"))
+            food_info = food_map.get(iid, {})
+            enriched = {**item, "Image_Path": food_info.get("Image_Path", ""), "Price": food_info.get("Price", 0)}
             def do_del(e, i=iid, s=sid):
                 if self.is_guest:
                     mock_data.delete_menu_item(i, s)
@@ -2847,6 +2858,12 @@ class AdminPage:
                 self._snack("Removed"); await self._render_menu(ref)
             rows.append(self._row_card([
                 ft.Container(
+                    ft.Image(src=self._img_url(food_info.get("Image_Path", "")),
+                             width=36, height=36, fit="cover", border_radius=8,
+                             error_content=ft.Icon(ft.Icons.FASTFOOD_ROUNDED, size=18, color=self._clr("sub"))),
+                    width=36, height=36, border_radius=8,
+                ),
+                ft.Container(
                     content=ft.Text(mt[:1], size=12, weight="bold", color=mc),
                     width=30, height=30, bgcolor=ft.Colors.with_opacity(0.12, mc),
                     border_radius=8, alignment=ft.Alignment(0, 0),
@@ -2856,7 +2873,7 @@ class AdminPage:
                     ft.Text(f"{d} \u2022 {mt}", size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
                 self._icon_btn(ft.Icons.REMOVE_CIRCLE_ROUNDED, self._clr("danger"), "Remove", do_del),
-            ]))
+            ], on_click=lambda e, it=enriched: asyncio.create_task(self._show_food_detail(it))))
 
         # ── add menu form ──────────────────────────────────────
         add_m_date = ft.TextField(

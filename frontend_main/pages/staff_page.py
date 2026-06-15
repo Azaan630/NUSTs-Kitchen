@@ -14,22 +14,32 @@ BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 from .api_client import get_headers as _api_headers
 
 
-async def _req(endpoint, params=None):
+async def _req(endpoint, params=None, method="GET", json_data=None):
     async with httpx.AsyncClient() as client:
         try:
             headers = _api_headers()
             url = f"{BASE_URL}{endpoint}"
-            logger.info("GET %s params=%s", url, params)
-            r = await client.get(url, params=params, headers=headers, timeout=10)
+            kw = dict(params=params, headers=headers, timeout=10.0)
+            logger.info("%s %s params=%s body=%s", method, url, params, json_data)
+            if method == "GET":
+                r = await client.get(url, **kw)
+            elif method == "POST":
+                r = await client.post(url, json=json_data, **kw)
+            elif method == "PATCH":
+                r = await client.patch(url, json=json_data, **kw)
+            elif method == "DELETE":
+                r = await client.delete(url, **kw)
+            else:
+                return {"error": f"Unknown method: {method}"}
             r.raise_for_status()
             data = r.json() if r.status_code != 204 else {}
-            logger.info("GET %s -> %s records", url, len(data) if isinstance(data, list) else type(data).__name__)
+            logger.info("%s %s -> %s records", method, url, len(data) if isinstance(data, list) else type(data).__name__)
             return data
         except httpx.HTTPStatusError as e:
             try: d = e.response.json().get("detail", e.response.text)
             except Exception: d = e.response.text
             msg = f"({e.response.status_code}) {d}"
-            logger.error("REQ ERR %s -> %s", url, msg)
+            logger.error("REQ ERR %s %s -> %s", method, url, msg)
             return {"error": msg}
         except Exception as ex:
             logger.error("REQ EXC %s: %s", endpoint, ex)
@@ -726,7 +736,7 @@ class StaffPage:
                         "Ingredient_Quantity": qty, "Ingredient_Stock": sel_ing.get("Total_Quantity", 0)})
                 else:
                     ep = f"/admin/add-recipe/{item_id}/{ing_id}/{qty}"
-                    r = await _req("POST", ep, {"email": self.email})
+                    r = await _req(ep, {"email": self.email}, "POST")
                     if isinstance(r, dict) and "error" in r:
                         status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
                 build_ing_rows()
@@ -807,7 +817,7 @@ class StaffPage:
                         ing["Ingredient_Quantity"] = qty; break
             else:
                 ep = f"/admin/recipe/update/{item_id}/{ing_id}"
-                r = await _req("PATCH", ep, {"email": self.email}, {"Ingredient_Quantity": qty})
+                r = await _req(ep, {"email": self.email}, "PATCH", {"Ingredient_Quantity": qty})
                 if isinstance(r, dict) and "error" in r:
                     status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
             rebuild()
@@ -834,7 +844,7 @@ class StaffPage:
                 g["ingredients"] = [ing for ing in g["ingredients"] if ing.get("Ingredient_ID") != ing_id]
             else:
                 ep = f"/admin/recipe/{item_id}/{ing_id}"
-                r = await _req("DELETE", ep, {"email": self.email})
+                r = await _req(ep, {"email": self.email}, "DELETE")
                 if isinstance(r, dict) and "error" in r:
                     status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
             rebuild()
