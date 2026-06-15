@@ -325,12 +325,12 @@ def get_ingredients(user=Depends(permission_checker(["Admin", "Staff"])), db=Dep
 
 
 @app.get("/recipes")
-def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def get_recipes(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return FoodDAO(db).get_recipes()
 
 
 @app.get("/recipes/detailed")
-def get_recipes_detailed(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+def get_recipes_detailed(user=Depends(permission_checker(["Admin", "Staff", "Student"])), db=Depends(get_db)):
     return FoodDAO(db).get_recipes_detailed()
 
 
@@ -544,18 +544,18 @@ def delete_ingredient(IngredientID: int, user=Depends(permission_checker(["Admin
 # ── Recipes ────────────────────────────────────────────────────
 
 @app.post("/admin/add-recipe/{ItemID}/{IngredientID}/{IngredientQuantity}")
-def add_recipe(IngredientQuantity: float, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def add_recipe(IngredientQuantity: float, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     cursor = FoodDAO(db).add_recipe(ItemID, IngredientID, IngredientQuantity)
     return {"message": "Recipe added", "id": cursor.lastrowid}
 
 
 @app.patch("/admin/recipe/update/{ItemID}/{IngredientID}")
-def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def update_recipe(data: models.FoodItemIngredient, ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     return FoodDAO(db).update_recipe_ingredient(ItemID, IngredientID, data)
 
 
 @app.delete("/admin/recipe/{ItemID}/{IngredientID}")
-def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin"])), db=Depends(get_db)):
+def delete_recipe(ItemID: int, IngredientID: int, user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
     return FoodDAO(db).delete_recipe(ItemID, IngredientID)
 
 

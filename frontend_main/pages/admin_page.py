@@ -148,6 +148,7 @@ class AdminPage:
         ("Polls",     ft.Icons.POLL_ROUNDED),
         ("Requests",  ft.Icons.PERSON_ADD_ALT_1_ROUNDED),
         ("Staff Types", ft.Icons.WORKSPACE_PREMIUM_ROUNDED),
+        ("Recipes",     ft.Icons.BOOK_ROUNDED),
     ]
 
     PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
@@ -166,6 +167,7 @@ class AdminPage:
         self.content.content = self._loading()
         self.proxy_rows = {}
         self._pending_image_target = None
+        self._recipe_dlg = None
 
 
     # ── helpers ─────────────────────────────────────────────────
@@ -815,8 +817,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=10, color=self._clr("text"),
-                                                  font_family="DM Sans", no_wrap=True))
+                                                   font_family="DM Sans", no_wrap=True))
                         for i, n in enumerate(names)],
                 show_labels=True, label_size=120,
             ),
@@ -858,8 +861,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
                 show_labels=True, label_size=90,
             ),
@@ -900,8 +904,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
                 show_labels=True, label_size=90,
             ),
@@ -943,8 +948,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
                 show_labels=True, label_size=90,
             ),
@@ -1044,9 +1050,10 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[
                     ChartAxisLabel(i, ft.Text(m, size=11, color=self._clr("text"),
-                                              font_family="DM Sans"))
+                                               font_family="DM Sans"))
                     for i, m in enumerate(month_labels)
                 ],
                 show_labels=True, label_size=60,
@@ -1096,8 +1103,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(d, size=10, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                                                   font_family="DM Sans"))
                         for i, d in enumerate(date_labels)],
                 show_labels=True, label_size=75,
             ),
@@ -1140,8 +1148,9 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
+                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
-                                                  font_family="DM Sans"))
+                                                   font_family="DM Sans"))
                         for i, n in enumerate(names)],
                 show_labels=True, label_size=90,
             ),
@@ -1736,15 +1745,13 @@ class AdminPage:
             data = {"Name": v_name, "Price": v_price, "Quantity": v_qty}
             if _pending_food_img[0]:
                 data["Image_Path"] = _pending_food_img[0]
+
+            created_id = None
             if self.is_guest:
                 created = mock_data.create_food(data)
-                if _pending_food_img[0]:
-                    nid = created.get("Item_ID")
-                    if nid is not None:
-                        mock_data.update_food(nid, {"Image_Path": _pending_food_img[0]})
-                self._snack("Created")
-                _pending_food_img[0] = None
-                await refresh()
+                created_id = created.get("Item_ID")
+                if _pending_food_img[0] and created_id:
+                    mock_data.update_food(created_id, {"Image_Path": _pending_food_img[0]})
             else:
                 r = await _api("food")["create"](self.email, data)
                 if "error" in (r or {}): logger.error("create_food: %s", r["error"]); self._snack(r["error"], False); return
@@ -1754,8 +1761,82 @@ class AdminPage:
                     img_result = await _req("PATCH", ep, {"email": self.email}, {"Image_Path": _pending_food_img[0]})
                     if isinstance(img_result, dict) and "error" in img_result:
                         logger.error("set food image after create: %s", img_result["error"])
-                _pending_food_img[0] = None
-                self._snack("Created"); await refresh()
+
+            _pending_food_img[0] = None
+            add_f_name.value = add_f_price.value = add_f_qty.value = ""
+            add_f_form.visible = False
+            self._snack("Created")
+            await refresh()
+
+            if created_id:
+                await _show_ingredient_selector(created_id, v_name)
+
+        async def _show_ingredient_selector(food_id, food_name):
+            ings = mock_data.get_ingredients() if self.is_guest else (await _req("/analytics/ingredients", {"email": self.email})) or []
+            ing_rows = []
+            qty_fields = {}
+            for ing in (ings if isinstance(ings, list) else []):
+                iid = ing.get("Ingredient_ID")
+                tf = ft.TextField(hint_text="Qty", dense=True, width=70,
+                    text_align=ft.TextAlign.CENTER,
+                    border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=6,
+                    text_style=ft.TextStyle(size=12, color=self._clr("text"), font_family="DM Sans"),
+                    filled=True, fill_color=self._clr("card"))
+                qty_fields[iid] = tf
+                ing_rows.append(ft.Container(
+                    ft.Row([
+                        ft.Container(
+                            ft.Image(src=ing.get("Image_Path", ""),
+                                     width=32, height=32, fit="cover", border_radius=6,
+                                     error_content=ft.Icon(ft.Icons.RESTAURANT, size=16, color=self._clr("sub"))),
+                            width=32, height=32, border_radius=6,
+                        ),
+                        ft.Text(ing.get("Name", ""), size=12, font_family="DM Sans",
+                                color=self._clr("text"), expand=True),
+                        ft.Text(ing.get("Unit", ""), size=11, color=self._clr("sub"),
+                                font_family="DM Sans"),
+                        tf,
+                    ], spacing=8),
+                    padding=ft.Padding.symmetric(vertical=6),
+                ))
+
+            async def save_ingredients(e):
+                for iid, tf in qty_fields.items():
+                    val = (tf.value or "").strip()
+                    if not val: continue
+                    try:
+                        qty = float(val)
+                        if qty <= 0: continue
+                    except ValueError: continue
+                    if self.is_guest:
+                        pass
+                    else:
+                        ep = f"/admin/add-recipe/{food_id}/{iid}/{qty}"
+                        r = await _req("POST", ep, {"email": self.email})
+                        if isinstance(r, dict) and "error" in r:
+                            logger.error("add recipe: %s", r["error"])
+                self.page.close(ing_dlg)
+                await refresh()
+
+            ing_dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text(f"Add Ingredients to {food_name}", size=16, weight="bold",
+                              color=self._clr("text"), font_family="DM Sans"),
+                content=ft.Column([
+                    ft.Text("Enter quantities for ingredients:", size=12,
+                            color=self._clr("sub"), font_family="DM Sans"),
+                    ft.Container(height=8),
+                    ft.Column(ing_rows, scroll=ft.ScrollMode.ADAPTIVE, height=350),
+                ], spacing=4, width=440),
+                actions=[
+                    ft.TextButton("Skip", on_click=lambda e: self.page.close(ing_dlg)),
+                    ft.FilledButton("Save Ingredients",
+                        style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                        on_click=lambda e: asyncio.create_task(save_ingredients(e))),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.open(ing_dlg)
 
         header = ft.Container(
             ft.Row([
@@ -3091,6 +3172,276 @@ class AdminPage:
         self.page.update()
 
     # ════════════════════════════════════════════════════════════
+    #  TAB 12 — RECIPES
+    # ════════════════════════════════════════════════════════════
+
+    async def _render_recipes(self, ref):
+        ref.content = self._loading(); self.page.update()
+        raw = (mock_data.get_recipes_detailed() if self.is_guest
+               else (await _req("GET", "/recipes/detailed", {"email": self.email})) or [])
+
+        grouped = {}
+        for r in (raw if isinstance(raw, list) else []):
+            iid = r.get("Item_ID")
+            grouped.setdefault(iid, {"Item_ID": iid, "Item_Name": r.get("Item_Name", f"Item #{iid}"),
+                                     "Item_Image": r.get("Item_Image", ""), "Price": r.get("Price", 0),
+                                     "Ratings_Average": r.get("Ratings_Average", 0), "ingredients": []})
+            grouped[iid]["ingredients"].append(r)
+
+        rows = ft.Column(spacing=6)
+
+        for g in grouped.values():
+            def make_handler(g_data):
+                async def handler(e):
+                    dlg = self._admin_recipe_popup(g_data)
+                    self._recipe_dlg = dlg
+                    self.page.open(dlg)
+                return handler
+            card = ft.Container(
+                content=ft.Row([
+                    ft.Container(
+                        ft.Image(src=g.get("Item_Image", ""), width=48, height=48,
+                                 fit="cover", border_radius=8,
+                                 error_content=ft.Icon(ft.Icons.RESTAURANT_MENU, size=24, color=self._clr("sub"))),
+                        width=48, height=48, border_radius=8,
+                        shadow=ft.BoxShadow(blur_radius=3, color="#00000020"),
+                    ),
+                    ft.Column([
+                        ft.Text(g["Item_Name"], size=14, weight="bold",
+                                color=self._clr("text"), font_family="DM Sans"),
+                        ft.Text(f"{len(g['ingredients'])} ingredient{'s' if len(g['ingredients']) != 1 else ''}  •  Rs. {g['Price']:.0f}",
+                                size=11, color=self._clr("sub"), font_family="DM Sans"),
+                    ], expand=True, spacing=2),
+                ], spacing=12),
+                bgcolor=self._clr("card"), border_radius=12,
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+                margin=ft.Margin.only(bottom=6),
+                on_click=make_handler(g), ink=True,
+            )
+            rows.controls.append(card)
+
+        ref.content = ft.Column([
+            self._guest_banner(),
+            ft.Text("Recipes", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            ft.Container(height=8),
+            rows if rows.controls else ft.Text("No recipes", color=self._clr("sub")),
+        ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+        self.page.update()
+
+    def _admin_recipe_popup(self, g):
+        item_id = g["Item_ID"]
+        title = ft.Text(g["Item_Name"], size=20, weight="bold", color="#1a1a2e", font_family="DM Sans")
+        status_text = ft.Text("", size=11, color=self._clr("success"), font_family="DM Sans")
+
+        price_rating = ft.Row([
+            ft.Text(f"Price: Rs. {g['Price']:.0f}", size=13, color="#555", font_family="DM Sans"),
+            ft.Text(f"★ {g['Ratings_Average']:.1f}", size=13, color="#e67e22", font_family="DM Sans"),
+        ], spacing=12)
+
+        ing_rows = ft.Column(spacing=6)
+
+        def build_ing_rows():
+            ing_rows.controls.clear()
+            for ing in g["ingredients"]:
+                i_ing_id = ing.get("Ingredient_ID")
+                def make_edit_handler(iid=i_ing_id, ing=ing):
+                    async def h(e):
+                        await self._admin_edit_recipe(g, iid, ing, build_ing_rows, status_text)
+                    return h
+                def make_del_handler(iid=i_ing_id):
+                    async def h(e):
+                        await self._admin_delete_recipe(g, iid, build_ing_rows, status_text)
+                    return h
+                ing_rows.controls.append(
+                    ft.Container(
+                        ft.Row([
+                            ft.Container(
+                                ft.Image(src=ing.get("Ingredient_Image", ""),
+                                         width=36, height=36, fit="cover",
+                                         border_radius=6, error_content=ft.Icon(ft.Icons.RESTAURANT, size=20)),
+                                width=36, height=36, border_radius=6,
+                                shadow=ft.BoxShadow(blur_radius=2, color="#00000020"),
+                            ),
+                            ft.Column([
+                                ft.Text(ing.get("Ingredient_Name", ""), size=13, weight="bold",
+                                        color="#1a1a2e", font_family="DM Sans"),
+                                ft.Text(f"{ing.get('Ingredient_Quantity', 0)} {ing.get('Unit', '')}  "
+                                        f"(Stock: {ing.get('Ingredient_Stock', 0)} {ing.get('Unit', '')})",
+                                        size=11, color="#777", font_family="DM Sans"),
+                            ], spacing=1, expand=True),
+                            ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_size=18, icon_color="#3B82F6",
+                                          on_click=make_edit_handler(i_ing_id, ing)),
+                            ft.IconButton(ft.Icons.DELETE_ROUNDED, icon_size=18, icon_color="#EF4444",
+                                          on_click=make_del_handler(i_ing_id)),
+                        ]),
+                        padding=8, border_radius=8,
+                        bgcolor="#f0f0f5",
+                    )
+                )
+            self.page.update()
+
+        build_ing_rows()
+
+        async def add_ingredient(e):
+            ings_raw = mock_data.get_ingredients() if self.is_guest else (await _req("GET", "/analytics/ingredients", {"email": self.email})) or []
+            ing_items = []
+            qty_field = ft.TextField(hint_text="Qty", dense=True, width=80,
+                text_align=ft.TextAlign.CENTER,
+                border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=6,
+                text_style=ft.TextStyle(size=12, font_family="DM Sans"),
+                filled=True, fill_color="#f0f0f5")
+            sel_dd = ft.Dropdown(dense=True, expand=True, options=[], label="Select Ingredient")
+
+            for ing_ in (ings_raw if isinstance(ings_raw, list) else []):
+                iid_ = ing_.get("Ingredient_ID")
+                nm_ = ing_.get("Name", "")
+                sel_dd.options.append(ft.dropdown.Option(str(iid_), f"{nm_} ({ing_.get('Unit','')})"))
+                ing_items.append(ing_)
+
+            async def save_new():
+                sel_val = sel_dd.value
+                qty_val = (qty_field.value or "").strip()
+                if not sel_val or not qty_val:
+                    status_text.value = "Select ingredient and quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+                try:
+                    qty = float(qty_val)
+                    if qty <= 0: raise ValueError
+                except ValueError:
+                    status_text.value = "Invalid quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+                ing_id = int(sel_val)
+                sel_ing = next((x for x in ing_items if x.get("Ingredient_ID") == ing_id), {})
+                if self.is_guest:
+                    g["ingredients"].append({"Ingredient_ID": ing_id, "Ingredient_Name": sel_ing.get("Name",""),
+                        "Ingredient_Image": sel_ing.get("Image_Path",""), "Unit": sel_ing.get("Unit",""),
+                        "Ingredient_Quantity": qty, "Ingredient_Stock": sel_ing.get("Total_Quantity", 0)})
+                else:
+                    ep = f"/admin/add-recipe/{item_id}/{ing_id}/{qty}"
+                    r = await _req("POST", ep, {"email": self.email})
+                    if isinstance(r, dict) and "error" in r:
+                        status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+                build_ing_rows()
+                status_text.value = "Ingredient added"; status_text.color = self._clr("success")
+                self.page.close(add_dlg)
+
+            add_dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Add Ingredient", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                content=ft.Column([sel_dd, qty_field, ft.Container(height=8)], width=300, tight=True),
+                actions=[
+                    ft.TextButton("Cancel", on_click=lambda e: self.page.close(add_dlg)),
+                    ft.FilledButton("Add", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                                    on_click=lambda e: asyncio.ensure_future(save_new())),
+                ],
+            )
+            self.page.open(add_dlg)
+
+        ing_header_row = ft.Row([
+            ft.Text("Ingredients", size=15, weight="bold", color="#1a1a2e", font_family="DM Sans", expand=True),
+            ft.IconButton(ft.Icons.ADD_CIRCLE_ROUNDED, icon_size=20, icon_color=self._clr("accent"),
+                          tooltip="Add Ingredient", on_click=lambda e: asyncio.ensure_future(add_ingredient(e))),
+        ])
+
+        body = ft.Column([
+            title,
+            ft.Container(height=6),
+            price_rating,
+            ft.Divider(height=16, color="#ddd"),
+            ing_header_row,
+            ft.Container(height=6),
+            status_text,
+            ing_rows,
+        ], spacing=2, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
+        content = ft.Container(
+            ft.Column([
+                ft.Container(
+                    ft.Image(src=g.get("Item_Image", ""), width=None, height=180,
+                             fit="cover", border_radius=ft.border_vertical(12),
+                             error_content=ft.Container(
+                                 ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
+                                 height=180, alignment=ft.alignment.center)),
+                    border_radius=ft.border_vertical(12), clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                ),
+                ft.Container(body, padding=16, expand=True),
+            ], spacing=0, expand=True),
+            width=420, border_radius=12,
+            shadow=ft.BoxShadow(blur_radius=20, color="#00000040"),
+        )
+
+        return ft.AlertDialog(
+            content=content,
+            actions=[ft.TextButton("Close", on_click=lambda e: self.page.close(self._recipe_dlg))],
+            actions_alignment=ft.MainAxisAlignment.END,
+            shape=ft.RoundedRectangleBorder(12),
+        )
+
+    async def _admin_edit_recipe(self, g, ing_id, ing_data, rebuild, status_text):
+        item_id = g["Item_ID"]
+        qty_field = ft.TextField(value=str(ing_data.get("Ingredient_Quantity", 0)), dense=True, width=120,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=6,
+            text_style=ft.TextStyle(size=13, font_family="DM Sans"),
+            filled=True, fill_color="#f0f0f5")
+
+        async def save_edit():
+            val = (qty_field.value or "").strip()
+            try:
+                qty = float(val)
+                if qty <= 0: raise ValueError
+            except ValueError:
+                status_text.value = "Invalid quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+            if self.is_guest:
+                for ing in g["ingredients"]:
+                    if ing.get("Ingredient_ID") == ing_id:
+                        ing["Ingredient_Quantity"] = qty; break
+            else:
+                ep = f"/admin/recipe/update/{item_id}/{ing_id}"
+                r = await _req("PATCH", ep, {"email": self.email}, {"Ingredient_Quantity": qty})
+                if isinstance(r, dict) and "error" in r:
+                    status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+            rebuild()
+            status_text.value = "Updated"; status_text.color = self._clr("success")
+            self.page.close(edit_dlg)
+
+        edit_dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Edit {ing_data.get('Ingredient_Name','')}", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            content=ft.Column([ft.Text("Quantity:", size=12, color=self._clr("sub"), font_family="DM Sans"), qty_field], width=280, tight=True),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: self.page.close(edit_dlg)),
+                ft.FilledButton("Update", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                                on_click=lambda e: asyncio.ensure_future(save_edit())),
+            ],
+        )
+        self.page.open(edit_dlg)
+
+    async def _admin_delete_recipe(self, g, ing_id, rebuild, status_text):
+        item_id = g["Item_ID"]
+
+        async def confirm_delete():
+            if self.is_guest:
+                g["ingredients"] = [ing for ing in g["ingredients"] if ing.get("Ingredient_ID") != ing_id]
+            else:
+                ep = f"/admin/recipe/{item_id}/{ing_id}"
+                r = await _req("DELETE", ep, {"email": self.email})
+                if isinstance(r, dict) and "error" in r:
+                    status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+            rebuild()
+            status_text.value = "Deleted"; status_text.color = self._clr("success")
+            self.page.close(del_dlg)
+
+        del_dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Confirm Delete", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            content=ft.Text("Remove this ingredient from the recipe?", size=13, color=self._clr("sub"), font_family="DM Sans"),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: self.page.close(del_dlg)),
+                ft.FilledButton("Delete", style=ft.ButtonStyle(bgcolor="#EF4444", color="#FFF"),
+                                on_click=lambda e: asyncio.ensure_future(confirm_delete())),
+            ],
+        )
+        self.page.open(del_dlg)
+
+    # ════════════════════════════════════════════════════════════
     #  BUILD
     # ════════════════════════════════════════════════════════════
 
@@ -3109,7 +3460,7 @@ class AdminPage:
         "_render_dashboard", "_render_students", "_render_staff",
         "_render_food", "_render_ingredients", "_render_mess_off",
         "_render_bills", "_render_menu", "_render_polls",
-        "_render_requests", "_render_staff_types",
+        "_render_requests", "_render_staff_types", "_render_recipes",
     ]
 
     def build(self):
