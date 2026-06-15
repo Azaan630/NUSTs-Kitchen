@@ -14,6 +14,7 @@ TRUNCATE TABLE Mess_Off;
 TRUNCATE TABLE Menu_Food_Items;
 TRUNCATE TABLE Menu_Schedule;
 TRUNCATE TABLE Food_Item_Ingredients;
+TRUNCATE TABLE Recipe_Steps;
 TRUNCATE TABLE Food_Items;
 TRUNCATE TABLE Ingredients;
 TRUNCATE TABLE Staff_Contact_Numbers;
@@ -164,6 +165,76 @@ INSERT INTO Food_Item_Ingredients (Item_ID, Ingredient_ID, Ingredient_Quantity) 
 (13,18,0.10),(13,12,0.05),(13,4,0.002),
 (14,10,0.25),(14,2,0.30),(14,6,0.08),(14,11,0.04),(14,9,0.01),(14,8,0.01),(14,13,0.005),(14,12,0.05),
 (15,16,0.15),(15,10,0.05),(15,11,0.03),(15,3,0.05);
+
+-- ============================================================================
+-- RECIPE STEPS (cooking process for each food item)
+-- ============================================================================
+INSERT INTO Recipe_Steps (Item_ID, Step_Number, Description) VALUES
+(1,1,'Wash and soak basmati rice for 30 minutes. Parboil with whole spices until 70% done, then drain.'),
+(1,2,'Marinate chicken with yogurt, ginger-garlic paste, red chili powder, turmeric, and salt for 1 hour.'),
+(1,3,'In a heavy pot, fry sliced onions in oil until golden brown. Remove half for garnish.'),
+(1,4,'Add marinated chicken to the pot, cook on high heat for 5 minutes, then layer parboiled rice on top.'),
+(1,5,'Sprinkle saffron milk, fried onions, and mint. Cover tightly and cook on low heat (dum) for 25 minutes.'),
+(2,1,'Wash lentils thoroughly and soak for 20 minutes.'),
+(2,2,'In a pot, heat oil and sauté onions, garlic, and cumin seeds until fragrant.'),
+(2,3,'Add soaked lentils, turmeric, salt, and water. Boil then simmer for 30 minutes until soft.'),
+(2,4,'Prepare tarka: fry garlic slices and red chili in oil until sizzling. Pour over daal and mix.'),
+(3,1,'Bring milk to a gentle boil in a saucepan.'),
+(3,2,'Add tea leaves (or tea bags) and crushed ginger. Simmer for 3-4 minutes.'),
+(3,3,'Add sugar to taste, strain into cups, and serve hot.'),
+(4,1,'Mix wheat flour with water, salt, and a little oil to form a soft dough. Rest for 20 minutes.'),
+(4,2,'Boil potatoes, mash them, and mix with chopped onions, green chili, coriander, and spices.'),
+(4,3,'Divide dough into balls. Roll each ball, place potato filling in center, seal edges, and roll flat.'),
+(4,4,'Cook on a hot griddle with butter on both sides until golden brown spots appear.'),
+(5,1,'Heat oil in a wok. Add chicken pieces and sear on high heat until white on all sides.'),
+(5,2,'Add ginger-garlic paste and stir-fry for 2 minutes until fragrant.'),
+(5,3,'Add chopped tomatoes, red chili powder, turmeric, cumin, and salt. Cook until tomatoes soften and oil separates.'),
+(5,4,'Add yogurt and green chilies. Cover and simmer on low heat for 20 minutes.'),
+(5,5,'Garnish with fresh coriander leaves and sliced ginger. Serve with naan.'),
+(6,1,'Chop all vegetables (potato, carrot, peas, cauliflower) into bite-sized pieces.'),
+(6,2,'Heat oil, add cumin seeds until they crackle, then sauté onions until translucent.'),
+(6,3,'Add ginger-garlic paste, turmeric, red chili powder, and tomatoes. Cook until soft.'),
+(6,4,'Add chopped vegetables, salt, and a splash of water. Cover and simmer for 15 minutes until tender.'),
+(7,1,'Mix wheat flour, water, salt, and a little oil to form a soft dough. Rest for 15 minutes.'),
+(7,2,'Divide dough into equal balls. Roll each into a thin round disc.'),
+(7,3,'Cook on a hot tawa (griddle) until bubbles appear. Flip and cook the other side.'),
+(7,4,'Optional: place directly on flame for a few seconds to puff up. Brush with butter.'),
+(8,1,'Heat oil and sauté sliced onions until deep golden. Add ginger-garlic paste.'),
+(8,2,'Add beef shank pieces, bone marrow bones, and sear until browned on all sides.'),
+(8,3,'Add red chili, turmeric, cumin, coriander powder, and salt. Stir for 2 minutes.'),
+(8,4,'Add enough water to cover the meat. Bring to a boil, then simmer on low heat for 4-6 hours.'),
+(8,5,'Once meat is fall-apart tender, add wheat flour slurry to thicken the gravy. Cook for 10 more minutes.'),
+(9,1,'Wash and soak rice for 30 minutes. Boil until 70% done, drain.'),
+(9,2,'Heat oil and sauté onions until golden. Add chicken pieces, ginger-garlic paste, and spices.'),
+(9,3,'Add yogurt and cook until chicken is half done. Add water and bring to a boil.'),
+(9,4,'Layer parboiled rice over the chicken. Add green chilies and mint. Cover tightly.'),
+(9,5,'Cook on low heat for 20-25 minutes. Fluff with fork before serving.'),
+(10,1,'Crack eggs into a bowl, add salt, black pepper, and a splash of milk. Whisk until frothy.'),
+(10,2,'Heat oil or butter in a non-stick pan. Sauté chopped onions and green chili until soft.'),
+(10,3,'Pour beaten eggs into the pan. Cook on medium heat, lifting edges to let uncooked egg flow under.'),
+(10,4,'Once set, fold in half and serve with paratha or bread.'),
+(11,1,'Wash and soak wheat and lentils overnight. Drain.'),
+(11,2,'In a large pot, heat oil and sauté onions until golden. Add ginger-garlic paste and meat.'),
+(11,3,'Add soaked grains, red chili, turmeric, cumin, coriander powder, and salt. Add water.'),
+(11,4,'Bring to a boil, then simmer on very low heat for 6-8 hours, stirring occasionally.'),
+(11,5,'Once the mixture is thick and smooth, prepare tarka with fried onions and pour over.'),
+(12,1,'Cut chicken into cubes. Marinate with yogurt, ginger-garlic paste, lemon juice, red chili, turmeric, cumin, and salt for 2 hours.'),
+(12,2,'Thread marinated chicken onto skewers. Let excess marinade drip off.'),
+(12,3,'Grill or bake at 200°C for 15-20 minutes, turning once, until charred at edges and cooked through.'),
+(12,4,'Serve with mint chutney, onion rings, and naan.'),
+(13,1,'Peel and dice seasonal fruits (apple, banana, guava, pomegranate) into a bowl.'),
+(13,2,'Add boiled and diced potatoes, chickpeas, and a pinch of chaat masala.'),
+(13,3,'Drizzle with yogurt, tamarind chutney, and green chutney. Toss gently.'),
+(13,4,'Garnish with chopped coriander, sev (crispy noodles), and pomegranate seeds.'),
+(14,1,'Mix flour, salt, yeast (or baking powder), yogurt, and water to form soft dough. Rest for 1 hour.'),
+(14,2,'Cook minced meat (keema) with onions, ginger-garlic paste, green chili, and spices until dry.'),
+(14,3,'Divide dough into balls. Roll each, place meat filling in center, seal edges.'),
+(14,4,'Roll gently into an oval. Stick to the wall of a hot tandoor or bake at 250°C for 8-10 minutes.'),
+(15,1,'Mix milk powder, flour, and baking soda. Add ghee and mix until crumbly.'),
+(15,2,'Add milk gradually and knead into a soft dough. Rest for 10 minutes.'),
+(15,3,'Shape into small smooth balls with no cracks.'),
+(15,4,'Deep fry on very low heat, stirring continuously, until golden brown (about 7-8 minutes).'),
+(15,5,'Soak fried balls in warm sugar syrup flavored with cardamom and rose water for at least 2 hours.');
 
 -- ============================================================================
 -- MENU SCHEDULE (7 days x 3 meals)

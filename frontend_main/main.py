@@ -312,7 +312,6 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                 right=16, top=16,
             ),
         ]),
-        expand=True,
         height=(page.height or 800) if (page.height or 800) > 0 else 800,
     )
 

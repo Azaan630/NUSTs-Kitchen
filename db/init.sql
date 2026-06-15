@@ -66,6 +66,14 @@ CREATE TABLE IF NOT EXISTS Food_Item_Ingredients (
     FOREIGN KEY (Ingredient_ID) REFERENCES Ingredients(Ingredient_ID) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS Recipe_Steps (
+    Step_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    Item_ID     INT NOT NULL,
+    Step_Number INT NOT NULL,
+    Description TEXT NOT NULL,
+    FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS Menu_Schedule (
     Schedule_ID INT PRIMARY KEY AUTO_INCREMENT,
     Date        DATE NOT NULL,
@@ -212,11 +220,14 @@ CREATE OR REPLACE VIEW vw_FoodItemCost AS
 SELECT
     fi.Item_ID,
     fi.Name,
+    fi.Image_Path,
+    fi.Price,
+    fi.Quantity,
     SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Total_Cost
 FROM Food_Items fi
-JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
-JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID
-GROUP BY fi.Item_ID, fi.Name;
+LEFT JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
+LEFT JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID
+GROUP BY fi.Item_ID, fi.Name, fi.Image_Path, fi.Price, fi.Quantity;
 
 CREATE OR REPLACE VIEW vw_StaffDetails AS
 SELECT

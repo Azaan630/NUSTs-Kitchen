@@ -22,7 +22,26 @@ ALTER TABLE Registration_Requests
     ADD COLUMN Profile_Picture VARCHAR(500) DEFAULT NULL
     AFTER Category;
 
-CREATE OR REPLACE VIEW vw_StaffDetails AS
+CREATE OR REPLACE VIEW vw_FoodItemCost AS
+SELECT
+    fi.Item_ID,
+    fi.Name,
+    fi.Image_Path,
+    fi.Price,
+    fi.Quantity,
+    SUM(i.Unit_cost * fgi.Ingredient_Quantity) AS Total_Cost
+FROM Food_Items fi
+LEFT JOIN Food_Item_Ingredients fgi ON fi.Item_ID = fgi.Item_ID
+LEFT JOIN Ingredients i ON fgi.Ingredient_ID = i.Ingredient_ID
+GROUP BY fi.Item_ID, fi.Name, fi.Image_Path, fi.Price, fi.Quantity;
+
+CREATE TABLE IF NOT EXISTS Recipe_Steps (
+    Step_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    Item_ID     INT NOT NULL,
+    Step_Number INT NOT NULL,
+    Description TEXT NOT NULL,
+    FOREIGN KEY (Item_ID) REFERENCES Food_Items(Item_ID) ON DELETE CASCADE
+);
 SELECT
     s.UserID,
     u.First_Name,

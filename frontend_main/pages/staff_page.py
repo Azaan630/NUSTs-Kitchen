@@ -3,7 +3,11 @@ import asyncio
 import httpx
 import os
 import uuid
+import logging
 import mock_data
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("staff")
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
@@ -14,14 +18,21 @@ async def _req(endpoint, params=None):
     async with httpx.AsyncClient() as client:
         try:
             headers = _api_headers()
-            r = await client.get(f"{BASE_URL}{endpoint}", params=params, headers=headers, timeout=10)
+            url = f"{BASE_URL}{endpoint}"
+            logger.info("GET %s params=%s", url, params)
+            r = await client.get(url, params=params, headers=headers, timeout=10)
             r.raise_for_status()
-            return r.json() if r.status_code != 204 else {}
+            data = r.json() if r.status_code != 204 else {}
+            logger.info("GET %s -> %s records", url, len(data) if isinstance(data, list) else type(data).__name__)
+            return data
         except httpx.HTTPStatusError as e:
             try: d = e.response.json().get("detail", e.response.text)
             except Exception: d = e.response.text
-            return {"error": f"({e.response.status_code}) {d}"}
+            msg = f"({e.response.status_code}) {d}"
+            logger.error("REQ ERR %s -> %s", url, msg)
+            return {"error": msg}
         except Exception as ex:
+            logger.error("REQ EXC %s: %s", endpoint, ex)
             return {"error": str(ex)}
 
 
@@ -574,7 +585,7 @@ class StaffPage:
         for g in grouped.values():
             def make_handler(g_data):
                 async def handler(e):
-                    dlg = self._recipe_popup(g_data)
+                    dlg = await self._recipe_popup(g_data)
                     self._recipe_dlg = dlg
                     self.page.open(dlg)
                 return handler
@@ -603,7 +614,7 @@ class StaffPage:
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
 
-    def _recipe_popup(self, g):
+    async def _recipe_popup(self, g):
         item_id = g["Item_ID"]
         title = ft.Text(g["Item_Name"], size=20, weight="bold", color="#1a1a2e", font_family="DM Sans")
         status_text = ft.Text("", size=11, color=self._clr("success"), font_family="DM Sans")
@@ -612,6 +623,29 @@ class StaffPage:
             ft.Text(f"Price: Rs. {g['Price']:.0f}", size=13, color="#555", font_family="DM Sans"),
             ft.Text(f"★ {g['Ratings_Average']:.1f}", size=13, color="#e67e22", font_family="DM Sans"),
         ], spacing=12)
+
+        # ── Recipe steps ──
+        steps_col = ft.Column(spacing=4)
+        if not self.is_guest:
+            try:
+                steps_data = await _req("/recipes/steps/" + str(item_id), {"email": self.email})
+                if isinstance(steps_data, list) and steps_data:
+                    steps_col.controls.append(
+                        ft.Text("How to Make", size=14, weight="bold", color="#1a1a2e", font_family="DM Sans"))
+                    for s in steps_data:
+                        steps_col.controls.append(
+                            ft.Row([
+                                ft.Container(
+                                    ft.Text(str(s.get("Step_Number", "")), size=11, weight="bold",
+                                            color="#FFF", font_family="DM Sans"),
+                                    width=22, height=22, border_radius=11,
+                                    bgcolor="#6366F1", alignment=ft.Alignment(0, 0),
+                                ),
+                                ft.Text(s.get("Description", ""), size=12, color="#555",
+                                        font_family="DM Sans", expand=True),
+                            ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START))
+            except Exception:
+                pass
 
         ing_rows = ft.Column(spacing=6)
 
@@ -722,6 +756,8 @@ class StaffPage:
             ft.Container(height=6),
             price_rating,
             ft.Divider(height=16, color="#ddd"),
+            steps_col,
+            steps_col.controls and ft.Divider(height=10, color="#ddd") or ft.Container(),
             ing_header_row,
             ft.Container(height=6),
             status_text,
