@@ -45,7 +45,8 @@ INSERT INTO Users (UserID, First_Name, Last_Name, Email, Account_Type, Sex, Prof
 (7,  'Zara',    'Malik',  'zara.student@seecs.edu.pk',       'Student', 'Female', 'https://picsum.photos/seed/zara/200/200'),
 (8,  'Hassan',  'Raza',   'hassan.student@seecs.edu.pk',     'Student', 'Male',   'https://picsum.photos/seed/hassan/200/200'),
 (9,  'Sara',    'Javed',  'sara.student@seecs.edu.pk',       'Student', 'Female', 'https://picsum.photos/seed/sara/200/200'),
-(10, 'Omar',    'Sheikh', 'omar.staff@seecs.edu.pk',          'Staff',   'Male',   'https://picsum.photos/seed/omar/200/200');
+(10, 'Omar',    'Sheikh', 'omar.staff@seecs.edu.pk',          'Staff',   'Male',   'https://picsum.photos/seed/omar/200/200'),
+(11, 'Bob',    'Sheikh', 'bob.staff@seecs.edu.pk',          'student',   'Male',   'https://picsum.photos/seed/omar/200/200');
 
 -- ============================================================================
 -- STUDENTS

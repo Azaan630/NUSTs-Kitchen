@@ -258,11 +258,31 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         bgcolor=ft.Colors.with_opacity(0.75, t["card"] if d else "#FFFFFF"),
         shadow=ft.BoxShadow(blur_radius=40, color=ft.Colors.with_opacity(0.12, "#000"),
                             spread_radius=0, offset=ft.Offset(0, 4)),
-        border=ft.border.all(1, ft.Colors.with_opacity(0.08, txt)),
+        border=ft.Border(
+            top=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            left=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            right=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+        ),
         opacity=0,
         offset=ft.Offset(0, 0.25),
         animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
         animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+    )
+
+    page_w = page.width or 600
+
+    # ── bounce arrow (stored for animation) ──
+    bounce_arrow = ft.Container(
+        content=ft.Container(
+            content=ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED,
+                            size=22, color=sub),
+            bgcolor=ft.Colors.with_opacity(0.08, sub),
+            border_radius=20, width=40, height=40,
+            alignment=ft.Alignment(0, 0),
+        ),
+        animate_offset=ft.Animation(1000, ft.AnimationCurve.EASE_IN_OUT),
+        offset=ft.Offset(0, 0),
     )
 
     result = ft.Container(
@@ -275,6 +295,8 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                     ft.Container(height=40 if m else 60),
                     logo_box,
                     below_logo,
+                    ft.Container(height=24 if m else 32),
+                    bounce_arrow,
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 alignment=ft.Alignment(0, 0),
                 expand=True,
@@ -285,18 +307,94 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
                     icon_color=sub, icon_size=24,
                     tooltip="Toggle theme",
                     on_click=_toggle_landing_theme,
-                    style=ft.ButtonStyle(
-                        bgcolor=ft.Colors.with_opacity(0.1, sub),
-                    ),
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, sub)),
                 ),
                 right=16, top=16,
             ),
         ]),
         expand=True,
+        height=(page.height or 800) if (page.height or 800) > 0 else 800,
     )
-    result._logo_box = logo_box
-    result._below_logo = below_logo
-    return result
+
+    # ── About / Developer section ──
+    about_section = ft.Container(
+        content=ft.Column([
+            ft.Container(height=48 if m else 56),
+            ft.Text("Built with passion.", size=20 if m else 28, weight="bold",
+                    font_family="Playfair", color=txt),
+            ft.Container(height=8),
+            ft.Text(
+                "A full-stack smart mess management platform for NUST hostels — "
+                "handling menu planning, billing, ingredient tracking, voting, and real-time analytics.",
+                size=13 if m else 15, color=sub, font_family="DM Sans",
+                text_align=ft.TextAlign.CENTER, width=int(page_w * 0.75) if int(page_w * 0.75) < 560 else 560,
+            ),
+            ft.Container(height=32 if m else 40),
+            ft.Text("Developer", size=11, color=ft.Colors.with_opacity(0.5, sub),
+                    font_family="DM Sans", weight="bold"),
+            ft.Container(height=4),
+            ft.Text("Muhammad Azaan", size=18 if m else 24, weight="bold",
+                    font_family="Playfair", color=acc),
+            ft.Container(height=4),
+            ft.Container(
+                content=ft.Text("BS Computer Science '29  •  NUST SEECS",
+                                size=12 if m else 14, color=sub, font_family="DM Sans"),
+                padding=ft.Padding.symmetric(horizontal=12, vertical=4),
+                bgcolor=ft.Colors.with_opacity(0.06, acc), border_radius=8,
+            ),
+            ft.Container(height=24 if m else 32),
+            ft.Text("Aspiring software engineer passionate about building systems\nthat make campus life better.",
+                    size=12 if m else 14, color=sub, font_family="DM Sans",
+                    text_align=ft.TextAlign.CENTER, italic=True),
+            ft.Container(height=32 if m else 40),
+            ft.Row([
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.CODE_ROUNDED, size=18, color="#FFF"),
+                        ft.Text("GitHub", size=13, color="#FFF", font_family="DM Sans", weight="bold"),
+                    ], spacing=8),
+                    bgcolor="#24292E", border_radius=12,
+                    padding=ft.Padding.symmetric(horizontal=20, vertical=12),
+                    on_click=lambda e: page.launch_url("https://github.com/Azaan630"),
+                    ink=True,
+                ),
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.BUSINESS_CENTER_ROUNDED, size=18, color="#FFF"),
+                        ft.Text("LinkedIn", size=13, color="#FFF", font_family="DM Sans", weight="bold"),
+                    ], spacing=8),
+                    bgcolor="#0A66C2", border_radius=12,
+                    padding=ft.Padding.symmetric(horizontal=20, vertical=12),
+                    on_click=lambda e: page.launch_url(
+                        "https://www.linkedin.com/in/muhammad-a-7223061bb"),
+                    ink=True,
+                ),
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.CAMERA_ALT_ROUNDED, size=18, color="#FFF"),
+                        ft.Text("Instagram", size=13, color="#FFF", font_family="DM Sans", weight="bold"),
+                    ], spacing=8),
+                    bgcolor="#E4405F", border_radius=12,
+                    padding=ft.Padding.symmetric(horizontal=20, vertical=12),
+                    on_click=lambda e: page.launch_url("https://instagram.com/azaan.6.3"),
+                    ink=True,
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=12, wrap=m, run_spacing=10),
+            ft.Container(height=48 if m else 64),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        bgcolor=t["bg"] if d else "#F8FAFC",
+        padding=ft.Padding.symmetric(horizontal=20),
+    )
+
+    page_column = ft.Column([
+        result,
+        about_section,
+    ], scroll=ft.ScrollMode.ADAPTIVE, spacing=0, expand=True)
+
+    page_column._logo_box = logo_box
+    page_column._below_logo = below_logo
+    page_column._bounce_arrow = bounce_arrow
+    return page_column
 
 
 def build_register_form(page, on_submit, on_back):
@@ -1267,6 +1365,7 @@ async def main(page: ft.Page):
             await asyncio.sleep(0.3)
             lb = getattr(landing, "_logo_box", None)
             bl = getattr(landing, "_below_logo", None)
+            ba = getattr(landing, "_bounce_arrow", None)
             if lb and bl:
                 lb.scale = 1.0
                 lb.offset = ft.Offset(0, 0)
@@ -1274,6 +1373,15 @@ async def main(page: ft.Page):
                 bl.opacity = 1
                 bl.offset = ft.Offset(0, 0)
                 bl.update()
+            if ba:
+                await asyncio.sleep(0.5)
+                for _ in range(6):
+                    ba.offset = ft.Offset(0, 0.45)
+                    ba.update()
+                    await asyncio.sleep(0.6)
+                    ba.offset = ft.Offset(0, 0)
+                    ba.update()
+                    await asyncio.sleep(0.6)
         asyncio.create_task(_anim())
 
     def show_landing():
