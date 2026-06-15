@@ -138,3 +138,8 @@ async def get_mess_off_status(mess_off_id: int) -> Dict[str, Any]:
 
 async def get_mess_off_history() -> Dict[str, Any]:
     return await _make_request("GET", "/student/mess-off/history")
+
+
+# ── Recipes ────────────────────────────────────────────────────────
+async def get_recipes_detailed() -> Any:
+    return await _make_request("GET", "/recipes/detailed")

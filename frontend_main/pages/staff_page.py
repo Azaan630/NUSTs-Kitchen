@@ -52,6 +52,7 @@ class StaffPage:
         self.content = ft.Container(expand=True,
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
         self.content.content = self._loading()
+        self._recipe_dlg = None
 
     def _clr(self, key, fallback=None):
         return self.theme.get(key, fallback)
@@ -542,27 +543,31 @@ class StaffPage:
 
     async def _render_recipes(self, ref):
         ref.content = self._loading(); self.page.update()
-        recipes = mock_data.get_recipes() if self.is_guest else (await _req("/recipes", {"email": self.email})) or []
+        raw = (mock_data.get_recipes_detailed() if self.is_guest
+               else (await _req("/recipes/detailed", {"email": self.email})) or [])
 
         grouped = {}
-        for r in (recipes if isinstance(recipes, list) else []):
+        for r in (raw if isinstance(raw, list) else []):
             iid = r.get("Item_ID")
-            grouped.setdefault(iid, {"item_id": iid, "ingredients": []})
+            grouped.setdefault(iid, {"Item_ID": iid, "Item_Name": r.get("Item_Name", f"Item #{iid}"),
+                                     "Item_Image": r.get("Item_Image", ""), "Price": r.get("Price", 0),
+                                     "Ratings_Average": r.get("Ratings_Average", 0), "ingredients": []})
             grouped[iid]["ingredients"].append(r)
 
-        rows = ft.Column(spacing=4)
-        fid = 0
+        rows = ft.Column(spacing=6)
+
         for g in grouped.values():
-            fid += 1
-            ing_text = ", ".join([f"{i.get('Name','?')} ({i.get('Ingredient_Quantity','?')} {i.get('Unit','')})"
-                                  for i in g["ingredients"]])
-            rows.controls.append(self._row_card([
-                ft.Column([
-                    ft.Text(f"Item #{g['item_id']}", size=13, weight="bold",
-                            color=self._clr("text"), font_family="DM Sans"),
-                    ft.Text(ing_text, size=11, color=self._clr("sub"), font_family="DM Sans"),
-                ], expand=True, spacing=2),
-            ]))
+            def make_handler(g_data):
+                async def handler(e):
+                    dlg = self._recipe_popup(g_data)
+                    self._recipe_dlg = dlg
+                    self.page.open(dlg)
+                return handler
+            card = self._row_card([
+                ft.Text(g["Item_Name"], size=14, weight="bold",
+                        color=self._clr("text"), font_family="DM Sans", expand=True),
+            ], on_click=make_handler(g))
+            rows.controls.append(card)
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -571,6 +576,75 @@ class StaffPage:
             rows if rows.controls else ft.Text("No recipes", color=self._clr("sub")),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
+
+    def _recipe_popup(self, g):
+        title = ft.Text(g["Item_Name"], size=20, weight="bold", color="#1a1a2e", font_family="DM Sans")
+
+        price_rating = ft.Row([
+            ft.Text(f"Price: Rs. {g['Price']:.0f}", size=13, color="#555", font_family="DM Sans"),
+            ft.Text(f"★ {g['Ratings_Average']:.1f}", size=13, color="#e67e22", font_family="DM Sans"),
+        ], spacing=12)
+
+        ing_header = ft.Text("Ingredients", size=15, weight="bold",
+                             color="#1a1a2e", font_family="DM Sans")
+
+        ing_rows = ft.Column(spacing=6)
+        for ing in g["ingredients"]:
+            ing_rows.controls.append(
+                ft.Container(
+                    ft.Row([
+                        ft.Container(
+                            ft.Image(src=ing.get("Ingredient_Image", ""),
+                                     width=36, height=36, fit=ft.ImageFit.COVER,
+                                     border_radius=6, error_content=ft.Icon(ft.Icons.RESTAURANT, size=20)),
+                            width=36, height=36, border_radius=6,
+                            shadow=ft.BoxShadow(blur_radius=2, color="#00000020"),
+                        ),
+                        ft.Column([
+                            ft.Text(ing.get("Ingredient_Name", ""), size=13, weight="bold",
+                                    color="#1a1a2e", font_family="DM Sans"),
+                            ft.Text(f"{ing.get('Ingredient_Quantity', 0)} {ing.get('Unit', '')}  "
+                                    f"(Stock: {ing.get('Ingredient_Stock', 0)} {ing.get('Unit', '')})",
+                                    size=11, color="#777", font_family="DM Sans"),
+                        ], spacing=1, expand=True),
+                    ]),
+                    padding=8, border_radius=8,
+                    bgcolor="#f0f0f5",
+                )
+            )
+
+        body = ft.Column([
+            title,
+            ft.Container(height=6),
+            price_rating,
+            ft.Divider(height=16, color="#ddd"),
+            ing_header,
+            ft.Container(height=6),
+            ing_rows,
+        ], spacing=2, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
+        content = ft.Container(
+            ft.Column([
+                ft.Container(
+                    ft.Image(src=g.get("Item_Image", ""), width=None, height=180,
+                             fit=ft.ImageFit.COVER, border_radius=ft.border_vertical(12),
+                             error_content=ft.Container(
+                                 ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
+                                 height=180, alignment=ft.alignment.center)),
+                    border_radius=ft.border_vertical(12), clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                ),
+                ft.Container(body, padding=16, expand=True),
+            ], spacing=0, expand=True),
+            width=380, border_radius=12,
+            shadow=ft.BoxShadow(blur_radius=20, color="#00000040"),
+        )
+
+        return ft.AlertDialog(
+            content=content,
+            actions=[ft.TextButton("Close", on_click=lambda e: self.page.close(self._recipe_dlg))],
+            actions_alignment=ft.MainAxisAlignment.END,
+            shape=ft.RoundedRectangleBorder(12),
+        )
 
     # ── Safe render wrapper ────────────────────────────────────
 

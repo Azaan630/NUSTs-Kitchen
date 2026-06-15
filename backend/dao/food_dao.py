@@ -27,6 +27,9 @@ class FoodDAO(BaseDAO):
     def get_recipes(self):
         return self._fetchall(getRecipes)
 
+    def get_recipes_detailed(self):
+        return self._fetchall(getRecipesDetailed)
+
     def create_ingredient(self, name, total_quantity, unit, unit_cost):
         return self._execute(createIngredient, (name, total_quantity, unit, unit_cost))
 

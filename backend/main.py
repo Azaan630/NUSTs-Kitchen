@@ -329,6 +329,11 @@ def get_recipes(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends
     return FoodDAO(db).get_recipes()
 
 
+@app.get("/recipes/detailed")
+def get_recipes_detailed(user=Depends(permission_checker(["Admin", "Staff"])), db=Depends(get_db)):
+    return FoodDAO(db).get_recipes_detailed()
+
+
 @app.get("/users/my-bills")
 def get_my_bills(user=Depends(permission_checker(["Admin", "Student"])), db=Depends(get_db)):
     return BillDAO(db).get_my_bills(user.get("Email"))

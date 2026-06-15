@@ -2,8 +2,8 @@ import flet as ft
 import asyncio
 import os
 import httpx
-import re
 import mock_data
+from .api_client import get_headers as _api_headers, _make_request
 
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
@@ -455,11 +455,10 @@ class ProfileDetailsPage:
                         break
         else:
             try:
-                from pages.api_client import _make_request
                 data = await _make_request("GET", "/users/me")
                 if isinstance(data, dict):
                     rd = data.get("role_details")
                     if rd:
                         self._extra = rd
-            except Exception:
-                pass
+            except Exception as ex:
+                print(f"Failed to fetch profile details: {ex}")

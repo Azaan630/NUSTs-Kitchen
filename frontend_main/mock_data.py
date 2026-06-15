@@ -352,6 +352,29 @@ def get_recipes():
     return copy.deepcopy(_db.get("recipes", []))
 
 
+def get_recipes_detailed():
+    food_items = {f["Item_ID"]: f for f in _db.get("food_items", [])}
+    ingredients = {i["Name"].lower(): i for i in _db.get("ingredients", [])}
+    result = []
+    for r in _db.get("recipes", []):
+        fi = food_items.get(r["Item_ID"], {})
+        ing = ingredients.get(r["Name"].lower(), {})
+        result.append({
+            "Item_ID": r["Item_ID"],
+            "Item_Name": fi.get("Name", f"Item #{r['Item_ID']}"),
+            "Item_Image": fi.get("Image_Path", ""),
+            "Price": fi.get("Price", 0),
+            "Ratings_Average": fi.get("Ratings_Average", 0),
+            "Ingredient_ID": ing.get("Ingredient_ID", r.get("Ingredient_ID", 0)),
+            "Ingredient_Name": r.get("Name", ""),
+            "Ingredient_Image": ing.get("Image_Path", ""),
+            "Unit": r.get("Unit", ""),
+            "Ingredient_Quantity": r.get("Ingredient_Quantity", 0),
+            "Ingredient_Stock": ing.get("Total_Quantity", 0),
+        })
+    return copy.deepcopy(result)
+
+
 def get_todays_menu():
     today = date.today().isoformat()
     menu = [m for m in _db["menu_schedule"] if m.get("Date") == today]

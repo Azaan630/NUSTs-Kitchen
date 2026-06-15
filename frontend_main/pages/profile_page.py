@@ -2,7 +2,7 @@ import flet as ft
 import asyncio
 import os
 import mock_data
-from .api_client import get_headers as _api_headers
+from .api_client import get_headers as _api_headers, get_my_bills, get_my_profile
 
 
 class StudentProfilePage:

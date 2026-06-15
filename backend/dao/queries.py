@@ -163,3 +163,12 @@ getBillPDF = ("""SELECT b.Billing_ID, b.Amount, b.Due_Date, b.Month, u.First_Nam
 
 getRecipes = ("""SELECT Food_Item_Ingredients.Item_ID, Ingredients.Ingredient_ID, Ingredient_Quantity, Ingredients.Unit, Ingredients.Name
                  FROM Food_Item_Ingredients JOIN Ingredients ON Food_Item_Ingredients.Ingredient_ID = Ingredients.Ingredient_ID""")
+
+getRecipesDetailed = ("""SELECT
+    fi.Item_ID, fi.Name AS Item_Name, fi.Price,
+    i.Ingredient_ID, i.Name AS Ingredient_Name,
+    i.Unit, fii.Ingredient_Quantity, i.Total_Quantity AS Ingredient_Stock
+FROM Food_Item_Ingredients fii
+JOIN Food_Items fi ON fii.Item_ID = fi.Item_ID
+JOIN Ingredients i ON fii.Ingredient_ID = i.Ingredient_ID
+ORDER BY fi.Name, i.Name""")
