@@ -1,52 +1,23 @@
 import os
 import logging
-from datetime import datetime, timedelta
-from jose import JWTError, jwt
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("JWT_SECRET")
-if not SECRET_KEY:
-    raise RuntimeError("JWT_SECRET environment variable is not set")
-
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
-
-security = HTTPBearer(auto_error=False)
+API_KEY = os.getenv("BACKEND_API_KEY")
+if not API_KEY:
+    raise RuntimeError("BACKEND_API_KEY environment variable is not set")
 
 
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def verify_api_key(request: Request):
+    key = request.headers.get("X-Api-Key")
+    if not key or key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return True
 
 
-def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    if credentials is None:
-        return None
-    try:
-        return jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        return None
-
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    if credentials is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        return jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-def require_role(allowed_roles: list):
-    def checker(user: dict = Depends(get_current_user)):
-        role = user.get("role")
-        if role not in allowed_roles:
-            logger.warning("require_role: user=%s role=%s not in %s", user.get("sub"), role, allowed_roles)
-            raise HTTPException(status_code=403, detail="Unauthorized")
-        return user
-    return checker
+def get_user_email(request: Request) -> str:
+    email = request.headers.get("X-User-Email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing X-User-Email header")
+    return email

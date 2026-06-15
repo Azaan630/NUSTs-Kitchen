@@ -26,7 +26,7 @@ from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
 )
-from auth import create_access_token, get_current_user, get_optional_user, require_role
+from auth import verify_api_key, get_user_email
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -77,11 +77,15 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def permission_checker(allowed_roles: list):
-    def mapper(user: dict = Depends(require_role(allowed_roles)), db=Depends(get_db)):
-        email = user.get("sub", "")
+    def mapper(api_key=Depends(verify_api_key), request: Request = None, db=Depends(get_db)):
+        email = request.headers.get("X-User-Email", "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Missing X-User-Email header")
         user_record = UserDAO(db).find_by_email(email)
         if not user_record:
             raise HTTPException(status_code=404, detail="User record not found")
+        if user_record.get("Account_Type") not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Unauthorized")
         return user_record
     return mapper
 
@@ -100,16 +104,7 @@ def auth_login(request: Request, data: dict, db=Depends(get_db)):
     user_record = UserDAO(db).find_by_email(email)
     if not user_record:
         raise HTTPException(status_code=403, detail="Access Denied: email not registered.")
-    jwt_token = create_access_token({
-        "sub": email,
-        "role": user_record.get("Account_Type", "Student"),
-        "user_id": user_record.get("UserID"),
-    })
-    return {
-        "access_token": jwt_token,
-        "token_type": "bearer",
-        "user_details": user_record,
-    }
+    return {"user_details": user_record}
 
 
 @app.get("/users/verify")

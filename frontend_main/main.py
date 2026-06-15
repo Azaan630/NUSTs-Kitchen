@@ -1142,10 +1142,10 @@ async def main(page: ft.Page):
             await asyncio.sleep(0.2)
         email = (page.auth.user.get("email") or "").strip().lower()
         try:
-            api_client.set_jwt(None)
+            api_client.set_user_email(None)
             data = await api_client.login(email)
             if isinstance(data, dict) and "user_details" in data:
-                api_client.set_jwt(data.get("access_token"))
+                api_client.set_user_email(email)
                 page.current_user_data = data["user_details"]
                 await show_dashboard()
             else:
@@ -1218,7 +1218,7 @@ async def main(page: ft.Page):
         asyncio.create_task(_do_guest_login(email, first, last, role))
 
     async def _do_guest_login(email, first, last, role):
-        api_client.set_jwt(None)
+        api_client.set_user_email(None)
         page.current_user_data = {
             "UserID": -1, "First_Name": first, "Last_Name": last,
             "Email": email, "Account_Type": role,

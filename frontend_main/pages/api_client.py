@@ -4,19 +4,21 @@ from datetime import date
 from typing import Optional, Dict, Any
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+API_KEY = os.getenv("BACKEND_API_KEY", "")
 
-_jwt_token: str | None = None
+_email: str | None = None
 
 
-def set_jwt(token: str | None):
-    global _jwt_token
-    _jwt_token = token
+def set_user_email(email: str | None):
+    global _email
+    _email = email
 
 
 def get_headers() -> dict:
-    if _jwt_token:
-        return {"Authorization": f"Bearer {_jwt_token}"}
-    return {}
+    headers = {"X-Api-Key": API_KEY}
+    if _email:
+        headers["X-User-Email"] = _email
+    return headers
 
 
 async def _make_request(
