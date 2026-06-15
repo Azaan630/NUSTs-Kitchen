@@ -316,7 +316,90 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
     )
 
     # ── About / Developer section ──
-    # ── Feature highlights (simple cards) ──
+    # ── Feature flip-cards (15 cards, 5 rows x 3) ──
+    features_data = [
+        (ft.Icons.CALENDAR_MONTH_ROUNDED,   "7-Day Menu Planning",     "Schedule breakfast, lunch & dinner for an entire week with drag-drop simplicity."),
+        (ft.Icons.RESTAURANT_MENU_ROUNDED,  "Meal Type Grouping",      "Items grouped by Breakfast, Lunch, Dinner — easy to read and manage."),
+        (ft.Icons.RECEIPT_LONG_ROUNDED,     "Auto Monthly Billing",    "Bills generated automatically per student with mess-off day deductions."),
+        (ft.Icons.PAYMENTS_ROUNDED,         "Payment Tracking",        "Track collected vs outstanding amounts with partial payment support."),
+        (ft.Icons.WARNING_AMBER_ROUNDED,    "Overdue Alerts",          "Unpaid bills past due date auto-flag as Overdue with visual indicators."),
+        (ft.Icons.INVENTORY_ROUNDED,        "Ingredient Inventory",    "Real-time stock tracking for 20+ ingredients with unit cost profiling."),
+        (ft.Icons.NOTIFICATIONS_ROUNDED,    "Low Stock Alerts",        "Ingredients below threshold highlighted in red for quick restocking."),
+        (ft.Icons.ATTACH_MONEY_ROUNDED,     "Cost Analysis",           "Per-item cost calculated from ingredient quantities & unit prices."),
+        (ft.Icons.HOW_TO_VOTE_ROUNDED,      "Student Voting",          "Active polls let students vote on upcoming meals — most votes wins."),
+        (ft.Icons.STAR_ROUNDED,             "5-Star Ratings",          "Rate dishes after meals; averages update live via database triggers."),
+        (ft.Icons.ANALYTICS_ROUNDED,        "Rating Analytics",        "Bar & line charts show rating trends, top dishes, and score distribution."),
+        (ft.Icons.EVENT_BUSY_ROUNDED,       "Mess-Off Requests",       "Students request leave from mess; staff approve or reject with limits."),
+        (ft.Icons.SHIELD_ROUNDED,           "Day-Limit Guardrails",    "Automatic 12-day-per-month cap prevents mess-off abuse."),
+        (ft.Icons.DASHBOARD_ROUNDED,        "Admin Dashboard",         "Rich charts — bar, line & pie — with live stats across all modules."),
+        (ft.Icons.SECURITY_ROUNDED,         "Google OAuth Security",   "Sign in with your NUST SEECS Google account — no passwords needed."),
+    ]
+
+    icon_colors = ["#6366F1","#10B981","#F59E0B","#EC4899","#3B82F6","#8B5CF6","#EF4444","#14B8A6","#F97316","#A855F7","#06B6D4","#84CC16","#F43F5E","#3B82F6","#6366F1"]
+
+    flipped = [False] * len(features_data)
+    card_refs = [None] * len(features_data)
+    front_contents = [None] * len(features_data)
+    back_contents = [None] * len(features_data)
+
+    def make_flip_handler(idx):
+        def handler(e):
+            flipped[idx] = not flipped[idx]
+            card = card_refs[idx]
+            if card:
+                card.scale = 0.0
+                card.update()
+                front_contents[idx].visible = not flipped[idx]
+                back_contents[idx].visible = flipped[idx]
+                card.scale = 1.0
+                card.update()
+        return handler
+
+    card_rows = ft.Column(spacing=12)
+    for row_i in range(0, len(features_data), 3):
+        row_cards = []
+        for col_i in range(3):
+            idx = row_i + col_i
+            if idx >= len(features_data): break
+            icon_, phrase, desc = features_data[idx]
+            clr = icon_colors[idx]
+            front = ft.Column([
+                ft.Icon(icon_, size=28, color=clr),
+                ft.Container(height=8),
+                ft.Text(phrase, size=13, weight="bold", color=txt, font_family="DM Sans",
+                        text_align=ft.TextAlign.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0, visible=True)
+            back = ft.Column([
+                ft.Text(desc, size=12, color=sub, font_family="DM Sans",
+                        text_align=ft.TextAlign.CENTER),
+                ft.Container(height=8),
+                ft.Text("Tap to flip back", size=10, color=ft.Colors.with_opacity(0.4, acc),
+                        font_family="DM Sans"),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0, visible=False)
+            front_contents[idx] = front
+            back_contents[idx] = back
+            card = ft.Container(
+                content=ft.Stack([front, back]),
+                width=200, height=120, border_radius=16,
+                bgcolor=ft.Colors.with_opacity(0.5, t["card"]),
+                padding=ft.Padding.all(16),
+                border=ft.Border(
+                    top=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    left=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    right=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                ),
+                shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.05, "#000"),
+                                    offset=ft.Offset(0, 2)),
+                on_click=make_flip_handler(idx),
+                ink=True,
+                animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT),
+                scale=1.0,
+            )
+            card_refs[idx] = card
+            row_cards.append(card)
+        card_rows.controls.append(ft.Row(row_cards, alignment=ft.MainAxisAlignment.CENTER, spacing=12))
+
     about_section = ft.Container(
         content=ft.Column([
             ft.Container(height=56 if m else 72),
@@ -324,55 +407,15 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             ft.Container(height=16),
             ft.Text("Everything you need", size=22 if m else 28, weight="bold",
                     font_family="Playfair", color=txt),
-            ft.Container(height=8),
-            ft.Text("One platform for menu planning, billing, inventory, voting, and analytics.",
-                    size=13 if m else 15, color=sub, font_family="DM Sans",
-                    text_align=ft.TextAlign.CENTER),
-            ft.Container(height=36 if m else 48),
-            ft.Row([
-                ft.Container(
-                    ft.Column([
-                        ft.Icon(ft.Icons.RESTAURANT_MENU_ROUNDED, size=32, color="#3B82F6"),
-                        ft.Container(height=12),
-                        ft.Text("Smart Menus", size=15, weight="bold", color=txt, font_family="DM Sans"),
-                        ft.Container(height=4),
-                        ft.Text("7-day planning with meal-type grouping and drag-drop scheduling",
-                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    width=180, padding=ft.Padding.all(20),
-                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
-                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
-                ),
-                ft.Container(width=16),
-                ft.Container(
-                    ft.Column([
-                        ft.Icon(ft.Icons.ANALYTICS_ROUNDED, size=32, color="#10B981"),
-                        ft.Container(height=12),
-                        ft.Text("Analytics", size=15, weight="bold", color=txt, font_family="DM Sans"),
-                        ft.Container(height=4),
-                        ft.Text("Bar, line & pie charts with live stats and real-time trend tracking",
-                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    width=180, padding=ft.Padding.all(20),
-                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
-                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
-                ),
-                ft.Container(width=16),
-                ft.Container(
-                    ft.Column([
-                        ft.Icon(ft.Icons.SHIELD_ROUNDED, size=32, color="#8B5CF6"),
-                        ft.Container(height=12),
-                        ft.Text("Role-Based", size=15, weight="bold", color=txt, font_family="DM Sans"),
-                        ft.Container(height=4),
-                        ft.Text("Admin, Staff & Student dashboards with Google OAuth security",
-                                size=12, color=sub, font_family="DM Sans", text_align=ft.TextAlign.CENTER),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    width=180, padding=ft.Padding.all(20),
-                    bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=16,
-                    shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.04, "#000")),
-                ),
-            ], alignment=ft.MainAxisAlignment.CENTER, wrap=True, run_spacing=16),
-            ft.Container(height=40 if m else 56),
+            ft.Container(height=4),
+            ft.Text("Scroll & tap cards to explore", size=11, color=ft.Colors.with_opacity(0.45, acc),
+                    font_family="DM Sans"),
+            ft.Container(height=28),
+            ft.Text("Tap any card to flip and learn more", size=11, color=ft.Colors.with_opacity(0.3, sub),
+                    font_family="DM Sans", italic=True),
+            ft.Container(height=20),
+            card_rows,
+            ft.Container(height=40),
             ft.Container(
                 content=ft.Row([
                     ft.Container(width=20, height=1, bgcolor=ft.Colors.with_opacity(0.15, acc)),
@@ -387,81 +430,9 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         padding=ft.Padding.symmetric(horizontal=16),
     )
 
-    # ── Stats bar ──
-    stats_section = ft.Container(
-        content=ft.Row([
-            ft.Container(
-                ft.Column([
-                    ft.Text("3", size=28, weight="bold", color=acc, font_family="DM Sans"),
-                    ft.Text("User Roles", size=11, color=sub, font_family="DM Sans"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                width=120, padding=ft.Padding.all(16),
-                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
-            ),
-            ft.Container(width=12),
-            ft.Container(
-                ft.Column([
-                    ft.Text("15+", size=28, weight="bold", color=acc, font_family="DM Sans"),
-                    ft.Text("Food Items", size=11, color=sub, font_family="DM Sans"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                width=120, padding=ft.Padding.all(16),
-                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
-            ),
-            ft.Container(width=12),
-            ft.Container(
-                ft.Column([
-                    ft.Text("7", size=28, weight="bold", color=acc, font_family="DM Sans"),
-                    ft.Text("Day Menu", size=11, color=sub, font_family="DM Sans"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                width=120, padding=ft.Padding.all(16),
-                bgcolor=ft.Colors.with_opacity(0.5, t["card"]), border_radius=12,
-            ),
-        ], alignment=ft.MainAxisAlignment.CENTER, wrap=True, run_spacing=12),
-        bgcolor=t["bg"] if d else "#EEF2FF",
-        padding=ft.Padding.symmetric(horizontal=16, vertical=32),
-    )
-
-    # ── How it works ──
-    steps = [
-        ("1", "Sign In", "Use your NUST email\nwith Google OAuth", ft.Icons.LOGIN_ROUNDED),
-        ("2", "Explore", "Browse menus, vote on\npolls, rate your meals", ft.Icons.EXPLORE_ROUNDED),
-        ("3", "Manage", "Staff manage inventory\n& admins run analytics", ft.Icons.SETTINGS_ROUNDED),
-    ]
-    how_section = ft.Container(
-        content=ft.Column([
-            ft.Container(height=40),
-            ft.Text("How It Works", size=22 if m else 26, weight="bold",
-                    font_family="Playfair", color=txt),
-            ft.Container(height=24),
-            ft.Row([
-                ft.Container(
-                    ft.Column([
-                        ft.Container(
-                            ft.Text(num, size=18, weight="bold", color="#FFF", font_family="DM Sans"),
-                            width=40, height=40, border_radius=20,
-                            bgcolor=acc, alignment=ft.Alignment(0, 0),
-                        ),
-                        ft.Container(height=12),
-                        ft.Text(title, size=14, weight="bold", color=txt, font_family="DM Sans"),
-                        ft.Container(height=4),
-                        ft.Text(desc, size=11, color=sub, font_family="DM Sans",
-                                text_align=ft.TextAlign.CENTER),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    width=160, padding=ft.Padding.all(16),
-                )
-                for num, title, desc, _ in steps
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=24, wrap=True, run_spacing=16),
-            ft.Container(height=40),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        bgcolor=t["bg"] if d else "#FAFBFF",
-        padding=ft.Padding.symmetric(horizontal=16),
-    )
-
     page_column = ft.Column([
         result,
         about_section,
-        stats_section,
-        how_section,
     ], scroll=ft.ScrollMode.ADAPTIVE, spacing=0, expand=True)
 
     page_column._logo_box = logo_box
