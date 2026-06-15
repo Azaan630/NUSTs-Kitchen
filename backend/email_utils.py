@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 try:
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 except (ValueError, TypeError):
-    SMTP_PORT = 587
+    SMTP_PORT = 465
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "")
@@ -56,10 +56,7 @@ def _notify_one(to_email, name, amount, due_date, month):
         msg["To"] = to_email
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-            s.ehlo()
-            s.starttls()
-            s.ehlo()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=10) as s:
             s.login(SMTP_USER, SMTP_PASS)
             s.sendmail(FROM_EMAIL or SMTP_USER, to_email, msg.as_string())
             logger.info("Email sent to %s", to_email)
