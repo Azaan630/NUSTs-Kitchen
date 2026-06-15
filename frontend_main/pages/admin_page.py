@@ -2571,19 +2571,20 @@ class AdminPage:
 
             name = b.get("First_Name", "")
             name_str = f" \u2022 {name}" if name else ""
-            actions = [
-                self._icon_btn(ft.Icons.PAYMENTS_ROUNDED, self._clr("success"), "Record Payment", do_record_payment),
-            ]
-            if status == "Paid":
-                actions.append(
-                    self._icon_btn(ft.Icons.UNDO_ROUNDED, self._clr("warn"), "Undo Payment", do_undo_click),
-                )
-            elif status == "Cancelled":
+            if status == "Cancelled":
                 actions = []
             else:
-                actions.append(
-                    self._icon_btn(ft.Icons.DELETE_FOREVER_ROUNDED, self._clr("danger"), "Cancel Bill", do_cancel_click),
-                )
+                actions = [
+                    self._icon_btn(ft.Icons.PAYMENTS_ROUNDED, self._clr("success"), "Record Payment", do_record_payment),
+                ]
+                if paid > 0:
+                    actions.append(
+                        self._icon_btn(ft.Icons.UNDO_ROUNDED, self._clr("warn"), "Undo Payment", do_undo_click),
+                    )
+                if outstanding > 0:
+                    actions.append(
+                        self._icon_btn(ft.Icons.DELETE_FOREVER_ROUNDED, self._clr("danger"), "Cancel Bill", do_cancel_click),
+                    )
             rows.append(self._row_card([
                 ft.Column([
                     ft.Text(f"Bill #{bid}{name_str}", size=13, weight="bold",
