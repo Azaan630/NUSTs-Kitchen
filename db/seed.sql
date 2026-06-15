@@ -26,11 +26,25 @@ TRUNCATE TABLE System_Config;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Migration columns (safe to re-run)
-ALTER TABLE Users ADD COLUMN IF NOT EXISTS Profile_Picture VARCHAR(500) DEFAULT NULL AFTER Sex;
-ALTER TABLE Food_Items ADD COLUMN IF NOT EXISTS Image_Path VARCHAR(500) DEFAULT NULL AFTER Quantity;
-ALTER TABLE Ingredients ADD COLUMN IF NOT EXISTS Image_Path VARCHAR(500) DEFAULT NULL AFTER Total_Quantity;
-ALTER TABLE Registration_Requests ADD COLUMN IF NOT EXISTS Profile_Picture VARCHAR(500) DEFAULT NULL AFTER Category;
+-- Migration columns (checks existence before ALTER — MySQL 8 compatible)
+DROP PROCEDURE IF EXISTS add_col_safe;
+DELIMITER //
+CREATE PROCEDURE add_col_safe(IN tname VARCHAR(64), IN cname VARCHAR(64), IN cdef VARCHAR(256))
+BEGIN
+  DECLARE cnt INT DEFAULT 0;
+  SELECT COUNT(*) INTO cnt FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tname AND COLUMN_NAME = cname;
+  IF cnt = 0 THEN
+    SET @ddl = CONCAT('ALTER TABLE ', tname, ' ADD COLUMN ', cname, ' ', cdef);
+    PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+  END IF;
+END//
+DELIMITER ;
+CALL add_col_safe('Users', 'Profile_Picture', 'VARCHAR(500) DEFAULT NULL AFTER Sex');
+CALL add_col_safe('Food_Items', 'Image_Path', 'VARCHAR(500) DEFAULT NULL AFTER Quantity');
+CALL add_col_safe('Ingredients', 'Image_Path', 'VARCHAR(500) DEFAULT NULL AFTER Total_Quantity');
+CALL add_col_safe('Registration_Requests', 'Profile_Picture', 'VARCHAR(500) DEFAULT NULL AFTER Category');
+DROP PROCEDURE add_col_safe;
 
 -- ============================================================================
 -- USERS (10)

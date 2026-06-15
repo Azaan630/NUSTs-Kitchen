@@ -2721,7 +2721,9 @@ class AdminPage:
 
     async def _render_staff_types(self, ref):
         ref.content = self._loading(); self.page.update()
-        cats = _ensure_list([] if self.is_guest else (await _api("staff_categories")["all"](self.email)))
+        cats = mock_data.get_staff_categories() if self.is_guest else _ensure_list(await _api("staff_categories")["all"](self.email))
+        if not self.is_guest and not cats:
+            cats = _ensure_list(await _api("staff_categories")["all"](self.email))
 
         add_name  = ft.TextField(hint_text="Category Name", dense=True, expand=True,
             border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=8,
@@ -3367,7 +3369,7 @@ class AdminPage:
                              fit="cover", border_radius=ft.BorderRadius(12, 12, 0, 0),
                              error_content=ft.Container(
                                  ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
-                                 height=180, alignment=ft.alignment.center)),
+                                 height=180, alignment=ft.Alignment(0, 0))),
                     border_radius=ft.BorderRadius(12, 12, 0, 0), clip_behavior=ft.ClipBehavior.HARD_EDGE,
                 ),
                 ft.Container(body, padding=16, expand=True),

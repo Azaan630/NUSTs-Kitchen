@@ -224,6 +224,10 @@ def get_staff():
     return copy.deepcopy(_db.get("staff", []))
 
 
+def get_staff_categories():
+    return copy.deepcopy(_db.get("staff_categories", []))
+
+
 def register_staff(data):
     sid = max((s.get("UserID", 0) for s in _db["staff"]), default=10) + 1
     entry = {"UserID": sid, "Account_Type": "Staff", **(data.copy())}

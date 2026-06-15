@@ -735,7 +735,7 @@ class StaffPage:
                              fit="cover", border_radius=ft.BorderRadius(12, 12, 0, 0),
                              error_content=ft.Container(
                                  ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
-                                 height=180, alignment=ft.alignment.center)),
+                                 height=180, alignment=ft.Alignment(0, 0))),
                     border_radius=ft.BorderRadius(12, 12, 0, 0), clip_behavior=ft.ClipBehavior.HARD_EDGE,
                 ),
                 ft.Container(body, padding=16, expand=True),
