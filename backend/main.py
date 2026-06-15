@@ -26,7 +26,7 @@ from dao import (
     BaseDAO, UserDAO, MenuDAO, BillDAO, FoodDAO,
     MessOffDAO, PollDAO, RegistrationDAO,
 )
-from auth import create_access_token, get_current_user, get_optional_user, require_role, verify_google_token
+from auth import create_access_token, get_current_user, get_optional_user, require_role
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -91,20 +91,15 @@ def read_root():
     return {"status": "MEOWMEOW Backend is Online"}
 
 
-@app.post("/auth/google")
-async def google_auth(data: dict, db=Depends(get_db)):
-    access_token = data.get("access_token", "")
-    if not access_token:
-        raise HTTPException(status_code=400, detail="Missing access_token")
-    google_data = await verify_google_token(access_token)
-    if not google_data:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
-    email = google_data.get("email", "")
+@app.post("/auth/login")
+@limiter.limit("20/minute")
+def auth_login(request: Request, data: dict, db=Depends(get_db)):
+    email = data.get("email", "").strip().lower()
     if not email:
-        raise HTTPException(status_code=401, detail="Google token missing email")
+        raise HTTPException(status_code=400, detail="Missing email")
     user_record = UserDAO(db).find_by_email(email)
     if not user_record:
-        raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
+        raise HTTPException(status_code=403, detail="Access Denied: email not registered.")
     jwt_token = create_access_token({
         "sub": email,
         "role": user_record.get("Account_Type", "Student"),
@@ -120,9 +115,9 @@ async def google_auth(data: dict, db=Depends(get_db)):
 @app.get("/users/verify")
 @limiter.limit("20/minute")
 def verify_registration(request: Request, email: str, db=Depends(get_db)):
-    user_record = UserDAO(db).find_by_email(email)
+    user_record = UserDAO(db).find_by_email(email.strip().lower())
     if not user_record:
-        raise HTTPException(status_code=403, detail="Access Denied: NUST email not registered.")
+        raise HTTPException(status_code=403, detail="Access Denied: email not registered.")
     return {"status": "authorized", "user_details": user_record}
 
 

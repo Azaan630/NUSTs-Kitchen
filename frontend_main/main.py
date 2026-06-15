@@ -1140,17 +1140,10 @@ async def main(page: ft.Page):
             return
         while not (page.auth and page.auth.user):
             await asyncio.sleep(0.2)
-        email = page.auth.user.get("email")
+        email = (page.auth.user.get("email") or "").strip().lower()
         try:
             api_client.set_jwt(None)
-            token_obj = getattr(page.auth, "token", None)
-            access_token = None
-            if token_obj:
-                access_token = token_obj.get("access_token") if isinstance(token_obj, dict) else getattr(token_obj, "access_token", None)
-            if access_token:
-                data = await api_client.google_auth(access_token)
-            else:
-                data = None
+            data = await api_client.login(email)
             if isinstance(data, dict) and "user_details" in data:
                 api_client.set_jwt(data.get("access_token"))
                 page.current_user_data = data["user_details"]

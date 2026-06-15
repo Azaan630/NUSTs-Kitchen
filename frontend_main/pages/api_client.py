@@ -55,8 +55,8 @@ async def verify_user(email: str) -> Dict[str, Any]:
     return await _make_request("GET", "/users/verify", params={"email": email})
 
 
-async def google_auth(access_token: str) -> Dict[str, Any]:
-    return await _make_request("POST", "/auth/google", json_data={"access_token": access_token})
+async def login(email: str) -> Dict[str, Any]:
+    return await _make_request("POST", "/auth/login", json_data={"email": email})
 
 
 async def get_my_profile() -> Dict[str, Any]:
