@@ -1,8 +1,8 @@
 import flet as ft
 import asyncio
 import os
-from pages.api_client import get_my_bills, get_my_profile
 import mock_data
+from .api_client import get_headers as _api_headers
 
 
 class StudentProfilePage:
@@ -170,10 +170,11 @@ class StudentProfilePage:
             self._snack("Invalid Bill ID", ok=False)
             return
 
+        api_key = os.getenv("BACKEND_API_KEY", "")
         public_backend_url = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
         actual_url = f"{public_backend_url}/student/bills/download/{billing_id}"
 
-        params = f"?email={self.email}"
+        params = f"?email={self.email}&api_key={api_key}"
         full_path = f"{actual_url}{params}"
 
         try:

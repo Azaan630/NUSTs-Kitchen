@@ -7,11 +7,14 @@ import mock_data
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
+from .api_client import get_headers as _api_headers
+
 
 async def _req(endpoint, params=None):
     async with httpx.AsyncClient() as client:
         try:
-            r = await client.get(f"{BASE_URL}{endpoint}", params=params, timeout=10)
+            headers = _api_headers()
+            r = await client.get(f"{BASE_URL}{endpoint}", params=params, headers=headers, timeout=10)
             r.raise_for_status()
             return r.json() if r.status_code != 204 else {}
         except httpx.HTTPStatusError as e:
@@ -277,7 +280,7 @@ class StaffPage:
         else:
             ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
             async with httpx.AsyncClient() as client:
-                await client.patch(f"{BASE_URL}{ep}", json={"Image_Path": url}, params={"email": self.email}, timeout=10)
+                await client.patch(f"{BASE_URL}{ep}", json={"Image_Path": url}, params={"email": self.email}, headers=_api_headers(), timeout=10)
         self._snack("Image updated")
         await self._safe_render(self.RENDERERS[self.section_idx["v"]], self.content)
 

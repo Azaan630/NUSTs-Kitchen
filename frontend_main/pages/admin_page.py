@@ -7,6 +7,7 @@ import re
 import logging
 from datetime import date, datetime
 import mock_data
+from .api_client import get_headers as _api_headers
 from flet_charts import (
     BarChart, BarChartGroup, BarChartRod, BarChartRodStackItem,
     PieChart, PieChartSection,
@@ -25,7 +26,8 @@ async def _req(method, endpoint, params=None, json_data=None):
     async with httpx.AsyncClient() as client:
         try:
             url = f"{BASE_URL}{endpoint}"
-            kw = dict(params=params, timeout=10.0)
+            headers = _api_headers()
+            kw = dict(params=params, headers=headers, timeout=10.0)
             logger.error("REQ %s %s params=%s body=%s", method, url, params, json_data)
             if method == "GET":    r = await client.get(url, **kw)
             elif method == "POST":  r = await client.post(url, json=json_data, **kw)
@@ -2274,7 +2276,8 @@ class AdminPage:
             asyncio.create_task(_export())
 
         async def _export():
-            url = f"{BASE_URL}/admin/bills/export-csv?email={self.email}"
+            api_key = os.getenv("BACKEND_API_KEY", "")
+            url = f"{BASE_URL}/admin/bills/export-csv?email={self.email}&api_key={api_key}"
             try:
                 await self.page.launch_url(url)
                 self._snack("CSV download started")
@@ -2385,6 +2388,7 @@ class AdminPage:
                         r = await client.delete(
                             f"{BASE_URL}/admin/bills/delete/{bid}",
                             params={"email": self.email},
+                            headers=_api_headers(),
                             timeout=10.0,
                         )
                         r.raise_for_status()
