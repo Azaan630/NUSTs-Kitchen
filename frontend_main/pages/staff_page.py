@@ -424,15 +424,30 @@ class StaffPage:
         ref.content = self._loading(); self.page.update()
         items = mock_data.get_weekly_menu() if self.is_guest else (await _req("/menu/weekly", {"email": self.email})) or []
         m_colors = {"Breakfast": self._clr("warn"), "Lunch": self._clr("success"), "Dinner": self._clr("accent2")}
+
+        food_map = {}
+        if self.is_guest:
+            for f in mock_data.get_food_costs():
+                food_map[f.get("Item_ID")] = f
+        else:
+            food_list = await _req("/admin/food/costs", {"email": self.email}) or []
+            for f in (food_list if isinstance(food_list, list) else []):
+                food_map[f.get("Item_ID")] = f
+
         rows = []
-        for item in (items if isinstance(items, list) else []):
+        for item in ((items if isinstance(items, list) else []) if items else (items.get("menu", []) if isinstance(items, dict) else [])):
+            if not isinstance(item, dict): continue
             mt = item.get("meal_type", "")
+            iid = item.get("Item_ID")
+            food_info = food_map.get(iid, {})
+            enriched = {**item, "Image_Path": food_info.get("Image_Path", ""), "Price": food_info.get("Price", 0)}
             rows.append(self._row_card([
+                self._food_thumb(enriched, 36),
                 ft.Container(
-                    content=ft.Text(mt[:1], size=12, weight="bold", color=m_colors.get(mt, self._clr("accent"))),
-                    width=30, height=30,
+                    content=ft.Text(mt[:1], size=10, weight="bold", color=m_colors.get(mt, self._clr("accent"))),
+                    width=26, height=26,
                     bgcolor=ft.Colors.with_opacity(0.12, m_colors.get(mt, self._clr("accent"))),
-                    border_radius=8, alignment=ft.Alignment(0, 0),
+                    border_radius=6, alignment=ft.Alignment(0, 0),
                 ),
                 ft.Column([
                     ft.Text(item.get("Name") or item.get("Food_Item_Name", "?"), size=13,
@@ -440,7 +455,7 @@ class StaffPage:
                     ft.Text(f"{item.get('Date','')} \u2022 {mt}", size=11,
                             color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
-            ], on_click=lambda e, it=item: self._show_food_detail(it)))
+            ], on_click=lambda e, it=enriched: self._show_food_detail(it)))
         ref.content = ft.Column([
             self._guest_banner(),
             ft.Text("Weekly Menu", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -717,11 +732,11 @@ class StaffPage:
             ft.Column([
                 ft.Container(
                     ft.Image(src=g.get("Item_Image", ""), width=None, height=180,
-                             fit="cover", border_radius=ft.border_vertical(12),
+                             fit="cover", border_radius=ft.BorderRadius(12, 12, 0, 0),
                              error_content=ft.Container(
                                  ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
                                  height=180, alignment=ft.alignment.center)),
-                    border_radius=ft.border_vertical(12), clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                    border_radius=ft.BorderRadius(12, 12, 0, 0), clip_behavior=ft.ClipBehavior.HARD_EDGE,
                 ),
                 ft.Container(body, padding=16, expand=True),
             ], spacing=0, expand=True),

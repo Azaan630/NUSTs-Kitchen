@@ -761,6 +761,21 @@ class AdminPage:
     def _trunc(self, s, n):
         return (s or "?")[:n]
 
+    def _unique_labels(self, names, n):
+        seen, result = set(), []
+        for name in names:
+            label = self._trunc(name, n)
+            if label in seen:
+                base = label.rstrip("…")
+                for j in range(2, 99):
+                    alt = self._trunc(base, n - len(str(j)) - 1) + str(j)
+                    if alt not in seen:
+                        label = alt
+                        break
+            seen.add(label)
+            result.append(label)
+        return result
+
     def _clean_max(self, v, step=50):
         if v <= 0: return step
         return ((int(v) // step) + 1) * step
@@ -800,7 +815,7 @@ class AdminPage:
                                   tooltip=f"{r.get('Name','?')}: {avg:.1f}/5 ({val} ratings)",
                                   border_radius=6, width=22)],
             ))
-        names = [self._trunc(r.get("Name"), 12) for r in top]
+        names = self._unique_labels([(r.get("Name") or "?") for r in top], 12)
         return BarChart(
             groups=groups,
             group_spacing=8,
@@ -817,7 +832,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=10, color=self._clr("text"),
                                                    font_family="DM Sans", no_wrap=True))
                         for i, n in enumerate(names)],
@@ -836,7 +850,7 @@ class AdminPage:
                 tooltip=f"{f.get('Name','?')}: PKR {price:,.0f}"))
         max_v = max(((f.get("Price") or 0) for f in top), default=100)
         max_y, step = self._nice_axis(max_v, 5)
-        names = [self._trunc(f.get("Name"), 7) for f in top]
+        names = self._unique_labels([(f.get("Name") or "?") for f in top], 7)
         n = len(price_points)
         return LineChart(
             data_series=[
@@ -861,7 +875,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                    font_family="DM Sans"))
                         for i, n in enumerate(names)],
@@ -885,7 +898,7 @@ class AdminPage:
                                   tooltip=f"{ing.get('Name','?')}: {qty} {unit}",
                                   border_radius=6, width=18)],
             ))
-        names = [self._trunc(ing.get("Name"), 7) for ing in top]
+        names = self._unique_labels([(i.get("Name") or "?") for i in top], 7)
         max_q = max(((i.get("Total_Quantity") or 0) for i in top), default=10)
         max_y, step = self._nice_axis(max_q, 5)
         return BarChart(
@@ -904,7 +917,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                    font_family="DM Sans"))
                         for i, n in enumerate(names)],
@@ -922,7 +934,7 @@ class AdminPage:
             nm = m.get("Food_Item_Name") or m.get("meal_type", "?") or "?"
             pts.append(LineChartDataPoint(x=i, y=r,
                 tooltip=f"{nm}: {r:.1f}/5"))
-        names = [self._trunc(m.get("Food_Item_Name") or m.get("meal_type", "?"), 7) for m in top]
+        names = self._unique_labels([(m.get("Food_Item_Name") or m.get("meal_type", "?")) for m in top], 7)
         max_y = 5.0
         n = len(pts)
         return LineChart(
@@ -948,7 +960,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                    font_family="DM Sans"))
                         for i, n in enumerate(names)],
@@ -1050,7 +1061,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[
                     ChartAxisLabel(i, ft.Text(m, size=11, color=self._clr("text"),
                                                font_family="DM Sans"))
@@ -1103,7 +1113,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(d, size=10, color=self._clr("text"),
                                                    font_family="DM Sans"))
                         for i, d in enumerate(date_labels)],
@@ -1121,7 +1130,7 @@ class AdminPage:
             qty = ing.get("Total_Quantity") or 0
             pts.append(LineChartDataPoint(x=i, y=cost,
                 tooltip=f"{ing.get('Name','?')}: PKR {cost}/unit ({qty} {ing.get('Unit','')})"))
-        names = [self._trunc(ing.get("Name"), 7) for ing in top]
+        names = self._unique_labels([(i.get("Name") or "?") for i in top], 7)
         max_c = max((p.y for p in pts), default=100)
         max_y, step = self._nice_axis(max_c, 5)
         n = len(pts)
@@ -1148,7 +1157,6 @@ class AdminPage:
                 ],
             ),
             bottom_axis=ChartAxis(
-                interval=1,
                 labels=[ChartAxisLabel(i, ft.Text(n, size=11, color=self._clr("text"),
                                                    font_family="DM Sans"))
                         for i, n in enumerate(names)],
@@ -3356,11 +3364,11 @@ class AdminPage:
             ft.Column([
                 ft.Container(
                     ft.Image(src=g.get("Item_Image", ""), width=None, height=180,
-                             fit="cover", border_radius=ft.border_vertical(12),
+                             fit="cover", border_radius=ft.BorderRadius(12, 12, 0, 0),
                              error_content=ft.Container(
                                  ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
                                  height=180, alignment=ft.alignment.center)),
-                    border_radius=ft.border_vertical(12), clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                    border_radius=ft.BorderRadius(12, 12, 0, 0), clip_behavior=ft.ClipBehavior.HARD_EDGE,
                 ),
                 ft.Container(body, padding=16, expand=True),
             ], spacing=0, expand=True),

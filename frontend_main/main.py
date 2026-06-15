@@ -143,95 +143,126 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
     t = make_theme()
     acc = t["accent"]
     sub = t["sub"]
+    txt = t["text"]
     d = t["is_dark"]
     m = (page.width or 1200) < 720
     grad = ft.LinearGradient(
         begin=ft.Alignment(-1, -1),
         end=ft.Alignment(1, 1),
-        colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
+        colors=["#0B1120", "#111827", "#1E293B"] if d else ["#EBF5FF", "#F0F4FF", "#FFF7ED"],
     )
 
-    ibox  = 150 if m else 220
-    tsize = 32 if m else 56
+    ibox  = 140 if m else 200
+    tsize = 30 if m else 52
     btn_txt_color = WHITE if not d else SLATE_900
 
     def _toggle_landing_theme(e):
         is_dark["v"] = not is_dark["v"]
         show_landing()
 
-    guest_btns = ft.Column([
-        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-            style=ft.ButtonStyle(color=t["text"],
-                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                shape=ft.RoundedRectangleBorder(radius=10),
-                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-    ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER) if m else ft.Row([
-        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-            style=ft.ButtonStyle(color=t["text"],
-                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                shape=ft.RoundedRectangleBorder(radius=10),
-                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
+    guest_btns = [ft.Column(
+        [ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=txt,
+                side=ft.BorderSide(1.5, ft.Colors.with_opacity(0.25, txt)),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                padding=ft.Padding.symmetric(horizontal=22, vertical=12),
+                text_style=ft.TextStyle(size=14, font_family="DM Sans", weight="bold"))),
+         ft.Container(height=8)],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER) for text, role in [
+         ("Try as Guest Student", "Student"),
+         ("Try as Guest Staff",   "Staff"),
+         ("Try as Guest Admin",   "Admin"),
+    ]] if m else [ft.Row(
+        [ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=txt,
+                side=ft.BorderSide(1.5, ft.Colors.with_opacity(0.25, txt)),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                padding=ft.Padding.symmetric(horizontal=22, vertical=12),
+                text_style=ft.TextStyle(size=14, font_family="DM Sans", weight="bold")))
+         for text, role in [
+             ("Guest Student", "Student"),
+             ("Guest Staff",   "Staff"),
+             ("Guest Admin",   "Admin"),
+         ]],
+        alignment=ft.MainAxisAlignment.CENTER, spacing=10
+    )]
 
     # ── Logo (animates from centered scale 4 → final position) ──
     logo_box = ft.Container(
         content=ft.Image(src="logo.png", width=ibox, height=ibox, fit="cover"),
-        bgcolor=ft.Colors.with_opacity(0.1, acc),
+        bgcolor=ft.Colors.with_opacity(0.12, acc),
         width=ibox, height=ibox, border_radius=ibox//2,
         alignment=ft.Alignment(0, 0),
+        shadow=ft.BoxShadow(blur_radius=30, color=ft.Colors.with_opacity(0.2, acc), spread_radius=2),
         scale=4.0,
         offset=ft.Offset(0, 0.65 if not m else 0.85),
         animate_scale=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
         animate_offset=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
     )
 
-    # ── Content below logo (slides up) ──
-    below_logo = ft.Column([
-        ft.Container(height=16 if m else 20),
+    # ── Card content below logo ──
+    card_content = ft.Column([
+        ft.Container(height=12 if m else 16),
         ft.Text("NUST's Kitchen", size=tsize, weight="bold",
-                font_family="Playfair", color=t["text"]),
-        ft.Text("Mess Portal \u2022 Designed For NUST Hostels", size=14 if m else 17, color=sub,
-                font_family="DM Sans"),
-        ft.Text("(This Website is not officially associated with NUST)", size=12 if m else 17, color=sub,
-                font_family="DM Sans"),
-        ft.Container(height=36 if m else 48),
+                font_family="Playfair", color=txt),
+        ft.Container(height=4),
+        ft.Container(
+            content=ft.Text("Smart Mess Management for NUST Hostels",
+                            size=13 if m else 16, color=sub, font_family="DM Sans"),
+            padding=ft.Padding.symmetric(horizontal=4, vertical=2),
+            bgcolor=ft.Colors.with_opacity(0.06, acc),
+            border_radius=6,
+        ),
+        ft.Container(height=32 if m else 44),
         ft.FilledButton(
             content=ft.Row([
-                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=18),
+                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=20),
                 ft.Text("Continue with Google", color=btn_txt_color,
-                        weight="bold", font_family="DM Sans", size=14),
+                        weight="bold", font_family="DM Sans", size=15),
             ], spacing=10, tight=True),
             on_click=login_click,
             style=ft.ButtonStyle(
                 bgcolor=acc,
-                padding=ft.Padding.symmetric(horizontal=36, vertical=16),
-                shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
+                padding=ft.Padding.symmetric(horizontal=42, vertical=17),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                elevation=0,
+                shadow_color=ft.Colors.with_opacity(0.35, acc),
             ),
         ),
-        ft.Container(height=16),
+        ft.Container(height=20),
         ft.Row([
-            ft.Container(height=1, bgcolor=sub, expand=True),
+            ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.15, sub), expand=True),
             ft.Container(
-                content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
-                padding=ft.Padding.symmetric(horizontal=12),
+                content=ft.Text("or explore as", size=11, color=sub, font_family="DM Sans"),
+                padding=ft.Padding.symmetric(horizontal=16),
             ),
-            ft.Container(height=1, bgcolor=sub, expand=True),
+            ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.15, sub), expand=True),
         ], alignment=ft.MainAxisAlignment.CENTER),
         ft.Container(height=16),
-        guest_btns,
-        ft.Container(height=24),
+        *guest_btns,
+        ft.Container(height=28),
         ft.TextButton(
             content=ft.Text("New here? Register as Student / Staff",
-                            color=acc, size=13, font_family="DM Sans"),
+                            color=acc, size=13, font_family="DM Sans", weight="bold"),
             on_click=lambda e: show_register(),
         ),
     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-       opacity=0,
-       offset=ft.Offset(0, 0.25),
-       animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
-       animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+       spacing=0,
+    )
+
+    # ── Glassmorphism card wrapper ──
+    below_logo = ft.Container(
+        content=card_content,
+        padding=ft.Padding.symmetric(horizontal=36 if not m else 24, vertical=32),
+        border_radius=24,
+        bgcolor=ft.Colors.with_opacity(0.75, t["card"] if d else "#FFFFFF"),
+        shadow=ft.BoxShadow(blur_radius=40, color=ft.Colors.with_opacity(0.12, "#000"),
+                            spread_radius=0, offset=ft.Offset(0, 4)),
+        border=ft.border.all(1, ft.Colors.with_opacity(0.08, txt)),
+        opacity=0,
+        offset=ft.Offset(0, 0.25),
+        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+        animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
     )
 
     result = ft.Container(
@@ -241,7 +272,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             *_food_decos(acc),
             ft.Container(
                 content=ft.Column([
-                    ft.Container(height=60 if m else 80),
+                    ft.Container(height=40 if m else 60),
                     logo_box,
                     below_logo,
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -251,11 +282,14 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             ft.Container(
                 content=ft.IconButton(
                     icon=ft.Icons.DARK_MODE_OUTLINED if d else ft.Icons.LIGHT_MODE_OUTLINED,
-                    icon_color=sub, icon_size=22,
+                    icon_color=sub, icon_size=24,
                     tooltip="Toggle theme",
                     on_click=_toggle_landing_theme,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.Colors.with_opacity(0.1, sub),
+                    ),
                 ),
-                right=12, top=12,
+                right=16, top=16,
             ),
         ]),
         expand=True,
