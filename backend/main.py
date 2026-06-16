@@ -105,7 +105,7 @@ def read_root():
 
 
 @app.post("/auth/login")
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 def auth_login(request: Request, data: dict, db=Depends(get_db)):
     email = data.get("email", "").strip().lower()
     if not email:
@@ -117,7 +117,7 @@ def auth_login(request: Request, data: dict, db=Depends(get_db)):
 
 
 @app.get("/users/verify")
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 def verify_registration(request: Request, email: str, db=Depends(get_db)):
     user_record = UserDAO(db).find_by_email(email.strip().lower())
     if not user_record:

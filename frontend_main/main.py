@@ -1484,6 +1484,8 @@ async def main(page: ft.Page):
     page.on_login = on_login
 
     async def login_click(e):
+        if page.auth:
+            await page.logout()
         await page.login(provider, scope=["email", "profile"])
 
     def guest_login(role):
