@@ -438,7 +438,7 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
         (ft.Icons.EVENT_BUSY_ROUNDED,       "Mess-Off Requests",       "Students request leave from mess; staff approve or reject with limits."),
         (ft.Icons.EMAIL_ROUNDED,            "Auto Email Alerts",       "Get notified via Gmail on registration, approval, bills, and deletion."),
         (ft.Icons.DASHBOARD_ROUNDED,        "Admin Dashboard",         "Rich charts (bar, line & pie), with live stats across all modules."),
-        (ft.Icons.SECURITY_ROUNDED,         "Google OAuth Security",   "Sign in with your NUST SEECS Google account — no passwords needed."),
+        (ft.Icons.SECURITY_ROUNDED,         "Google OAuth Security",   "Sign in with your NUST Google account — no passwords needed."),
         (ft.Icons.ROCKET_LAUNCH_ROUNDED,    "CI/CD Pipeline",          "GitHub Actions auto-builds Docker images to GHCR on every push."),
         (ft.Icons.CLOUD_ROUNDED,            "Azure Cloud",             "Deployed on Azure Container Apps; scalable, always-on, production-ready."),
     ]
@@ -802,7 +802,7 @@ def build_register_form(page, on_submit, on_back):
                     tick.content.controls[0].scale = ft.Scale(1)
                     tick.update()
                     await asyncio.sleep(2.5)
-                    on_back() if on_back else None
+                    show_landing()
                 else:
                     msg.value = f"Error: {resp.json().get('detail', 'Unknown error')}"
                     msg.color = t["danger"]
