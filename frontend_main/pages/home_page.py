@@ -129,6 +129,25 @@ class StudentHomePage:
         qty = cached.get("Quantity", 0)
         path = cached.get("Image_Path") or item.get("Image_Path")
 
+        async def close(e):
+            o = getattr(self, '_detail_overlay', None)
+            if o and o in self.page.controls:
+                self.page.remove(o)
+                self._detail_overlay = None
+                self.page.update()
+
+        max_h = (self.page.height or 700) * 0.85
+
+        recipe_section = ft.Column(spacing=4)
+        if not self.is_guest:
+            recipe_section.controls.append(
+                ft.Container(
+                    content=ft.ProgressRing(color=self.amber, width=24, height=24, stroke_width=3),
+                    alignment=ft.Alignment(0, 0),
+                    padding=ft.Padding.symmetric(vertical=12),
+                )
+            )
+
         rows = []
         if path:
             rows.append(ft.Container(
@@ -149,31 +168,8 @@ class StudentHomePage:
             ft.Text("Quantity", size=11, color=self.sub, font_family="DM Sans", expand=1),
             ft.Text(str(qty), size=13, color=self.txt, font_family="DM Sans", expand=2),
         ]))
+        rows.append(recipe_section)
 
-        recipes = []
-        if self.is_guest:
-            recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
-        else:
-            try:
-                from .api_client import _make_request
-                r_data = await _make_request("GET", "/recipes")
-                recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
-            except: pass
-        if recipes:
-            rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, self.txt)))
-            rows.append(ft.Text("Ingredients", size=12, weight="bold", color=self.txt, font_family="DM Sans"))
-            for r in recipes[:6]:
-                rows.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
-                                    size=12, color=self.sub, font_family="DM Sans"))
-
-        async def close(e):
-            o = getattr(self, '_detail_overlay', None)
-            if o and o in self.page.controls:
-                self.page.remove(o)
-                self._detail_overlay = None
-                self.page.update()
-
-        max_h = (self.page.height or 700) * 0.85
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
@@ -196,6 +192,24 @@ class StudentHomePage:
         )
         self.page.add(overlay)
         self._detail_overlay = overlay
+        self.page.update()
+
+        recipes = []
+        if self.is_guest:
+            recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+        else:
+            try:
+                from .api_client import _make_request
+                r_data = await _make_request("GET", "/recipes")
+                recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
+            except: pass
+        recipe_section.controls.clear()
+        if recipes:
+            recipe_section.controls.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, self.txt)))
+            recipe_section.controls.append(ft.Text("Ingredients", size=12, weight="bold", color=self.txt, font_family="DM Sans"))
+            for r in recipes[:6]:
+                recipe_section.controls.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
+                                            size=12, color=self.sub, font_family="DM Sans"))
         self.page.update()
 
     def _meal_color(self, meal_type: str):
@@ -626,6 +640,7 @@ class StudentHomePage:
         self.page.update()
 
     def build(self):
+        self.main_container.content = self._loading()
         asyncio.create_task(self._render())
         m = (self.page.width or 1200) < 720
         return ft.Container(

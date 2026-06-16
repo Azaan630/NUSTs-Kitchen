@@ -165,10 +165,22 @@ class StaffPage:
         sub = t.get("sub")
         txt = t.get("text")
         card_bg = t.get("card")
+        acc = t.get("accent")
         name = item.get("Name") or item.get("Food_Item_Name", "Unknown")
         price = item.get("Price", 0)
         qty = item.get("Quantity", 0)
         path = item.get("Image_Path")
+        iid = item.get("Item_ID")
+
+        recipe_section = ft.Column(spacing=4)
+        if not self.is_guest and iid:
+            recipe_section.controls.append(
+                ft.Container(
+                    content=ft.ProgressRing(color=acc, width=24, height=24, stroke_width=3),
+                    alignment=ft.Alignment(0, 0),
+                    padding=ft.Padding.symmetric(vertical=12),
+                )
+            )
 
         rows = []
         if path:
@@ -190,24 +202,7 @@ class StaffPage:
             ft.Text("Quantity", size=11, color=sub, font_family="DM Sans", expand=1),
             ft.Text(str(qty), size=13, color=txt, font_family="DM Sans", expand=2),
         ]))
-
-        iid = item.get("Item_ID")
-        if iid:
-            recipes = []
-            if self.is_guest:
-                recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
-            else:
-                try:
-                    r_data = await _req("/recipes", {"email": self.email})
-                    recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
-                except Exception:
-                    pass
-            if recipes:
-                rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
-                rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
-                for r in recipes[:6]:
-                    rows.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
-                                        size=12, color=sub, font_family="DM Sans"))
+        rows.append(recipe_section)
 
         max_h = (self.page.height or 700) * 0.85
         card = ft.Container(
@@ -225,6 +220,25 @@ class StaffPage:
             shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
         )
         self._show_overlay(card)
+
+        if iid:
+            recipes = []
+            if self.is_guest:
+                recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+            else:
+                try:
+                    r_data = await _req("/recipes", {"email": self.email})
+                    recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
+                except Exception:
+                    pass
+            recipe_section.controls.clear()
+            if recipes:
+                recipe_section.controls.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
+                recipe_section.controls.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
+                for r in recipes[:6]:
+                    recipe_section.controls.append(ft.Text(f"\u2022 {r.get('Name','?')} ({r.get('Ingredient_Quantity','?')} {r.get('Unit','')})",
+                                                size=12, color=sub, font_family="DM Sans"))
+            self.page.update()
 
     def _show_ingredient_detail(self, item):
         t = self.theme

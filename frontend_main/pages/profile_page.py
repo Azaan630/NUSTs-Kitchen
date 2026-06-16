@@ -337,6 +337,7 @@ class StudentProfilePage:
         self.page.update()
 
     def build(self):
+        self.main_container.content = self._loading()
         asyncio.create_task(self._render())
         m = (self.page.width or 1200) < 720
         return ft.Container(
