@@ -213,4 +213,4 @@ MIT License
 
 ---
 
-*Built with ❤️ at NUST SEECS*
+*With Great Food, comes Great Responsibility...*
