@@ -802,7 +802,7 @@ def build_register_form(page, on_submit, on_back):
                     tick.content.controls[0].scale = ft.Scale(1)
                     tick.update()
                     await asyncio.sleep(2.5)
-                    show_landing()
+                    on_back() if on_back else None
                 else:
                     msg.value = f"Error: {resp.json().get('detail', 'Unknown error')}"
                     msg.color = t["danger"]
