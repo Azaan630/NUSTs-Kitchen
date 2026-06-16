@@ -3,6 +3,7 @@ from dao.queries import (
     createFood, getAllFoodItems, getAllFoodCosts,
     getFoodByID, getIngredients, getRecipes, addRecipe,
     createIngredient, giveFoodRating, getFoodRating,
+    getRecipesDetailed, getRecipeSteps,
 )
 from io import StringIO
 import csv
@@ -26,6 +27,12 @@ class FoodDAO(BaseDAO):
 
     def get_recipes(self):
         return self._fetchall(getRecipes)
+
+    def get_recipes_detailed(self):
+        return self._fetchall(getRecipesDetailed)
+
+    def get_recipe_steps(self, item_id):
+        return self._fetchall(getRecipeSteps, (item_id,))
 
     def create_ingredient(self, name, total_quantity, unit, unit_cost):
         return self._execute(createIngredient, (name, total_quantity, unit, unit_cost))

@@ -86,7 +86,6 @@ class BillDAO(BaseDAO):
             "SELECT User_ID FROM Bills WHERE Month = %s)", (month_str,)
         )
         generated = 0
-        email_list = []
         for s in students:
             self._execute(
                 "INSERT INTO Bills (User_ID, Issue_Date, Amount, Due_Date, Month, Status) "
@@ -94,17 +93,6 @@ class BillDAO(BaseDAO):
                 (s["UserID"], today, amount, due_date, month_str)
             )
             generated += 1
-            email_list.append({
-                "Email": s.get("Email", ""),
-                "First_Name": s.get("First_Name", ""),
-                "Last_Name": s.get("Last_Name", ""),
-                "Amount": amount,
-                "Due_Date": str(due_date),
-                "Month": month_str,
-            })
-        if email_list:
-            from email_utils import notify_students
-            notify_students(email_list)
         return {"message": f"Generated {generated} bills for {month_str}", "count": generated}
 
     def get_recent_activity(self, limit=10):

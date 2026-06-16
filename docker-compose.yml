@@ -28,6 +28,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=db
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
     depends_on:
       db:
         condition: service_healthy

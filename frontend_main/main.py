@@ -13,6 +13,7 @@ from pages.mess_off_page import StudentMessOffPage
 from pages.admin_page import AdminPage
 from pages.staff_page import StaffPage
 import mock_data
+from pages import api_client
 
 load_dotenv()
 
@@ -110,6 +111,96 @@ def make_theme():
     }
 
 
+def _add_feedback_button(page, theme, user_data=None):
+    status_text = ft.Text("", size=11, color=theme["sub"], font_family="DM Sans")
+
+    def open_feedback(e):
+        subj_field = ft.TextField(
+            hint_text="Subject (required)",
+            border_color=ft.Colors.with_opacity(0.2, theme["text"]),
+            border_radius=10,
+            text_style=ft.TextStyle(size=13, color=theme["text"], font_family="DM Sans"),
+            filled=True, fill_color=theme["card"],
+        )
+        msg_field = ft.TextField(
+            hint_text="Your message...",
+            multiline=True, min_lines=3, max_lines=6,
+            border_color=ft.Colors.with_opacity(0.2, theme["text"]),
+            border_radius=10,
+            text_style=ft.TextStyle(size=13, color=theme["text"], font_family="DM Sans"),
+            filled=True, fill_color=theme["card"],
+        )
+        status = ft.Text("", size=11, font_family="DM Sans")
+
+        async def submit_feedback(e):
+            subj = (subj_field.value or "").strip()
+            text = (msg_field.value or "").strip()
+            if not subj:
+                status.value = "Please enter a subject"; status.color = theme.get("danger","#EF4444"); page.update(); return
+            if not text:
+                status.value = "Please write a message"; status.color = theme.get("danger","#EF4444"); page.update(); return
+            name = (user_data or {}).get("First_Name", "Guest")
+            email = (user_data or {}).get("Email", "guest@nust.app")
+            try:
+                from pages.api_client import get_headers as _gh, BASE_URL
+                import httpx
+                headers = _gh()
+                async with httpx.AsyncClient() as c:
+                    r = await c.post(f"{BASE_URL}/feedback/send", json={
+                        "name": name, "email": email, "subject": subj, "message": text
+                    }, headers=headers, timeout=10)
+                    if r.status_code == 200:
+                        subj_field.value = ""
+                        msg_field.value = ""
+                        status.value = "Sent — thank you!"
+                        status.color = "#10B981"
+                        dlg.open = False
+                        page.update()
+                    else:
+                        try: d = r.json().get("detail", r.text)
+                        except: d = r.text
+                        status.value = str(d)[:80]; status.color = "#EF4444"
+            except Exception as ex:
+                status.value = f"Error: {ex}"; status.color = "#EF4444"
+            page.update()
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Row([
+                ft.Icon(ft.Icons.FEEDBACK_ROUNDED, size=22, color=theme["accent"]),
+                ft.Text("Send Feedback", size=18, weight="bold", color=theme["text"], font_family="DM Sans"),
+            ], spacing=8),
+            content=ft.Column([
+                ft.Text("Your feedback goes directly to the admin.", size=12, color=theme["sub"], font_family="DM Sans"),
+                ft.Container(height=12),
+                subj_field,
+                ft.Container(height=8),
+                msg_field,
+                status,
+            ], tight=True, width=380),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: (setattr(dlg, 'open', False), page.update())),
+                ft.FilledButton("Send", style=ft.ButtonStyle(bgcolor=theme["accent"], color="#FFF"),
+                                on_click=lambda e: asyncio.ensure_future(submit_feedback(e))),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.show_dialog(dlg)
+
+    btn = ft.Container(
+        content=ft.Row([
+            ft.Icon(ft.Icons.FEEDBACK_ROUNDED, size=16, color="#FFF"),
+            ft.Text("Feedback", size=12, color="#FFF", font_family="DM Sans", weight="bold"),
+        ], spacing=6),
+        bgcolor=theme["accent"], border_radius=20,
+        padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+        shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.3, theme["accent"])),
+        right=12, bottom=90 if (page.width or 1200) < 720 else 16,
+        on_click=open_feedback,
+    )
+    page.overlay.append(btn)
+
+
 FOOD_DECOS = [
     (ft.Icons.RICE_BOWL_ROUNDED,     180, 25,  60),
     (ft.Icons.COFFEE_ROUNDED,        110, None, None, 35, 40),
@@ -142,95 +233,162 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
     t = make_theme()
     acc = t["accent"]
     sub = t["sub"]
+    txt = t["text"]
     d = t["is_dark"]
     m = (page.width or 1200) < 720
     grad = ft.LinearGradient(
         begin=ft.Alignment(-1, -1),
         end=ft.Alignment(1, 1),
-        colors=["#0F172A", "#1a1f38", "#151B30"] if d else ["#FFF5E6", "#F8FAFC", "#FFF8E7"],
+        colors=["#0B1120", "#111827", "#1E293B"] if d else ["#EBF5FF", "#F0F4FF", "#FFF7ED"],
     )
 
-    ibox  = 150 if m else 220
-    tsize = 32 if m else 56
+    ibox  = 140 if m else 200
+    tsize = 30 if m else 52
     btn_txt_color = WHITE if not d else SLATE_900
 
     def _toggle_landing_theme(e):
         is_dark["v"] = not is_dark["v"]
         show_landing()
 
-    guest_btns = ft.Column([
-        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-            style=ft.ButtonStyle(color=t["text"],
-                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                shape=ft.RoundedRectangleBorder(radius=10),
-                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-    ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER) if m else ft.Row([
-        ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
-            style=ft.ButtonStyle(color=t["text"],
-                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, t["text"])),
-                shape=ft.RoundedRectangleBorder(radius=10),
-                padding=ft.Padding.symmetric(horizontal=14, vertical=10)))
-        for text, role in [("Guest Student", "Student"), ("Guest Staff", "Staff"), ("Guest Admin", "Admin")]
-    ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
+    guest_btns = [ft.Column(
+        [ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=txt,
+                side=ft.BorderSide(1.5, ft.Colors.with_opacity(0.25, txt)),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                padding=ft.Padding.symmetric(horizontal=22, vertical=12),
+                text_style=ft.TextStyle(size=14, font_family="DM Sans", weight="bold"))),
+         ft.Container(height=8)],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER) for text, role in [
+         ("Try as Guest Student", "Student"),
+         ("Try as Guest Staff",   "Staff"),
+         ("Try as Guest Admin",   "Admin"),
+    ]] if m else [ft.Row(
+        [ft.OutlinedButton(text, on_click=lambda e, r=role: guest_login(r),
+            style=ft.ButtonStyle(color=txt,
+                side=ft.BorderSide(1.5, ft.Colors.with_opacity(0.25, txt)),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                padding=ft.Padding.symmetric(horizontal=22, vertical=12),
+                text_style=ft.TextStyle(size=14, font_family="DM Sans", weight="bold")))
+         for text, role in [
+             ("Guest Student", "Student"),
+             ("Guest Staff",   "Staff"),
+             ("Guest Admin",   "Admin"),
+         ]],
+        alignment=ft.MainAxisAlignment.CENTER, spacing=10
+    )]
 
     # ── Logo (animates from centered scale 4 → final position) ──
     logo_box = ft.Container(
         content=ft.Image(src="logo.png", width=ibox, height=ibox, fit="cover"),
-        bgcolor=ft.Colors.with_opacity(0.1, acc),
+        bgcolor=ft.Colors.with_opacity(0.12, acc),
         width=ibox, height=ibox, border_radius=ibox//2,
         alignment=ft.Alignment(0, 0),
+        shadow=ft.BoxShadow(blur_radius=30, color=ft.Colors.with_opacity(0.2, acc), spread_radius=2),
         scale=4.0,
         offset=ft.Offset(0, 0.65 if not m else 0.85),
         animate_scale=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
         animate_offset=ft.Animation(1000, ft.AnimationCurve.EASE_OUT),
     )
 
-    # ── Content below logo (slides up) ──
-    below_logo = ft.Column([
-        ft.Container(height=16 if m else 20),
+    # ── Card content below logo ──
+    card_content = ft.Column([
+        ft.Container(height=12 if m else 16),
         ft.Text("NUST's Kitchen", size=tsize, weight="bold",
-                font_family="Playfair", color=t["text"]),
-        ft.Text("Mess Portal \u2022 Designed For NUST Hostels", size=14 if m else 17, color=sub,
-                font_family="DM Sans"),
-        ft.Text("(This Website is not officially associated with NUST)", size=12 if m else 17, color=sub,
-                font_family="DM Sans"),
-        ft.Container(height=36 if m else 48),
+                font_family="Playfair", color=txt),
+        ft.Container(height=4),
+        ft.Container(
+            content=ft.Text("Smart Mess Management for NUST Hostels",
+                            size=13 if m else 16, color=sub, font_family="DM Sans"),
+            padding=ft.Padding.symmetric(horizontal=4, vertical=2),
+            bgcolor=ft.Colors.with_opacity(0.06, acc),
+            border_radius=6,
+        ),
+        ft.Container(height=20 if m else 24),
+        ft.Container(
+            content=ft.Text("With great food, comes great responsibility!",
+                            size=13 if m else 16, weight="bold",
+                            color=acc, font_family="Playfair", italic=True),
+            padding=ft.Padding.symmetric(horizontal=16, vertical=10),
+            border_radius=12,
+            bgcolor=ft.Colors.with_opacity(0.05, acc),
+            shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.15, acc)),
+        ),
+        ft.Container(height=32 if m else 44),
         ft.FilledButton(
             content=ft.Row([
-                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=18),
+                ft.Icon(ft.Icons.LOGIN_ROUNDED, color=btn_txt_color, size=20),
                 ft.Text("Continue with Google", color=btn_txt_color,
-                        weight="bold", font_family="DM Sans", size=14),
+                        weight="bold", font_family="DM Sans", size=15),
             ], spacing=10, tight=True),
             on_click=login_click,
             style=ft.ButtonStyle(
                 bgcolor=acc,
-                padding=ft.Padding.symmetric(horizontal=36, vertical=16),
-                shape=ft.RoundedRectangleBorder(radius=12), elevation=0,
+                padding=ft.Padding.symmetric(horizontal=42, vertical=17),
+                shape=ft.RoundedRectangleBorder(radius=14),
+                elevation=0,
+                shadow_color=ft.Colors.with_opacity(0.35, acc),
             ),
         ),
-        ft.Container(height=16),
+        ft.Container(height=20),
         ft.Row([
-            ft.Container(height=1, bgcolor=sub, expand=True),
+            ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.15, sub), expand=True),
             ft.Container(
-                content=ft.Text("or", size=12, color=sub, font_family="DM Sans"),
-                padding=ft.Padding.symmetric(horizontal=12),
+                content=ft.Text("or explore as", size=11, color=sub, font_family="DM Sans"),
+                padding=ft.Padding.symmetric(horizontal=16),
             ),
-            ft.Container(height=1, bgcolor=sub, expand=True),
+            ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.15, sub), expand=True),
         ], alignment=ft.MainAxisAlignment.CENTER),
         ft.Container(height=16),
-        guest_btns,
-        ft.Container(height=24),
+        *guest_btns,
+        ft.Container(height=28),
         ft.TextButton(
             content=ft.Text("New here? Register as Student / Staff",
-                            color=acc, size=13, font_family="DM Sans"),
+                            color=acc, size=13, font_family="DM Sans", weight="bold"),
             on_click=lambda e: show_register(),
         ),
     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-       opacity=0,
-       offset=ft.Offset(0, 0.25),
-       animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
-       animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+       spacing=0,
+    )
+
+    # ── Glassmorphism card wrapper ──
+    below_logo = ft.Container(
+        content=card_content,
+        padding=ft.Padding.symmetric(horizontal=36 if not m else 24, vertical=32),
+        border_radius=24,
+        bgcolor=ft.Colors.with_opacity(0.75, t["card"] if d else "#FFFFFF"),
+        shadow=ft.BoxShadow(blur_radius=40, color=ft.Colors.with_opacity(0.12, "#000"),
+                            spread_radius=0, offset=ft.Offset(0, 4)),
+        border=ft.Border(
+            top=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            left=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            right=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+            bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+        ),
+        opacity=0,
+        offset=ft.Offset(0, 0.25),
+        animate_opacity=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+        animate_offset=ft.Animation(700, ft.AnimationCurve.EASE_OUT),
+    )
+
+    page_w = page.width or 600
+
+    # ── bounce arrow (stored for animation) ──
+    bounce_arrow = ft.Column([
+        ft.Text("Scroll down to explore features", size=10,
+                color=ft.Colors.with_opacity(0.35, sub), font_family="DM Sans"),
+        ft.Container(height=6),
+        ft.Container(
+            content=ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_DOWN_ROUNDED,
+                            size=24, color=sub),
+            bgcolor=ft.Colors.with_opacity(0.08, sub),
+            border_radius=20, width=44, height=44,
+            alignment=ft.Alignment(0, 0),
+        ),
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
+    arrow_wrapper = ft.Container(
+        content=bounce_arrow,
+        animate_offset=ft.Animation(1000, ft.AnimationCurve.EASE_IN_OUT),
+        offset=ft.Offset(0, 0),
     )
 
     result = ft.Container(
@@ -240,9 +398,11 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             *_food_decos(acc),
             ft.Container(
                 content=ft.Column([
-                    ft.Container(height=60 if m else 80),
+                    ft.Container(height=40 if m else 60),
                     logo_box,
                     below_logo,
+                    ft.Container(height=24 if m else 32),
+                    arrow_wrapper,
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 alignment=ft.Alignment(0, 0),
                 expand=True,
@@ -250,18 +410,134 @@ def build_landing(page, login_click, guest_login, show_register, show_landing):
             ft.Container(
                 content=ft.IconButton(
                     icon=ft.Icons.DARK_MODE_OUTLINED if d else ft.Icons.LIGHT_MODE_OUTLINED,
-                    icon_color=sub, icon_size=22,
+                    icon_color=sub, icon_size=24,
                     tooltip="Toggle theme",
                     on_click=_toggle_landing_theme,
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, sub)),
                 ),
-                right=12, top=12,
+                right=16, top=16,
             ),
         ]),
-        expand=True,
+        height=(page.height or 800) if (page.height or 800) > 0 else 800,
     )
-    result._logo_box = logo_box
-    result._below_logo = below_logo
-    return result
+
+    # ── About / Developer section ──
+    # ── Feature flip-cards (17 cards) ──
+    features_data = [
+        (ft.Icons.CALENDAR_MONTH_ROUNDED,   "7-Day Menu Planning",     "Schedule breakfast, lunch & dinner for an entire week with drag-drop simplicity."),
+        (ft.Icons.RESTAURANT_MENU_ROUNDED,  "Meal Type Grouping",      "Items grouped by Breakfast, Lunch, Dinner — easy to read and manage."),
+        (ft.Icons.RECEIPT_LONG_ROUNDED,     "Auto Monthly Billing",    "Bills generated automatically per student with mess-off day deductions."),
+        (ft.Icons.PAYMENTS_ROUNDED,         "Payment Tracking",        "Track collected vs outstanding amounts with partial payment support."),
+        (ft.Icons.WARNING_AMBER_ROUNDED,    "Overdue Alerts",          "Unpaid bills past due date auto-flag as Overdue with visual indicators."),
+        (ft.Icons.INVENTORY_ROUNDED,        "Ingredient Inventory",    "Real-time stock tracking for 20+ ingredients with unit cost profiling."),
+        (ft.Icons.FEEDBACK_ROUNDED,         "Instant Feedback",        "Tap the floating button to send feedback directly to the admin."),
+        (ft.Icons.ATTACH_MONEY_ROUNDED,     "Cost Analysis",           "Per-item cost calculated from ingredient quantities & unit prices."),
+        (ft.Icons.HOW_TO_VOTE_ROUNDED,      "Student Voting",          "Active polls let students vote on upcoming meals — most votes wins."),
+        (ft.Icons.STAR_ROUNDED,             "5-Star Ratings",          "Rate dishes after meals; averages update live via database triggers."),
+        (ft.Icons.ANALYTICS_ROUNDED,        "Rating Analytics",        "Bar & line charts show rating trends, top dishes, and score distribution."),
+        (ft.Icons.EVENT_BUSY_ROUNDED,       "Mess-Off Requests",       "Students request leave from mess; staff approve or reject with limits."),
+        (ft.Icons.EMAIL_ROUNDED,            "Auto Email Alerts",       "Get notified via Gmail on registration, approval, bills, and deletion."),
+        (ft.Icons.DASHBOARD_ROUNDED,        "Admin Dashboard",         "Rich charts (bar, line & pie), with live stats across all modules."),
+        (ft.Icons.SECURITY_ROUNDED,         "Google OAuth Security",   "Sign in with your NUST SEECS Google account — no passwords needed."),
+        (ft.Icons.ROCKET_LAUNCH_ROUNDED,    "CI/CD Pipeline",          "GitHub Actions auto-builds Docker images to GHCR on every push."),
+        (ft.Icons.CLOUD_ROUNDED,            "Azure Cloud",             "Deployed on Azure Container Apps; scalable, always-on, production-ready."),
+    ]
+
+    icon_colors = ["#6366F1","#10B981","#F59E0B","#EC4899","#3B82F6","#8B5CF6","#EF4444","#14B8A6","#F97316","#A855F7","#06B6D4","#84CC16","#F43F5E","#3B82F6","#6366F1","#0EA5E9","#8B5CF6"]
+
+    flipped = [False] * len(features_data)
+    card_refs = [None] * len(features_data)
+    front_contents = [None] * len(features_data)
+    back_contents = [None] * len(features_data)
+
+    def make_flip_handler(idx):
+        def handler(e):
+            flipped[idx] = not flipped[idx]
+            card = card_refs[idx]
+            if card:
+                card.scale = 0.0
+                card.update()
+                front_contents[idx].visible = not flipped[idx]
+                back_contents[idx].visible = flipped[idx]
+                card.scale = 1.0
+                card.update()
+        return handler
+
+    card_rows = ft.Column(spacing=12)
+    for row_i in range(0, len(features_data), 3):
+        row_cards = []
+        for col_i in range(3):
+            idx = row_i + col_i
+            if idx >= len(features_data): break
+            icon_, phrase, desc = features_data[idx]
+            clr = icon_colors[idx]
+            front = ft.Column([
+                ft.Icon(icon_, size=28, color=clr),
+                ft.Container(height=8),
+                ft.Text(phrase, size=13, weight="bold", color=txt, font_family="DM Sans",
+                        text_align=ft.TextAlign.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0, visible=True)
+            back = ft.Column([
+                ft.Text(desc, size=12, color=sub, font_family="DM Sans",
+                        text_align=ft.TextAlign.CENTER),
+                ft.Container(height=8),
+                ft.Text("Tap to flip back", size=10, color=ft.Colors.with_opacity(0.4, acc),
+                        font_family="DM Sans"),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0, visible=False)
+            front_contents[idx] = front
+            back_contents[idx] = back
+            card = ft.Container(
+                content=ft.Stack([front, back]),
+                width=160 if m else 200, height=110 if m else 120, border_radius=16,
+                bgcolor=ft.Colors.with_opacity(0.5, t["card"]),
+                padding=ft.Padding.all(16),
+                border=ft.Border(
+                    top=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    left=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    right=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                    bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.08, txt)),
+                ),
+                shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.05, "#000"),
+                                    offset=ft.Offset(0, 2)),
+                on_click=make_flip_handler(idx),
+                ink=True,
+                animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT),
+                scale=1.0,
+            )
+            card_refs[idx] = card
+            row_cards.append(card)
+        card_rows.controls.append(ft.Row(row_cards, alignment=ft.MainAxisAlignment.CENTER, spacing=12, wrap=m, run_spacing=10))
+
+    about_section = ft.Container(
+        content=ft.Column([
+            ft.Container(height=56 if m else 72),
+            ft.Container(width=60, height=4, border_radius=2, bgcolor=acc),
+            ft.Container(height=16),
+            ft.Text("Everything you need", size=22 if m else 28, weight="bold",
+                    font_family="Playfair", color=txt),
+            ft.Container(height=4),
+            ft.Text("Scroll & tap cards to explore", size=11, color=ft.Colors.with_opacity(0.45, acc),
+                    font_family="DM Sans"),
+            ft.Container(height=28),
+            ft.Text("Tap any card to flip and learn more", size=11, color=ft.Colors.with_opacity(0.3, sub),
+                    font_family="DM Sans", italic=True),
+            ft.Container(height=20),
+            card_rows,
+            ft.Container(height=48 if m else 64),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        bgcolor=t["bg"] if d else "#F8FAFC",
+        padding=ft.Padding.symmetric(horizontal=16),
+    )
+
+    page_column = ft.Column([
+        result,
+        about_section,
+    ], scroll=ft.ScrollMode.ADAPTIVE, spacing=0, expand=True)
+
+    page_column._logo_box = logo_box
+    page_column._below_logo = below_logo
+    page_column._bounce_arrow = arrow_wrapper
+    return page_column
 
 
 def build_register_form(page, on_submit, on_back):
@@ -1089,7 +1365,7 @@ async def main(page: ft.Page):
                 page_content_placeholder.content = None
                 page_content_placeholder.opacity = 0
                 page.update()
-                page_content_placeholder.content = StaffPage(page, ud, theme).build()
+                page_content_placeholder.content = StaffPage(page, ud, theme, push_page, pop_page).build()
                 refresh_dock(); page.update(); dock_wrapper.visible = False
                 page_content_placeholder.opacity = 1; page.update()
                 return
@@ -1116,6 +1392,7 @@ async def main(page: ft.Page):
 
         page.on_resized = lambda e: load_page(current_index["v"])
         page.add(body)
+        _add_feedback_button(page, t)
         load_page(0)
         page.update()
 
@@ -1124,15 +1401,10 @@ async def main(page: ft.Page):
             if ud.get("Account_Type") != "Student" or ud.get("is_guest"):
                 return
             try:
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(
-                        f"{BACKEND_URL}/students/bills/unseen-count",
-                        params={"email": ud.get("Email", "")},
-                        timeout=10,
-                    )
-                    if r.status_code == 200:
-                        _bill_badge["count"] = r.json().get("count", 0)
-                        _update_badge()
+                r = await api_client._make_request("GET", "/students/bills/unseen-count")
+                if isinstance(r, dict) and "count" in r:
+                    _bill_badge["count"] = r["count"]
+                    _update_badge()
             except Exception:
                 pass
         asyncio.create_task(_fetch_badge())
@@ -1144,17 +1416,14 @@ async def main(page: ft.Page):
             return
         while not (page.auth and page.auth.user):
             await asyncio.sleep(0.2)
-        email = page.auth.user.get("email")
+        email = (page.auth.user.get("email") or "").strip().lower()
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{BACKEND_URL}/users/verify", params={"email": email}, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if "user_details" in data:
-                    page.current_user_data = data["user_details"]
-                    await show_dashboard()
-                else:
-                    raise KeyError("user_details missing")
+            api_client.set_user_email(None)
+            data = await api_client.login(email)
+            if isinstance(data, dict) and "user_details" in data:
+                api_client.set_user_email(email)
+                page.current_user_data = data["user_details"]
+                await show_dashboard()
             else:
                 page.clean()
                 t = make_theme()
@@ -1221,12 +1490,17 @@ async def main(page: ft.Page):
         mock_data.init_session()
         name_map = {"Student": ("Guest", "Student"), "Staff": ("Guest", "Staff"), "Admin": ("Guest", "Admin")}
         first, last = name_map[role]
+        email = f"guest.{role.lower()}@demo.app"
+        asyncio.create_task(_do_guest_login(email, first, last, role))
+
+    async def _do_guest_login(email, first, last, role):
+        api_client.set_user_email(None)
         page.current_user_data = {
             "UserID": -1, "First_Name": first, "Last_Name": last,
-            "Email": f"guest.{role.lower()}@demo.app", "Account_Type": role,
+            "Email": email, "Account_Type": role,
             "is_guest": True,
         }
-        asyncio.create_task(show_dashboard())
+        await show_dashboard()
 
     register_mode = {"v": False}
 
@@ -1235,6 +1509,7 @@ async def main(page: ft.Page):
             await asyncio.sleep(0.3)
             lb = getattr(landing, "_logo_box", None)
             bl = getattr(landing, "_below_logo", None)
+            ba = getattr(landing, "_bounce_arrow", None)
             if lb and bl:
                 lb.scale = 1.0
                 lb.offset = ft.Offset(0, 0)
@@ -1242,6 +1517,15 @@ async def main(page: ft.Page):
                 bl.opacity = 1
                 bl.offset = ft.Offset(0, 0)
                 bl.update()
+            if ba:
+                await asyncio.sleep(0.5)
+                for _ in range(6):
+                    ba.offset = ft.Offset(0, 0.45)
+                    ba.update()
+                    await asyncio.sleep(0.6)
+                    ba.offset = ft.Offset(0, 0)
+                    ba.update()
+                    await asyncio.sleep(0.6)
         asyncio.create_task(_anim())
 
     def show_landing():
@@ -1256,6 +1540,7 @@ async def main(page: ft.Page):
         landing.scale = 0.92
         landing.animate_scale = ft.Animation(600, ft.AnimationCurve.EASE_OUT)
         page.add(landing)
+        _add_feedback_button(page, t)
         page.update()
         landing.opacity = 1
         landing.scale = 1.0
@@ -1273,6 +1558,7 @@ async def main(page: ft.Page):
         reg.opacity = 0
         reg.scale = 0.95
         page.add(reg)
+        _add_feedback_button(page, t)
         page.update()
         reg.opacity = 1
         reg.scale = 1.0

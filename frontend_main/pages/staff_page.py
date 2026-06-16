@@ -3,22 +3,46 @@ import asyncio
 import httpx
 import os
 import uuid
+import logging
 import mock_data
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("staff")
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
+from .api_client import get_headers as _api_headers
 
-async def _req(endpoint, params=None):
+
+async def _req(endpoint, params=None, method="GET", json_data=None):
     async with httpx.AsyncClient() as client:
         try:
-            r = await client.get(f"{BASE_URL}{endpoint}", params=params, timeout=10)
+            headers = _api_headers()
+            url = f"{BASE_URL}{endpoint}"
+            kw = dict(params=params, headers=headers, timeout=10.0)
+            logger.info("%s %s params=%s body=%s", method, url, params, json_data)
+            if method == "GET":
+                r = await client.get(url, **kw)
+            elif method == "POST":
+                r = await client.post(url, json=json_data, **kw)
+            elif method == "PATCH":
+                r = await client.patch(url, json=json_data, **kw)
+            elif method == "DELETE":
+                r = await client.delete(url, **kw)
+            else:
+                return {"error": f"Unknown method: {method}"}
             r.raise_for_status()
-            return r.json() if r.status_code != 204 else {}
+            data = r.json() if r.status_code != 204 else {}
+            logger.info("%s %s -> %s records", method, url, len(data) if isinstance(data, list) else type(data).__name__)
+            return data
         except httpx.HTTPStatusError as e:
             try: d = e.response.json().get("detail", e.response.text)
             except Exception: d = e.response.text
-            return {"error": f"({e.response.status_code}) {d}"}
+            msg = f"({e.response.status_code}) {d}"
+            logger.error("REQ ERR %s %s -> %s", method, url, msg)
+            return {"error": msg}
         except Exception as ex:
+            logger.error("REQ EXC %s: %s", endpoint, ex)
             return {"error": str(ex)}
 
 
@@ -39,16 +63,19 @@ class StaffPage:
         ("Recipes",     ft.Icons.BOOK_ROUNDED),
     ]
 
-    def __init__(self, page, user_data, theme):
+    def __init__(self, page, user_data, theme, push_page=None, pop_page=None):
         self.page = page
         self.user_data = user_data
         self.theme = theme
         self.email = user_data.get("Email", "")
         self.is_guest = theme.get("is_guest", False)
         self.section_idx = {"v": 0}
+        self.push_page = push_page
+        self.pop_page = pop_page
         self.content = ft.Container(expand=True,
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT))
         self.content.content = self._loading()
+        self._recipe_dlg = None
 
     def _clr(self, key, fallback=None):
         return self.theme.get(key, fallback)
@@ -133,12 +160,12 @@ class StaffPage:
             alignment=ft.Alignment(0, 0),
         )
 
-    def _show_food_detail(self, item):
+    async def _show_food_detail(self, item):
         t = self.theme
         sub = t.get("sub")
         txt = t.get("text")
         card_bg = t.get("card")
-        name = item.get("Name", "Unknown")
+        name = item.get("Name") or item.get("Food_Item_Name", "Unknown")
         price = item.get("Price", 0)
         qty = item.get("Quantity", 0)
         path = item.get("Image_Path")
@@ -170,11 +197,11 @@ class StaffPage:
             if self.is_guest:
                 recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
             else:
-                import asyncio
                 try:
-                    r = asyncio.run(_req("/recipes", {"email": self.email}))
-                    recipes = [r for r in (r if isinstance(r, list) else []) if r.get("Item_ID") == iid]
-                except: pass
+                    r_data = await _req("/recipes", {"email": self.email})
+                    recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
+                except Exception:
+                    pass
             if recipes:
                 rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, txt)))
                 rows.append(ft.Text("Ingredients", size=12, weight="bold", color=txt, font_family="DM Sans"))
@@ -248,6 +275,39 @@ class StaffPage:
         )
         self._show_overlay(card)
 
+    def _ingredient_detail_card(self, ing):
+        t = self.theme
+        txt = t.get("text")
+        sub = t.get("sub")
+        card = t.get("card")
+        return ft.Container(
+            ft.Column([
+                ft.Row([
+                    ft.Text(ing.get("Ingredient_Name", ""), size=18, weight="bold", color=txt, font_family="DM Sans", expand=True),
+                    ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=sub, on_click=lambda e: self._remove_overlay()),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Container(height=12),
+                ft.Container(
+                    ft.Image(src=ing.get("Ingredient_Image", ""), width=None, height=160,
+                             fit="cover", border_radius=12,
+                             error_content=ft.Icon(ft.Icons.RESTAURANT, size=48, color=sub)),
+                    border_radius=12, clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                    alignment=ft.Alignment(0, 0),
+                ),
+                ft.Container(height=12),
+                ft.Row([
+                    ft.Text("Quantity:", size=12, color=sub, font_family="DM Sans", width=80),
+                    ft.Text(f"{ing.get('Ingredient_Quantity', 0)} {ing.get('Unit', '')}", size=13, weight="bold", color=txt, font_family="DM Sans"),
+                ]),
+                ft.Row([
+                    ft.Text("In Stock:", size=12, color=sub, font_family="DM Sans", width=80),
+                    ft.Text(f"{ing.get('Ingredient_Stock', 0)} {ing.get('Unit', '')}", size=13, color=txt, font_family="DM Sans"),
+                ]),
+            ], spacing=0),
+            bgcolor=card, border_radius=16, padding=ft.Padding.all(20),
+            width=340, shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+
     def _remove_overlay(self):
         o = getattr(self, '_active_overlay', None)
         if o and o in self.page.controls:
@@ -277,7 +337,7 @@ class StaffPage:
         else:
             ep = f"/admin/food-items/{eid}/image" if etype == "food" else f"/admin/ingredients/{eid}/image"
             async with httpx.AsyncClient() as client:
-                await client.patch(f"{BASE_URL}{ep}", json={"Image_Path": url}, params={"email": self.email}, timeout=10)
+                await client.patch(f"{BASE_URL}{ep}", json={"Image_Path": url}, params={"email": self.email}, headers=_api_headers(), timeout=10)
         self._snack("Image updated")
         await self._safe_render(self.RENDERERS[self.section_idx["v"]], self.content)
 
@@ -420,15 +480,30 @@ class StaffPage:
         ref.content = self._loading(); self.page.update()
         items = mock_data.get_weekly_menu() if self.is_guest else (await _req("/menu/weekly", {"email": self.email})) or []
         m_colors = {"Breakfast": self._clr("warn"), "Lunch": self._clr("success"), "Dinner": self._clr("accent2")}
+
+        food_map = {}
+        if self.is_guest:
+            for f in mock_data.get_food_costs():
+                food_map[f.get("Item_ID")] = f
+        else:
+            food_list = await _req("/admin/food/costs", {"email": self.email}) or []
+            for f in (food_list if isinstance(food_list, list) else []):
+                food_map[f.get("Item_ID")] = f
+
         rows = []
-        for item in (items if isinstance(items, list) else []):
+        for item in ((items if isinstance(items, list) else []) if items else (items.get("menu", []) if isinstance(items, dict) else [])):
+            if not isinstance(item, dict): continue
             mt = item.get("meal_type", "")
+            iid = item.get("Item_ID")
+            food_info = food_map.get(iid, {})
+            enriched = {**item, "Image_Path": food_info.get("Image_Path", ""), "Price": food_info.get("Price", 0)}
             rows.append(self._row_card([
+                self._food_thumb(enriched, 36),
                 ft.Container(
-                    content=ft.Text(mt[:1], size=12, weight="bold", color=m_colors.get(mt, self._clr("accent"))),
-                    width=30, height=30,
+                    content=ft.Text(mt[:1], size=10, weight="bold", color=m_colors.get(mt, self._clr("accent"))),
+                    width=26, height=26,
                     bgcolor=ft.Colors.with_opacity(0.12, m_colors.get(mt, self._clr("accent"))),
-                    border_radius=8, alignment=ft.Alignment(0, 0),
+                    border_radius=6, alignment=ft.Alignment(0, 0),
                 ),
                 ft.Column([
                     ft.Text(item.get("Name") or item.get("Food_Item_Name", "?"), size=13,
@@ -436,7 +511,7 @@ class StaffPage:
                     ft.Text(f"{item.get('Date','')} \u2022 {mt}", size=11,
                             color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
-            ]))
+            ], on_click=lambda e, it=enriched: self._show_food_detail(it)))
         ref.content = ft.Column([
             self._guest_banner(),
             ft.Text("Weekly Menu", size=18, weight="bold", color=self._clr("text"), font_family="DM Sans"),
@@ -539,27 +614,40 @@ class StaffPage:
 
     async def _render_recipes(self, ref):
         ref.content = self._loading(); self.page.update()
-        recipes = mock_data.get_recipes() if self.is_guest else (await _req("/recipes", {"email": self.email})) or []
+        raw = (mock_data.get_recipes_detailed() if self.is_guest
+               else (await _req("/recipes/detailed", {"email": self.email})) or [])
 
         grouped = {}
-        for r in (recipes if isinstance(recipes, list) else []):
+        for r in (raw if isinstance(raw, list) else []):
             iid = r.get("Item_ID")
-            grouped.setdefault(iid, {"item_id": iid, "ingredients": []})
+            grouped.setdefault(iid, {"Item_ID": iid, "Item_Name": r.get("Item_Name", f"Item #{iid}"),
+                                     "Item_Image": r.get("Item_Image", ""), "Price": r.get("Price", 0),
+                                     "Ratings_Average": r.get("Ratings_Average", 0), "ingredients": []})
             grouped[iid]["ingredients"].append(r)
 
-        rows = ft.Column(spacing=4)
-        fid = 0
+        rows = ft.Column(spacing=6)
+
         for g in grouped.values():
-            fid += 1
-            ing_text = ", ".join([f"{i.get('Name','?')} ({i.get('Ingredient_Quantity','?')} {i.get('Unit','')})"
-                                  for i in g["ingredients"]])
-            rows.controls.append(self._row_card([
+            def make_handler(g_data):
+                async def handler(e):
+                    await self._show_recipe_page(g_data)
+                return handler
+            card = self._row_card([
+                ft.Container(
+                    ft.Image(src=g.get("Item_Image", ""), width=48, height=48,
+                             fit="cover", border_radius=8,
+                             error_content=ft.Icon(ft.Icons.RESTAURANT_MENU, size=24, color=self._clr("sub"))),
+                    width=48, height=48, border_radius=8,
+                    shadow=ft.BoxShadow(blur_radius=3, color="#00000020"),
+                ),
                 ft.Column([
-                    ft.Text(f"Item #{g['item_id']}", size=13, weight="bold",
+                    ft.Text(g["Item_Name"], size=14, weight="bold",
                             color=self._clr("text"), font_family="DM Sans"),
-                    ft.Text(ing_text, size=11, color=self._clr("sub"), font_family="DM Sans"),
+                    ft.Text(f"{len(g['ingredients'])} ingredient{'s' if len(g['ingredients']) != 1 else ''}  •  Rs. {g['Price']:.0f}",
+                            size=11, color=self._clr("sub"), font_family="DM Sans"),
                 ], expand=True, spacing=2),
-            ]))
+            ], on_click=make_handler(g))
+            rows.controls.append(card)
 
         ref.content = ft.Column([
             self._guest_banner(),
@@ -568,6 +656,437 @@ class StaffPage:
             rows if rows.controls else ft.Text("No recipes", color=self._clr("sub")),
         ], alignment=ft.MainAxisAlignment.START, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         self.page.update()
+
+    async def _show_recipe_page(self, g):
+        if not isinstance(g, dict):
+            return
+        t = self.theme
+        txt = t.get("text")
+        sub = t.get("sub")
+        card = t.get("card")
+        acc = t.get("accent")
+        m = self.page.width and self.page.width < 720
+
+        name = g.get("Item_Name", "Recipe")
+        price = g.get("Price", 0)
+        rating = g.get("Ratings_Average", 0)
+        img = g.get("Item_Image", "")
+        ings = g.get("ingredients", [])
+        page_w = self.page.width or 600
+
+        def go_back(e):
+            if self.pop_page:
+                self.pop_page()
+            else:
+                self.page.clean()
+                self.page.add(self.build())
+                self.page.update()
+
+        # ── Header ──
+        header = ft.Row([
+            ft.IconButton(ft.Icons.ARROW_BACK_ROUNDED, icon_color=txt, on_click=go_back),
+            ft.Text(name, size=18, weight="bold", color=txt, font_family="DM Sans", expand=True),
+        ], spacing=8)
+
+        # ── Hero image (centered) ──
+        hero = ft.Container(
+            ft.Image(src=img, width=min(page_w, 500), height=200 if m else 260,
+                     fit="cover", border_radius=16,
+                     error_content=ft.Container(
+                         ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color=sub),
+                         height=200, alignment=ft.Alignment(0, 0))),
+            border_radius=16, clip_behavior=ft.ClipBehavior.HARD_EDGE,
+            shadow=ft.BoxShadow(blur_radius=20, color="#00000018"),
+            alignment=ft.Alignment(0, 0),
+            margin=ft.Margin.only(bottom=16),
+        )
+
+        # ── Info card (centered) ──
+        info_card = ft.Container(
+            ft.Column([
+                ft.Text(name, size=22 if m else 26, weight="bold", color=txt,
+                        font_family="Playfair", text_align=ft.TextAlign.CENTER),
+                ft.Container(height=6),
+                ft.Row([
+                    ft.Icon(ft.Icons.STAR_ROUNDED, size=18, color="#F59E0B"),
+                    ft.Text(f"{rating:.1f} / 5", size=14, color=sub, font_family="DM Sans"),
+                    ft.Container(width=16),
+                    ft.Container(
+                        ft.Text(f"Rs. {price:,.0f}", size=16, weight="bold", color=acc, font_family="DM Sans"),
+                        bgcolor=ft.Colors.with_opacity(0.08, acc), border_radius=10,
+                        padding=ft.Padding.symmetric(horizontal=14, vertical=6),
+                    ),
+                ], alignment=ft.MainAxisAlignment.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor=card, border_radius=16, padding=ft.Padding.all(20),
+            margin=ft.Margin.only(bottom=20),
+        )
+
+        # ── Ingredients ──
+        ing_header = ft.Text("Ingredients", size=15, weight="bold", color=txt, font_family="DM Sans")
+        ing_list = []
+        for ing in ings:
+            def make_ing_handler(ing_data):
+                def h(e):
+                    self._show_overlay(self._ingredient_detail_card(ing_data))
+                return h
+            ing_list.append(
+                ft.Container(
+                    ft.Row([
+                        ft.Container(
+                            ft.Image(src=ing.get("Ingredient_Image", ""),
+                                     width=40, height=40, fit="cover", border_radius=10,
+                                     error_content=ft.Icon(ft.Icons.RESTAURANT, size=20, color=sub)),
+                            width=40, height=40, border_radius=10,
+                        ),
+                        ft.Text(ing.get("Ingredient_Name", ""), size=13, weight="bold",
+                                color=txt, font_family="DM Sans", expand=True),
+                        ft.Container(
+                            ft.Text(f"{ing.get('Ingredient_Quantity', 0)} {ing.get('Unit', '')}",
+                                    size=11, color=acc, font_family="DM Sans", weight="bold"),
+                            bgcolor=ft.Colors.with_opacity(0.08, acc), border_radius=8,
+                            padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+                        ),
+                    ], spacing=10),
+                    padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+                    bgcolor=ft.Colors.with_opacity(0.4, card), border_radius=12,
+                    margin=ft.Margin.only(bottom=6),
+                    on_click=make_ing_handler(ing),
+                    ink=True,
+                )
+            )
+        if not ings:
+            ing_list.append(ft.Text("No ingredients listed", size=12, color=sub, font_family="DM Sans"))
+
+        # ── Steps ──
+        steps_header = ft.Text("How to Make", size=15, weight="bold", color=txt, font_family="DM Sans")
+        steps_list = []
+        if not self.is_guest:
+            try:
+                steps_data = await _req("/recipes/steps/" + str(g.get("Item_ID")), {"email": self.email})
+                if isinstance(steps_data, list) and steps_data:
+                    for s in steps_data:
+                        steps_list.append(
+                            ft.Container(
+                                ft.Row([
+                                    ft.Container(
+                                        ft.Text(str(s.get("Step_Number", "")), size=14, weight="bold",
+                                                color="#FFF", font_family="DM Sans"),
+                                        width=30, height=30, border_radius=15,
+                                        bgcolor=acc, alignment=ft.Alignment(0, 0),
+                                    ),
+                                    ft.Container(width=8),
+                                    ft.Text(s.get("Description", ""), size=13, color=txt,
+                                            font_family="DM Sans", expand=True),
+                                ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.START),
+                                bgcolor=ft.Colors.with_opacity(0.3, card), border_radius=12,
+                                padding=ft.Padding.all(14),
+                                border=ft.Border(
+                                    left=ft.BorderSide(3, acc),
+                                    top=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                                    right=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                                    bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                                ),
+                                margin=ft.Margin.only(bottom=8),
+                            )
+                        )
+                else:
+                    steps_list.append(ft.Text("No instructions available", size=12, color=sub, font_family="DM Sans"))
+            except Exception as ex:
+                logger.error("Recipe steps failed: %s", ex)
+                steps_list.append(ft.Text("Could not load instructions", size=12, color=sub, font_family="DM Sans"))
+        else:
+            steps_data = mock_data.get_recipe_steps(g.get("Item_ID"))
+            if steps_data:
+                for s in steps_data:
+                    steps_list.append(
+                        ft.Container(
+                            ft.Row([
+                                ft.Container(
+                                    ft.Text(str(s.get("Step_Number", "")), size=14, weight="bold",
+                                            color="#FFF", font_family="DM Sans"),
+                                    width=30, height=30, border_radius=15,
+                                    bgcolor=acc, alignment=ft.Alignment(0, 0),
+                                ),
+                                ft.Container(width=8),
+                                ft.Text(s.get("Description", ""), size=13, color=txt,
+                                        font_family="DM Sans", expand=True),
+                            ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.START),
+                            bgcolor=ft.Colors.with_opacity(0.3, card), border_radius=12,
+                            padding=ft.Padding.all(14),
+                            border=ft.Border(
+                                left=ft.BorderSide(3, acc),
+                                top=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                                right=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                                bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.06, txt)),
+                            ),
+                            margin=ft.Margin.only(bottom=8),
+                        )
+                    )
+            else:
+                steps_list.append(ft.Text("No instructions available", size=12, color=sub, font_family="DM Sans"))
+
+        page_content = ft.Container(
+            content=ft.Column([
+                header,
+                hero,
+                info_card,
+                ft.Divider(height=8, color=ft.Colors.with_opacity(0.06, txt)),
+                ing_header,
+                ft.Container(height=8),
+                *ing_list,
+                ft.Divider(height=20, color=ft.Colors.with_opacity(0.06, txt)),
+                steps_header,
+                ft.Container(height=8),
+                *steps_list,
+                ft.Container(height=40),
+            ], scroll=ft.ScrollMode.ADAPTIVE, expand=True, spacing=0),
+            padding=ft.Padding.symmetric(horizontal=16 if m else 24),
+            expand=True,
+        )
+
+        if self.push_page:
+            self.push_page(page_content)
+        else:
+            self.page.clean()
+            self.page.add(page_content)
+            self.page.update()
+
+    async def _recipe_popup(self, g):
+        item_id = g["Item_ID"]
+        title = ft.Text(g["Item_Name"], size=20, weight="bold", color="#1a1a2e", font_family="DM Sans")
+        status_text = ft.Text("", size=11, color=self._clr("success"), font_family="DM Sans")
+
+        price_rating = ft.Row([
+            ft.Text(f"Price: Rs. {g['Price']:.0f}", size=13, color="#555", font_family="DM Sans"),
+            ft.Text(f"★ {g['Ratings_Average']:.1f}", size=13, color="#e67e22", font_family="DM Sans"),
+        ], spacing=12)
+
+        # ── Recipe steps ──
+        steps_col = ft.Column(spacing=4)
+        if not self.is_guest:
+            try:
+                steps_data = await _req("/recipes/steps/" + str(item_id), {"email": self.email})
+                if isinstance(steps_data, list) and steps_data:
+                    steps_col.controls.append(
+                        ft.Text("How to Make", size=14, weight="bold", color="#1a1a2e", font_family="DM Sans"))
+                    for s in steps_data:
+                        steps_col.controls.append(
+                            ft.Row([
+                                ft.Container(
+                                    ft.Text(str(s.get("Step_Number", "")), size=11, weight="bold",
+                                            color="#FFF", font_family="DM Sans"),
+                                    width=22, height=22, border_radius=11,
+                                    bgcolor="#6366F1", alignment=ft.Alignment(0, 0),
+                                ),
+                                ft.Text(s.get("Description", ""), size=12, color="#555",
+                                        font_family="DM Sans", expand=True),
+                            ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START))
+            except Exception:
+                pass
+
+        ing_rows = ft.Column(spacing=6)
+
+        def build_ing_rows():
+            ing_rows.controls.clear()
+            for ing in g["ingredients"]:
+                i_ing_id = ing.get("Ingredient_ID")
+                def make_edit_handler(iid=i_ing_id, ing=ing):
+                    async def h(e):
+                        await self._edit_recipe_ingredient(g, iid, ing, build_ing_rows, status_text)
+                    return h
+                def make_del_handler(iid=i_ing_id):
+                    async def h(e):
+                        await self._delete_recipe_ingredient(g, iid, build_ing_rows, status_text)
+                    return h
+                ing_rows.controls.append(
+                    ft.Container(
+                        ft.Row([
+                            ft.Container(
+                                ft.Image(src=ing.get("Ingredient_Image", ""),
+                                         width=36, height=36, fit="cover",
+                                         border_radius=6, error_content=ft.Icon(ft.Icons.RESTAURANT, size=20)),
+                                width=36, height=36, border_radius=6,
+                                shadow=ft.BoxShadow(blur_radius=2, color="#00000020"),
+                            ),
+                            ft.Column([
+                                ft.Text(ing.get("Ingredient_Name", ""), size=13, weight="bold",
+                                        color="#1a1a2e", font_family="DM Sans"),
+                                ft.Text(f"{ing.get('Ingredient_Quantity', 0)} {ing.get('Unit', '')}  "
+                                        f"(Stock: {ing.get('Ingredient_Stock', 0)} {ing.get('Unit', '')})",
+                                        size=11, color="#777", font_family="DM Sans"),
+                            ], spacing=1, expand=True),
+                            ft.IconButton(ft.Icons.EDIT_ROUNDED, icon_size=18, icon_color="#3B82F6",
+                                          on_click=make_edit_handler(i_ing_id, ing)),
+                            ft.IconButton(ft.Icons.DELETE_ROUNDED, icon_size=18, icon_color="#EF4444",
+                                          on_click=make_del_handler(i_ing_id)),
+                        ]),
+                        padding=8, border_radius=8,
+                        bgcolor="#f0f0f5",
+                    )
+                )
+
+        build_ing_rows()
+
+        async def add_ingredient(e):
+            from .api_client import get_headers as _gh
+            ings_raw = mock_data.get_ingredients() if self.is_guest else (await _req("/analytics/ingredients", {"email": self.email})) or []
+            ing_items = []
+            qty_field = ft.TextField(hint_text="Qty", dense=True, width=80,
+                text_align=ft.TextAlign.CENTER,
+                border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=6,
+                text_style=ft.TextStyle(size=12, font_family="DM Sans"),
+                filled=True, fill_color="#f0f0f5")
+            sel_dd = ft.Dropdown(dense=True, expand=True, options=[], label="Select Ingredient")
+
+            for ing_ in (ings_raw if isinstance(ings_raw, list) else []):
+                iid_ = ing_.get("Ingredient_ID")
+                nm_ = ing_.get("Name", "")
+                sel_dd.options.append(ft.dropdown.Option(str(iid_), f"{nm_} ({ing_.get('Unit','')})"))
+                ing_items.append(ing_)
+
+            async def save_new():
+                sel_val = sel_dd.value
+                qty_val = (qty_field.value or "").strip()
+                if not sel_val or not qty_val:
+                    status_text.value = "Select ingredient and quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+                try:
+                    qty = float(qty_val)
+                    if qty <= 0: raise ValueError
+                except ValueError:
+                    status_text.value = "Invalid quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+                ing_id = int(sel_val)
+                sel_ing = next((x for x in ing_items if x.get("Ingredient_ID") == ing_id), {})
+                if self.is_guest:
+                    g["ingredients"].append({"Ingredient_ID": ing_id, "Ingredient_Name": sel_ing.get("Name",""),
+                        "Ingredient_Image": sel_ing.get("Image_Path",""), "Unit": sel_ing.get("Unit",""),
+                        "Ingredient_Quantity": qty, "Ingredient_Stock": sel_ing.get("Total_Quantity", 0)})
+                else:
+                    ep = f"/admin/add-recipe/{item_id}/{ing_id}/{qty}"
+                    r = await _req(ep, {"email": self.email}, "POST")
+                    if isinstance(r, dict) and "error" in r:
+                        status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+                build_ing_rows()
+                status_text.value = "Ingredient added"; status_text.color = self._clr("success")
+                (setattr(add_dlg, "open", False), self.page.update())
+
+            add_dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Add Ingredient", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+                content=ft.Column([sel_dd, qty_field, ft.Container(height=8)], width=300, tight=True),
+                actions=[
+                    ft.TextButton("Cancel", on_click=lambda e: (setattr(add_dlg, "open", False), self.page.update())),
+                    ft.FilledButton("Add", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                                    on_click=lambda e: asyncio.ensure_future(save_new())),
+                ],
+            )
+            self.page.show_dialog(add_dlg)
+
+        ing_header_row = ft.Row([
+            ft.Text("Ingredients", size=15, weight="bold", color="#1a1a2e", font_family="DM Sans", expand=True),
+            ft.IconButton(ft.Icons.ADD_CIRCLE_ROUNDED, icon_size=20, icon_color=self._clr("accent"),
+                          tooltip="Add Ingredient", on_click=lambda e: asyncio.ensure_future(add_ingredient(e))),
+        ])
+
+        body = ft.Column([
+            ft.Row([
+                ft.Text(g["Item_Name"], size=18, weight="bold", color=self._clr("text"), font_family="DM Sans", expand=True),
+                ft.IconButton(ft.Icons.CLOSE_ROUNDED, icon_color=self._clr("sub"),
+                              on_click=lambda e: self._remove_overlay()),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Container(height=6),
+            price_rating,
+            ft.Divider(height=16, color="#ddd"),
+            steps_col,
+            steps_col.controls and ft.Divider(height=10, color="#ddd") or ft.Container(),
+            ing_header_row,
+            ft.Container(height=6),
+            status_text,
+            ing_rows,
+        ], spacing=2, scroll=ft.ScrollMode.ADAPTIVE, expand=True)
+
+        return ft.Container(
+            ft.Column([
+                ft.Container(
+                    ft.Image(src=g.get("Item_Image", ""), width=None, height=160,
+                             fit="cover", border_radius=ft.BorderRadius(12, 12, 0, 0),
+                             error_content=ft.Container(
+                                 ft.Icon(ft.Icons.RESTAURANT_MENU, size=64, color="#bbb"),
+                                 height=160, alignment=ft.Alignment(0, 0))),
+                    border_radius=ft.BorderRadius(12, 12, 0, 0), clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                ),
+                ft.Container(body, padding=16, expand=True),
+            ], spacing=0, expand=True),
+            width=420, border_radius=12,
+            bgcolor=self._clr("card"),
+            shadow=ft.BoxShadow(blur_radius=24, color="#00000055"),
+        )
+
+    async def _edit_recipe_ingredient(self, g, ing_id, ing_data, rebuild, status_text):
+        item_id = g["Item_ID"]
+        qty_field = ft.TextField(value=str(ing_data.get("Ingredient_Quantity", 0)), dense=True, width=120,
+            border_color=ft.Colors.with_opacity(0.2, self._clr("text")), border_radius=6,
+            text_style=ft.TextStyle(size=13, font_family="DM Sans"),
+            filled=True, fill_color="#f0f0f5")
+
+        async def save_edit():
+            val = (qty_field.value or "").strip()
+            try:
+                qty = float(val)
+                if qty <= 0: raise ValueError
+            except ValueError:
+                status_text.value = "Invalid quantity"; status_text.color = self._clr("danger"); self.page.update(); return
+            if self.is_guest:
+                for ing in g["ingredients"]:
+                    if ing.get("Ingredient_ID") == ing_id:
+                        ing["Ingredient_Quantity"] = qty; break
+            else:
+                ep = f"/admin/recipe/update/{item_id}/{ing_id}"
+                r = await _req(ep, {"email": self.email}, "PATCH", {"Ingredient_Quantity": qty})
+                if isinstance(r, dict) and "error" in r:
+                    status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+            rebuild()
+            status_text.value = "Updated"; status_text.color = self._clr("success")
+            (setattr(edit_dlg, "open", False), self.page.update())
+
+        edit_dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Edit {ing_data.get('Ingredient_Name','')}", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            content=ft.Column([ft.Text("Quantity:", size=12, color=self._clr("sub"), font_family="DM Sans"), qty_field], width=280, tight=True),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: (setattr(edit_dlg, "open", False), self.page.update())),
+                ft.FilledButton("Update", style=ft.ButtonStyle(bgcolor=self._clr("accent"), color="#FFF"),
+                                on_click=lambda e: asyncio.ensure_future(save_edit())),
+            ],
+        )
+        self.page.show_dialog(edit_dlg)
+
+    async def _delete_recipe_ingredient(self, g, ing_id, rebuild, status_text):
+        item_id = g["Item_ID"]
+
+        async def confirm_delete():
+            if self.is_guest:
+                g["ingredients"] = [ing for ing in g["ingredients"] if ing.get("Ingredient_ID") != ing_id]
+            else:
+                ep = f"/admin/recipe/{item_id}/{ing_id}"
+                r = await _req(ep, {"email": self.email}, "DELETE")
+                if isinstance(r, dict) and "error" in r:
+                    status_text.value = f"Error: {r['error']}"; status_text.color = self._clr("danger"); self.page.update(); return
+            rebuild()
+            status_text.value = "Deleted"; status_text.color = self._clr("success")
+            (setattr(del_dlg, "open", False), self.page.update())
+
+        del_dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Confirm Delete", size=16, weight="bold", color=self._clr("text"), font_family="DM Sans"),
+            content=ft.Text("Remove this ingredient from the recipe?", size=13, color=self._clr("sub"), font_family="DM Sans"),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: (setattr(del_dlg, "open", False), self.page.update())),
+                ft.FilledButton("Delete", style=ft.ButtonStyle(bgcolor="#EF4444", color="#FFF"),
+                                on_click=lambda e: asyncio.ensure_future(confirm_delete())),
+            ],
+        )
+        self.page.show_dialog(del_dlg)
 
     # ── Safe render wrapper ────────────────────────────────────
 

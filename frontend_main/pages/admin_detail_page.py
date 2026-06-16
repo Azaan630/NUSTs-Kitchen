@@ -7,6 +7,8 @@ import mock_data
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", os.getenv("BACKEND_URL", "http://localhost:8000"))
 
+from .api_client import get_headers as _api_headers
+
 
 def _img_url(path):
     if not path:
@@ -309,7 +311,8 @@ class AdminDetailPage:
             try:
                 async with httpx.AsyncClient() as client:
                     r = await client.get(f"{self._backend_url}{ep}",
-                                         params={"email": self.admin_email}, timeout=8)
+                                         params={"email": self.admin_email},
+                                         headers=_api_headers(), timeout=8)
                     if r.status_code == 200:
                         data = r.json()
                         if isinstance(data, list) and data:
@@ -330,7 +333,8 @@ class AdminDetailPage:
             try:
                 async with httpx.AsyncClient() as client:
                     r = await client.get(f"{self._backend_url}/admin/{uid}/bill-status",
-                                         params={"email": self.admin_email}, timeout=8)
+                                         params={"email": self.admin_email},
+                                         headers=_api_headers(), timeout=8)
                     if r.status_code == 200:
                         data = r.json()
                         if isinstance(data, list):

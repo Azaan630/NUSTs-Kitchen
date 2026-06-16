@@ -99,8 +99,11 @@ addMenuItem = """INSERT INTO Menu_Food_Items
                  (Schedule_ID, Item_ID)
                  VALUES (%s, %s)"""
 
-getAllFoodCosts = ("""SELECT *
-                      FROM vw_FoodItemCost""")
+getAllFoodCosts = ("""SELECT fi.*, COALESCE(SUM(i.Unit_cost * fii.Ingredient_Quantity), 0) AS Total_Cost
+                      FROM Food_Items fi
+                      LEFT JOIN Food_Item_Ingredients fii ON fi.Item_ID = fii.Item_ID
+                      LEFT JOIN Ingredients i ON fii.Ingredient_ID = i.Ingredient_ID
+                      GROUP BY fi.Item_ID""")
 
 getAllFoodItems = ("""SELECT *
                       FROM Food_Items""")
@@ -137,9 +140,16 @@ getMessOffStatus = ("""SELECT *
 
 getMessOffThisMonth = ("""SELECT *
                            FROM Mess_Off
-                           WHERE DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
-                              OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                           WHERE (DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                               OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'))
                            ORDER BY Start_Date DESC;""")
+
+getMyMessOffThisMonth = ("""SELECT *
+                            FROM Mess_Off
+                            WHERE (DATE(Start_Date) >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                                OR DATE(End_Date)   >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'))
+                              AND User_ID = %s
+                            ORDER BY Start_Date DESC;""")
 
 getMessOffAdmin = ("""SELECT *
                           FROM Mess_Off 
@@ -156,3 +166,19 @@ getBillPDF = ("""SELECT b.Billing_ID, b.Amount, b.Due_Date, b.Month, u.First_Nam
 
 getRecipes = ("""SELECT Food_Item_Ingredients.Item_ID, Ingredients.Ingredient_ID, Ingredient_Quantity, Ingredients.Unit, Ingredients.Name
                  FROM Food_Item_Ingredients JOIN Ingredients ON Food_Item_Ingredients.Ingredient_ID = Ingredients.Ingredient_ID""")
+
+getRecipesDetailed = ("""SELECT
+    fi.Item_ID, fi.Name AS Item_Name, fi.Price,
+    fi.Image_Path AS Item_Image, fi.Ratings_Average,
+    i.Ingredient_ID, i.Name AS Ingredient_Name,
+    i.Image_Path AS Ingredient_Image,
+    i.Unit, fii.Ingredient_Quantity, i.Total_Quantity AS Ingredient_Stock
+FROM Food_Item_Ingredients fii
+JOIN Food_Items fi ON fii.Item_ID = fi.Item_ID
+JOIN Ingredients i ON fii.Ingredient_ID = i.Ingredient_ID
+ORDER BY fi.Name, i.Name""")
+
+getRecipeSteps = ("""SELECT Step_Number, Description
+                     FROM Recipe_Steps
+                     WHERE Item_ID = %s
+                     ORDER BY Step_Number""")

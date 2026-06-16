@@ -1,79 +1,119 @@
 import os
 import smtplib
 import logging
-import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("email")
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-try:
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-except (ValueError, TypeError):
-    SMTP_PORT = 465
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "")
+GMAIL_USER = os.getenv("GMAIL_USER", "zainif63@gmail.com")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "zainif63@gmail.com")
 
-logger.info("SMTP: host=%s port=%s user=%s", SMTP_HOST, SMTP_PORT, SMTP_USER or "(unset)")
+if GMAIL_APP_PASSWORD:
+    logger.info("Gmail SMTP configured for %s", GMAIL_USER)
+else:
+    logger.warning("GMAIL_APP_PASSWORD not set — email sending disabled. "
+                   "Generate one at: https://myaccount.google.com/apppasswords")
 
 
-def _notify_one(to_email, name, amount, due_date, month):
-    if not SMTP_USER or not SMTP_PASS:
-        logger.warning("SMTP_USER/PASS not set; skipping %s", to_email)
-        return
-    subject = f"Bill Issued – NUST's Kitchen ({month})"
-    body_text = (
-        f"Dear {name},\n\n"
-        f"A new mess bill has been issued for {month}.\n"
-        f"Amount: Rs. {amount:,.2f}\n"
-        f"Due Date: {due_date}\n\n"
-        f"Please log in to the portal to view and pay your bill.\n\n"
-        f"Regards,\nNUST's Kitchen"
-    )
-    body_html = f"""\
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
-  <h2 style="color:#1D4ED8;">NUST&rsquo;s Kitchen</h2>
-  <p>Dear {name},</p>
-  <p>A new mess bill has been issued:</p>
-  <table style="border-collapse:collapse;width:100%">
-    <tr><td style="padding:6px 0;color:#666;">Month</td>
-        <td style="padding:6px 0;font-weight:bold;">{month}</td></tr>
-    <tr><td style="padding:6px 0;color:#666;">Amount</td>
-        <td style="padding:6px 0;font-weight:bold;">Rs. {amount:,.2f}</td></tr>
-    <tr><td style="padding:6px 0;color:#666;">Due Date</td>
-        <td style="padding:6px 0;font-weight:bold;">{due_date}</td></tr>
-  </table>
-  <p>Please log in to the portal to view and pay your bill.</p>
-  <hr style="border:none;border-top:1px solid #eee;">
-  <p style="color:#999;font-size:12px;">NUST&rsquo;s Kitchen &middot; Mess Management System</p>
-</div>"""
+def send_email_sync(to_email: str, subject: str, html_body: str) -> bool:
+    if not GMAIL_APP_PASSWORD:
+        logger.warning("GMAIL_APP_PASSWORD not set — skipping email to %s", to_email)
+        return False
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = FROM_EMAIL or SMTP_USER
+        msg["From"] = GMAIL_USER
         msg["To"] = to_email
-        msg.attach(MIMEText(body_text, "plain"))
-        msg.attach(MIMEText(body_html, "html"))
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-            s.login(SMTP_USER, SMTP_PASS)
-            s.sendmail(FROM_EMAIL or SMTP_USER, to_email, msg.as_string())
-            logger.info("Email sent to %s", to_email)
+        msg["Subject"] = subject
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_USER, to_email, msg.as_string())
+
+        logger.info("Email sent to %s: %s", to_email, subject)
+        return True
+    except smtplib.SMTPAuthenticationError:
+        logger.error("Gmail auth failed — check GMAIL_APP_PASSWORD. "
+                     "Generate at: https://myaccount.google.com/apppasswords")
+        return False
     except Exception as e:
-        logger.error("Email to %s failed: %s", to_email, e)
+        logger.error("Email send failed to %s: %s", to_email, e)
+        return False
 
 
-def notify_students(students: list[dict]):
-    if not SMTP_USER or not SMTP_PASS:
-        logger.warning("SMTP not configured — set SMTP_USER + SMTP_PASS env vars")
-        return
-    for s in students:
-        threading.Thread(
-            target=_notify_one,
-            args=(s["Email"],
-                  f"{s.get('First_Name','')} {s.get('Last_Name','')}".strip(),
-                  s["Amount"], s["Due_Date"], s["Month"]),
-            daemon=True,
-        ).start()
-    logger.info("Dispatched %d email notifications", len(students))
+def registration_requested_email(name: str, email: str) -> tuple:
+    subject = "Registration Request Received — NUST Kitchen"
+    body = f"""\
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2 style="color:#1D4ED8">NUST Kitchen</h2>
+    <p>Hi <strong>{name}</strong>,</p>
+    <p>Your registration request has been <strong>received</strong> and is pending admin approval.</p>
+    <p>We'll notify you once it's reviewed. This usually takes 24-48 hours.</p>
+    <hr style="border:1px solid #eee">
+    <p style="color:#888;font-size:12px">NUST Kitchen — Smart Mess Management for NUST Hostels</p>
+</div>"""
+    return subject, body
+
+
+def registration_approved_email(name: str, email: str) -> tuple:
+    subject = "Registration Approved — Welcome to NUST Kitchen!"
+    body = f"""\
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2 style="color:#10B981">Welcome to NUST Kitchen!</h2>
+    <p>Hi <strong>{name}</strong>,</p>
+    <p>Your registration has been <strong>approved</strong>! You can now sign in with your Google account.</p>
+    <p>Enjoy smart mess management — menus, billing, voting, and more.</p>
+    <hr style="border:1px solid #eee">
+    <p style="color:#888;font-size:12px">NUST Kitchen — Smart Mess Management for NUST Hostels</p>
+</div>"""
+    return subject, body
+
+
+def account_deleted_email(name: str, email: str) -> tuple:
+    subject = "Account Removed — NUST Kitchen"
+    body = f"""\
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2 style="color:#EF4444">Account Removed</h2>
+    <p>Hi <strong>{name}</strong>,</p>
+    <p>Your account has been <strong>removed</strong> from NUST Kitchen by an administrator.</p>
+    <p>If you believe this is a mistake, please contact your hostel administration.</p>
+    <hr style="border:1px solid #eee">
+    <p style="color:#888;font-size:12px">NUST Kitchen — Smart Mess Management for NUST Hostels</p>
+</div>"""
+    return subject, body
+
+
+def bill_issued_email(name: str, email: str, amount: float, month: str, due_date: str) -> tuple:
+    subject = f"New Bill Issued — {month} — NUST Kitchen"
+    body = f"""\
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2 style="color:#1D4ED8">Bill Issued</h2>
+    <p>Hi <strong>{name}</strong>,</p>
+    <p>A new mess bill has been issued for <strong>{month}</strong>:</p>
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0">
+        <p style="font-size:24px;font-weight:bold;color:#1D4ED8;margin:0">PKR {amount:,.2f}</p>
+        <p style="color:#888;margin:4px 0 0 0">Due by: <strong>{due_date}</strong></p>
+    </div>
+    <p>Please pay before the due date to avoid overdue charges.</p>
+    <hr style="border:1px solid #eee">
+    <p style="color:#888;font-size:12px">NUST's Kitchen — Smart Mess Management for NUST Hostels</p>
+</div>"""
+    return subject, body
+
+
+def feedback_email(user_name: str, user_email: str, message: str) -> tuple:
+    subject = f"Feedback from {user_name} — NUST Kitchen"
+    body = f"""\
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px">
+    <h2 style="color:#6366F1">New Feedback</h2>
+    <p><strong>From:</strong> {user_name} ({user_email})</p>
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #6366F1">
+        <p style="margin:0;white-space:pre-wrap">{message}</p>
+    </div>
+    <hr style="border:1px solid #eee">
+    <p style="color:#888;font-size:12px">NUST Kitchen — Feedback System</p>
+</div>"""
+    return subject, body

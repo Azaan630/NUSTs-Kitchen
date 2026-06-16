@@ -70,7 +70,7 @@ class StudentVotingPage:
                 mock_data.cast_vote(item_id, self.user_id)
                 result = {"message": "Vote cast"}
             else:
-                result = await cast_vote(item_id, self.user_id, self.email)
+                result = await cast_vote(item_id, self.user_id)
 
             if result and "error" not in result:
                 self._voted.add(item_id)
@@ -174,7 +174,7 @@ class StudentVotingPage:
         if self.is_guest:
             poll_data = mock_data.get_active_poll()
         else:
-            poll_data = await get_active_poll(self.email)
+            poll_data = await get_active_poll()
 
         if not self.is_guest and isinstance(poll_data, dict) and "error" in poll_data:
             body = ft.Container(

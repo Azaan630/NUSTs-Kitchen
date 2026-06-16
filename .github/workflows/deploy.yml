@@ -1,0 +1,68 @@
+name: Build & Push Docker Images to GHCR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: backend
+            container_name: nust-backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - name: flet-app
+            container_name: nust-frontend
+            context: ./frontend_main
+            dockerfile: ./frontend_main/Dockerfile
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Forces the repo owner string to lowercase to prevent GHCR API rejection
+      - name: Lowercase Repository Owner Name
+        id: repo_string
+        run: |
+          echo "owner_lowercase=${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push ${{ matrix.service.name }} Images
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_string.outputs.owner_lowercase }}/nust-kitchen-${{ matrix.service.name }}:latest
+            ghcr.io/${{ steps.repo_string.outputs.owner_lowercase }}/nust-kitchen-${{ matrix.service.name }}:${{ github.sha }}
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Targets the unique commit SHA tag instead of :latest to force Azure to trigger a new revision
+      - name: Trigger Azure Container App Redeploy
+        uses: azure/CLI@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ matrix.service.container_name }} \
+              --resource-group nust-kitchen-india-rg \
+              --image ghcr.io/${{ steps.repo_string.outputs.owner_lowercase }}/nust-kitchen-${{ matrix.service.name }}:${{ github.sha }}

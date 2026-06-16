@@ -153,6 +153,12 @@ class StudentHomePage:
         recipes = []
         if self.is_guest:
             recipes = [r for r in mock_data.get_recipes() if r.get("Item_ID") == iid]
+        else:
+            try:
+                from .api_client import _make_request
+                r_data = await _make_request("GET", "/recipes")
+                recipes = [r for r in (r_data if isinstance(r_data, list) else []) if r.get("Item_ID") == iid]
+            except: pass
         if recipes:
             rows.append(ft.Divider(height=4, color=ft.Colors.with_opacity(0.08, self.txt)))
             rows.append(ft.Text("Ingredients", size=12, weight="bold", color=self.txt, font_family="DM Sans"))
@@ -246,7 +252,6 @@ class StudentHomePage:
                     meal_date=meal_date,
                     meal_type=meal_type,
                     score=score,
-                    email=self.email,
                 )
             page_ref.snack_bar = ft.SnackBar(
                 content=ft.Text("✅ Rating saved!", color="#FFF"),
@@ -300,11 +305,6 @@ class StudentHomePage:
         cached = self._food_cache.get(iid, {})
         price = cached.get("Price", 0)
 
-        avg_stars = ft.Row([
-            ft.Icon(ft.Icons.STAR_ROUNDED, size=13, color=self.amber),
-            ft.Text(f"{avg:.1f}", size=12, color=self.sub, font_family="DM Sans"),
-        ], spacing=2)
-
         schedule_id        = item.get("Schedule_ID") or item.get("ScheduleID") or 0
         date_for_rating    = meal_date or date.today()
         meal_type_for_rating = meal_col
@@ -328,30 +328,31 @@ class StudentHomePage:
                 border_radius=8,
             )
 
-        price_row = ft.Row([
-            ft.Text(f"PKR {price:.0f}", size=12, weight="bold",
-                    color=self.amber, font_family="DM Sans"),
-        ], spacing=2) if price else ft.Container()
-
         card = ft.Container(
             content=ft.Column([
                 ft.Row([
-                    self._food_thumb(item, 44),
+                    self._food_thumb(item, 64),
                     ft.Column([
                         ft.Row([
                             ft.Text(
-                                name, size=14, weight="bold",
+                                name, size=16, weight="bold",
                                 color=self.txt, font_family="DM Sans",
                                 max_lines=1, overflow=ft.TextOverflow.ELLIPSIS, expand=True,
                             ),
                             date_badge,
                         ], spacing=8),
-                        avg_stars,
-                        price_row,
-                    ], spacing=2, expand=True),
+                        star_row,
+                    ], spacing=4, expand=True),
+                    ft.Column([
+                        ft.Row([
+                            ft.Icon(ft.Icons.STAR_ROUNDED, size=16, color=self.amber),
+                            ft.Text(f"{avg:.1f}", size=16, weight="bold",
+                                    color=self.txt, font_family="DM Sans"),
+                        ], spacing=2),
+                        ft.Text(f"PKR {price:.0f}", size=16, weight="bold",
+                                color=self.amber, font_family="DM Sans") if price else ft.Container(),
+                    ], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.END),
                 ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START),
-                ft.Container(height=6),
-                star_row,
             ], spacing=0),
             bgcolor=self.card,
             border_radius=16,
@@ -558,13 +559,11 @@ class StudentHomePage:
         else:
             try:
                 import httpx
-                async with httpx.AsyncClient() as client:
-                    r = await client.get(f"{BASE_URL}/admin/food-items/all", params={"email": self.email}, timeout=8)
-                    if r.status_code == 200:
-                        data = r.json()
-                        if isinstance(data, list):
-                            for f in data:
-                                self._food_cache[f["Item_ID"]] = f
+                from pages.api_client import _make_request
+                data = await _make_request("GET", "/admin/food-items/all")
+                if isinstance(data, list):
+                    for f in data:
+                        self._food_cache[f["Item_ID"]] = f
             except:
                 pass
 
@@ -584,7 +583,7 @@ class StudentHomePage:
             if self.is_guest:
                 data = mock_data.get_todays_menu()
             else:
-                data = await get_todays_menu(self.email, user_id=uid)
+                data = await get_todays_menu(user_id=uid)
             if not self.is_guest and isinstance(data, dict) and "error" in data:
                 body = self._error(data["error"])
             else:

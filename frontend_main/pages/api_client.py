@@ -4,6 +4,21 @@ from datetime import date
 from typing import Optional, Dict, Any
 
 BASE_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+API_KEY = os.getenv("BACKEND_API_KEY", "")
+
+_email: str | None = None
+
+
+def set_user_email(email: str | None):
+    global _email
+    _email = email
+
+
+def get_headers() -> dict:
+    headers = {"X-Api-Key": API_KEY}
+    if _email:
+        headers["X-User-Email"] = _email
+    return headers
 
 
 async def _make_request(
@@ -15,10 +30,11 @@ async def _make_request(
     async with httpx.AsyncClient() as client:
         try:
             url = f"{BASE_URL}{endpoint}"
+            headers = get_headers()
             if method.upper() == "GET":
-                response = await client.get(url, params=params, timeout=10.0)
+                response = await client.get(url, params=params, headers=headers, timeout=10.0)
             elif method.upper() == "POST":
-                response = await client.post(url, params=params, json=json_data, timeout=10.0)
+                response = await client.post(url, params=params, json=json_data, headers=headers, timeout=10.0)
             else:
                 return {"error": f"Unsupported method: {method}"}
 
@@ -41,15 +57,19 @@ async def verify_user(email: str) -> Dict[str, Any]:
     return await _make_request("GET", "/users/verify", params={"email": email})
 
 
-async def get_my_profile(email: str) -> Dict[str, Any]:
-    return await _make_request("GET", "/users/me", params={"email": email})
+async def login(email: str) -> Dict[str, Any]:
+    return await _make_request("POST", "/auth/login", json_data={"email": email})
+
+
+async def get_my_profile() -> Dict[str, Any]:
+    return await _make_request("GET", "/users/me")
 
 
 # ── Menu ───────────────────────────────────────────────────────────
-async def get_todays_menu(email: str, target_date: date = None, user_id: int = None) -> Dict[str, Any]:
+async def get_todays_menu(target_date: date = None, user_id: int = None) -> Dict[str, Any]:
     if target_date is None:
         target_date = date.today()
-    params = {"email": email, "target_date": target_date.isoformat()}
+    params = {"target_date": target_date.isoformat()}
     if user_id is not None:
         params["user_id"] = user_id
     return await _make_request("GET", "/menu/today", params=params)
@@ -69,27 +89,23 @@ async def rate_food_item(
     meal_date: date,
     meal_type: str,
     score: int,
-    email: str,
 ) -> Dict[str, Any]:
-    """
-    POST /student/rating/{UserID}/{ItemID}/{Date}/{meal_type}/{score}
-    """
     endpoint = (
         f"/student/rating/{user_id}/{item_id}/{meal_date.isoformat()}/{meal_type}/{score}"
     )
-    return await _make_request("POST", endpoint, params={"email": email})
+    return await _make_request("POST", endpoint)
 
 
 # ── Bills ──────────────────────────────────────────────────────────
-async def get_my_bills(email: str) -> Any:
-    return await _make_request("GET", "/users/my-bills", params={"email": email})
+async def get_my_bills() -> Any:
+    return await _make_request("GET", "/users/my-bills")
 
 
-async def download_bill_pdf(billing_id: int, email: str) -> Optional[bytes]:
+async def download_bill_pdf(billing_id: int) -> Optional[bytes]:
     async with httpx.AsyncClient() as client:
         try:
             url = f"{BASE_URL}/student/bills/download/{billing_id}"
-            response = await client.get(url, params={"email": email}, timeout=15.0)
+            response = await client.get(url, headers=get_headers(), timeout=15.0)
             response.raise_for_status()
             return response.content
         except Exception as e:
@@ -98,29 +114,32 @@ async def download_bill_pdf(billing_id: int, email: str) -> Optional[bytes]:
 
 
 # ── Voting ─────────────────────────────────────────────────────────
-async def get_active_poll(email: str) -> Dict[str, Any]:
-    return await _make_request("GET", "/poll/active", params={"email": email})
+async def get_active_poll() -> Dict[str, Any]:
+    return await _make_request("GET", "/poll/active")
 
 
-async def cast_vote(item_id: int, user_id: int, email: str) -> Dict[str, Any]:
-    return await _make_request(
-        "POST", f"/poll/vote/{item_id}/{user_id}", params={"email": email}
-    )
+async def cast_vote(item_id: int, user_id: int) -> Dict[str, Any]:
+    return await _make_request("POST", f"/poll/vote/{item_id}/{user_id}")
 
 
 # ── Mess Off ───────────────────────────────────────────────────────
-async def request_mess_off(user_id: int, start_date: date, end_date: date, email: str) -> Dict[str, Any]:
+async def request_mess_off(user_id: int, start_date: date, end_date: date) -> Dict[str, Any]:
     endpoint = f"/student/mess-off/request/{user_id}/{start_date.isoformat()}/{end_date.isoformat()}"
-    return await _make_request("POST", endpoint, params={"email": email})
+    return await _make_request("POST", endpoint)
 
 
-async def cancel_mess_off(mess_off_id: int, email: str) -> Dict[str, Any]:
-    return await _make_request("POST", f"/student/mess-off/cancel/{mess_off_id}", params={"email": email})
+async def cancel_mess_off(mess_off_id: int) -> Dict[str, Any]:
+    return await _make_request("POST", f"/student/mess-off/cancel/{mess_off_id}")
 
 
-async def get_mess_off_status(mess_off_id: int, email: str) -> Dict[str, Any]:
-    return await _make_request("GET", f"/student/mess-off/{mess_off_id}", params={"email": email})
+async def get_mess_off_status(mess_off_id: int) -> Dict[str, Any]:
+    return await _make_request("GET", f"/student/mess-off/{mess_off_id}")
 
 
-async def get_mess_off_history(email: str) -> Dict[str, Any]:
-    return await _make_request("GET", "/student/mess-off/history", params={"email": email})
+async def get_mess_off_history() -> Dict[str, Any]:
+    return await _make_request("GET", "/student/mess-off/history")
+
+
+# ── Recipes ────────────────────────────────────────────────────────
+async def get_recipes_detailed() -> Any:
+    return await _make_request("GET", "/recipes/detailed")

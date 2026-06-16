@@ -43,9 +43,10 @@ def run_db_seeder():
         if not sql_content:
             return
 
-        results = cursor.execute(sql_content, multi=True)
-        for _ in results:
-            pass
+        for statement in sql_content.replace("\r\n", "\n").split(";"):
+            stmt = statement.strip()
+            if stmt:
+                cursor.execute(stmt + ";")
 
         conn.commit()
         print("Database seeded successfully!")
