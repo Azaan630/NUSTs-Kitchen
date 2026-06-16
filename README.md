@@ -1,17 +1,16 @@
-# [NUST's Kitchen](https://github.com/Azaan630/NUSTs-Kitchen) — Smart Mess Management
+# [NUST's Kitchen](https://github.com/Azaan630/NUSTs-Kitchen) · Smart Mess Management
 
 > *"With great food, comes great responsibility!"*
 
-A full-stack, role-based mess management platform purpose-built for NUST hostels — handling menu planning, billing, inventory, voting, and analytics in one unified system.
+A full-stack, role-based mess management platform purpose-built for NUST hostels, handling menu planning, billing, inventory, voting, and analytics in one unified system.
 
 ---
 
-**🚀 Live at:** [nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io](https://nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io)
+**🚀 Live:** [nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io](https://nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io)
 
-**📋 One-liner:** Smart mess management for NUST hostels — 7-day menus, auto billing, ingredient tracking, student voting, and real-time admin analytics. Built with FastAPI + MySQL + Flet.
+Smart mess management for NUST hostels: 7-day menus, auto billing, ingredient tracking, student voting, and real-time admin analytics. Built with FastAPI + MySQL + Flet.
 
-**📝 Cool description (copy this):**
-> NUST's Kitchen is a full-stack mess management platform that turns chaotic hostel dining into a streamlined digital experience. Students browse weekly menus, rate dishes, vote on polls, and track their bills — while staff manage inventory and cooking recipes, and admins get live dashboards with bar, line, and pie charts. Google OAuth login. 17-app feature landing page with flip cards. Gmail SMTP for automated emails. CI/CD via GitHub Actions to Azure.
+NUST's Kitchen turns chaotic hostel dining into a streamlined digital experience. Students browse weekly menus, rate dishes, vote on polls, and track their bills, while staff manage inventory and cooking recipes, and admins get live dashboards with bar, line, and pie charts. Google OAuth login. 17 feature cards on the landing page with tap-to-flip. Gmail SMTP for automated emails. CI/CD via GitHub Actions to Azure Container Apps.
 
 ---
 
@@ -32,70 +31,70 @@ A full-stack, role-based mess management platform purpose-built for NUST hostels
 ## ✨ Features
 
 ### 🍽️ Menu & Scheduling
-- **7-Day Weekly Menu** — Breakfast, Lunch, Dinner for a full week
-- **Meal-Type Grouping** — Items organized and colored by meal slot
-- **Drag-Drop Admin** — Add/remove items to any schedule slot
-- **Interactive Food Cards** — Click any item to see image, price, ingredients & cooking steps
-- **Menu Polls** — Students vote on upcoming meals; most votes win
+- **7-Day Weekly Menu** : Breakfast, Lunch, Dinner for a full week
+- **Meal-Type Grouping** : Items organized and colored by meal slot
+- **Drag-Drop Admin** : Add/remove items to any schedule slot
+- **Interactive Food Cards** : Click any item to see image, price, ingredients & cooking steps
+- **Menu Polls** : Students vote on upcoming meals; most votes win
 
 ### 💰 Billing & Payments
-- **Auto Monthly Bills** — Per-student billing with mess-off day deductions
-- **Payment Tracking** — Collected vs outstanding with partial payment support
-- **Overdue Alerts** — Bills past due date auto-flagged in red
-- **Transaction History** — Full audit of all payments (Cash, Card, Online)
-- **CSV & PDF Export** — Download bills and student lists
+- **Auto Monthly Bills** : Per-student billing with mess-off day deductions
+- **Payment Tracking** : Collected vs outstanding with partial payment support
+- **Overdue Alerts** : Bills past due date auto-flagged in red
+- **Transaction History** : Full audit of all payments (Cash, Card, Online)
+- **CSV & PDF Export** : Download bills and student lists
 
 ### 📦 Inventory & Recipes
-- **20+ Ingredients** — Real-time stock tracking with unit cost profiling
-- **Low-Stock Alerts** — Items below threshold highlighted for quick restocking
-- **Cost Analysis** — Per-item cost calculated from ingredient quantities & prices
-- **15 Food Items** — Each with image, price, and full cooking steps
-- **Recipe CRUD** — Staff/Admin can add, edit, delete recipe ingredients
-- **Recipe Detail Pages** — Full-page recipe view with centered image, ingredients, and step-by-step instructions
+- **20+ Ingredients** : Real-time stock tracking with unit cost profiling
+- **Low-Stock Alerts** : Items below threshold highlighted for quick restocking
+- **Cost Analysis** : Per-item cost calculated from ingredient quantities & prices
+- **15 Food Items** : Each with image, price, and full cooking steps
+- **Recipe CRUD** : Staff/Admin can add, edit, delete recipe ingredients
+- **Recipe Detail Pages** : Full-page recipe view with centered image, ingredients, and step-by-step instructions
 
 ### ⭐ Ratings & Voting
-- **5-Star Ratings** — Students rate dishes after meals
-- **Live Average Triggers** — DB triggers auto-update rating averages
-- **Rating Analytics** — Bar/line charts showing trends and top dishes
-- **Active Polls** — Real-time voting with live results
+- **5-Star Ratings** : Students rate dishes after meals
+- **Live Average Triggers** : DB triggers auto-update rating averages
+- **Rating Analytics** : Bar/line charts showing trends and top dishes
+- **Active Polls** : Real-time voting with live results
 
 ### 📋 Mess-Off Management
-- **Request System** — Students apply for mess-off with date ranges
-- **Approve/Reject** — Staff review and respond to requests
-- **Auto Emails** — Registration, approval, deletion, and bill notifications via Gmail SMTP
-- **Status Tracking** — Pending, Approved, Rejected, Cancelled
+- **Request System** : Students apply for mess-off with date ranges
+- **Approve/Reject** : Staff review and respond to requests
+- **Auto Emails** : Registration, approval, deletion, and bill notifications via Gmail SMTP
+- **Status Tracking** : Pending, Approved, Rejected, Cancelled
 
 ### 📊 Admin Dashboard
-- **Live Stats** — Students, Staff, Food Items, Ingredients, Active Mess-Offs, Unpaid Bills
-- **Bar Charts** — Avg ratings per item, stock levels
-- **Line Charts** — Price trends, menu ratings, billing trends, daily activity, cost profiles
-- **Pie Chart** — Student vs Staff population
-- **Non-duplicate X-Axis** — Smart label truncation with auto-suffix for unique names
+- **Live Stats** : Students, Staff, Food Items, Ingredients, Active Mess-Offs, Unpaid Bills
+- **Bar Charts** : Avg ratings per item, stock levels
+- **Line Charts** : Price trends, menu ratings, billing trends, daily activity, cost profiles
+- **Pie Chart** : Student vs Staff population
+- **Non-duplicate X-Axis** : Smart label truncation with auto-suffix for unique names
 
 ### 👥 User Management
-- **3 Roles** — Admin, Staff, Student with permission-gated endpoints
-- **Google OAuth** — Sign in with your NUST SEECS Google account
-- **Registration Requests** — New users apply; admin approves or rejects
-- **Staff Categories** — Head Chef, Chef, Server, Cleaner with salaries & hours
-- **Multivalued Contacts** — Staff can have multiple phone numbers
+- **3 Roles** : Admin, Staff, Student with permission-gated endpoints
+- **Google OAuth** : Sign in with your NUST SEECS Google account
+- **Registration Requests** : New users apply; admin approves or rejects
+- **Staff Categories** : Head Chef, Chef, Server, Cleaner with salaries & hours
+- **Multivalued Contacts** : Staff can have multiple phone numbers
 
 ### 📧 Automated Emails (Gmail SMTP)
 - Registration request received
-- Registration approved — welcome email
-- Account deleted — removal notification
-- Bill issued — amount, month, due date
-- Feedback submitted — stored in DB, viewable in Admin panel
+- Registration approved : welcome email
+- Account deleted : removal notification
+- Bill issued : amount, month, due date
+- Feedback submitted : stored in DB, viewable in Admin panel
 
 ### 🎨 UI/UX
-- **Dark/Light Theme** — Toggle with smooth transition
-- **Glassmorphism Landing** — Gradient hero with animated logo splash
-- **17 Flip Cards** — Feature highlights with tap-to-flip reveal
-- **Bounce Arrow** — Scroll indicator at hero bottom
-- **Responsive** — Mobile-first with adaptive layouts
-- **Floating Feedback** — Popup form on every page, stored in DB, viewable in Admin
-- **Animated Charts** — All admin charts have entry animations
-- **Guest Mode** — Explore the app without signing in; mock data mirrors production data
-- **Recipe Detail Pages** — Full-page view with centered image, ingredient cards, and styled step boxes
+- **Dark/Light Theme** : Toggle with smooth transition
+- **Glassmorphism Landing** : Gradient hero with animated logo splash
+- **17 Flip Cards** : Feature highlights with tap-to-flip reveal
+- **Bounce Arrow** : Scroll indicator at hero bottom
+- **Responsive** : Mobile-first with adaptive layouts
+- **Floating Feedback** : Popup form on every page, stored in DB, viewable in Admin
+- **Animated Charts** : All admin charts have entry animations
+- **Guest Mode** : Explore the app without signing in; mock data mirrors production data
+- **Recipe Detail Pages** : Full-page view with centered image, ingredient cards, and styled step boxes
 
 ---
 
@@ -186,13 +185,13 @@ A full-stack, role-based mess management platform purpose-built for NUST hostels
 
 ---
 
-## 🔄 CI/CD — GitHub Actions
+## 🔄 CI/CD : GitHub Actions
 
 Every push to `main` triggers `.github/workflows/deploy.yml` which:
 
 1. **Builds** both Docker images (`backend` from `./backend`, `flet-app` from `./frontend_main`)
 2. **Tags** each with `:latest` and the commit SHA (for rollbacks)
-3. **Pushes** to GitHub Container Registry (GHCR) — free, no external registry needed
+3. **Pushes** to GitHub Container Registry (GHCR) : free, no external registry needed
 
 Images land at:
 - `ghcr.io/Azaan630/nust-kitchen-backend:latest`
