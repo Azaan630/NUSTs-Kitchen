@@ -10,7 +10,7 @@ A full-stack, role-based mess management platform purpose-built for NUST hostels
 
 Smart mess management for NUST hostels: 7-day menus, auto billing, ingredient tracking, student voting, and real-time admin analytics. Built with FastAPI + MySQL + Flet.
 
-NUST's Kitchen turns chaotic hostel dining into a streamlined digital experience. Students browse weekly menus, rate dishes, vote on polls, and track their bills, while staff manage inventory and cooking recipes, and admins get live dashboards with bar, line, and pie charts. Google OAuth login. 17 feature cards on the landing page with tap-to-flip. Gmail SMTP for automated emails. CI/CD via GitHub Actions to Azure Container Apps.
+A full-stack mess platform for NUST hostels. Students browse menus, vote on polls, and track bills. Staff manage inventory and recipes. Admins get live analytics dashboards. Google OAuth, Gmail SMTP, CI/CD to Azure.
 
 ---
 
