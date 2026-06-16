@@ -1,8 +1,17 @@
-# NUST's Kitchen — Smart Mess Management
+# [NUST's Kitchen](https://github.com/Azaan630/NUSTs-Kitchen) — Smart Mess Management
 
 > *"With great food, comes great responsibility!"*
 
 A full-stack, role-based mess management platform purpose-built for NUST hostels — handling menu planning, billing, inventory, voting, and analytics in one unified system.
+
+---
+
+**🚀 Live at:** [nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io](https://nust-frontend.bluepond-d78274db.centralindia.azurecontainerapps.io)
+
+**📋 One-liner:** Smart mess management for NUST hostels — 7-day menus, auto billing, ingredient tracking, student voting, and real-time admin analytics. Built with FastAPI + MySQL + Flet.
+
+**📝 Cool description (copy this):**
+> NUST's Kitchen is a full-stack mess management platform that turns chaotic hostel dining into a streamlined digital experience. Students browse weekly menus, rate dishes, vote on polls, and track their bills — while staff manage inventory and cooking recipes, and admins get live dashboards with bar, line, and pie charts. Google OAuth login. 17-app feature landing page with flip cards. Gmail SMTP for automated emails. CI/CD via GitHub Actions to Azure.
 
 ---
 
@@ -80,11 +89,13 @@ A full-stack, role-based mess management platform purpose-built for NUST hostels
 ### 🎨 UI/UX
 - **Dark/Light Theme** — Toggle with smooth transition
 - **Glassmorphism Landing** — Gradient hero with animated logo splash
-- **15 Flip Cards** — Feature highlights with tap-to-flip reveal
+- **17 Flip Cards** — Feature highlights with tap-to-flip reveal
 - **Bounce Arrow** — Scroll indicator at hero bottom
 - **Responsive** — Mobile-first with adaptive layouts
-- **Floating Feedback** — Popup form on every page, saved to DB
+- **Floating Feedback** — Popup form on every page, stored in DB, viewable in Admin
 - **Animated Charts** — All admin charts have entry animations
+- **Guest Mode** — Explore the app without signing in; mock data mirrors production data
+- **Recipe Detail Pages** — Full-page view with centered image, ingredient cards, and styled step boxes
 
 ---
 
